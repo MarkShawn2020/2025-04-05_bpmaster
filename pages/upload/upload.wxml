@@ -10,99 +10,65 @@
       <view class="upload-hint">请将BP文件发送到微信聊天中，然后从聊天记录中选择</view>
     </view>
     
-    <!-- 文件列表状态 -->
-    <view class="file-list-area" wx:elif="{{fileList.length > 0 && !uploading && !uploadSuccess}}">
+    <!-- 文件列表区域 -->
+    <view class="file-list" wx:if="{{fileList.length > 0}}">
       <view class="file-list-header">
-        <view class="file-count">已选择 {{selectedCount}}/{{fileList.length}} 个文件</view>
-        <view class="file-actions-header">
-          <button class="btn-text" bindtap="handleChooseFile">添加文件</button>
-        </view>
+        <text class="header-title">已选择文件 ({{selectedCount}})</text>
       </view>
       
-      <view class="file-list">
-        <view class="file-item" wx:for="{{fileList}}" wx:key="name">
-          <view class="file-select">
-            <checkbox checked="{{item.selected}}" bindtap="toggleFileSelection" data-index="{{index}}" />
-          </view>
-          <view class="file-info">
-            <image class="file-icon" src="/assets/icons/file-{{item.type}}.png" mode="aspectFit"></image>
-            <view class="file-detail">
+      <view class="file-list-content">
+        <view class="file-item" wx:for="{{fileList}}" wx:key="index">
+          <view class="file-info" bindtap="toggleFileSelection" data-index="{{index}}">
+            <view class="checkbox {{item.selected ? 'checked' : ''}}"></view>
+            <view class="file-icon {{item.type}}"></view>
+            <view class="file-details">
               <view class="file-name">{{item.name}}</view>
-              <view class="file-meta">{{item.size}} | {{item.time}}</view>
+              <view class="file-meta">{{item.size}} · {{item.time}}</view>
+              <!-- 显示上传和分析状态 -->
+              <view class="file-status" wx:if="{{item.fileId}}">
+                <text class="status-text success">已上传</text>
+                <text class="status-text {{item.status === 'analyzing' ? 'analyzing' : ''}}" wx:if="{{item.status}}">{{item.status === 'analyzing' ? '分析中' : ''}}</text>
+              </view>
             </view>
           </view>
           <view class="file-actions">
-            <view class="delete-btn" bindtap="removeFile" data-index="{{index}}">×</view>
+            <!-- 对已上传的文件显示查看分析按钮 -->
+            <button class="action-btn view-btn" wx:if="{{item.fileId}}" bindtap="navigateToFileAnalysis" data-index="{{index}}">查看分析</button>
+            <button class="action-btn delete-btn" bindtap="removeFile" data-index="{{index}}">删除</button>
           </view>
         </view>
       </view>
-      
-      <view class="file-list-footer">
-        <button class="btn-secondary" bindtap="handleReset">清空</button>
-        <button class="btn-primary" bindtap="handleUploadFile">开始上传</button>
-      </view>
     </view>
     
-    <!-- 上传中状态 -->
-    <view class="progress-area" wx:elif="{{uploading}}">
-      <view class="progress-header">
-        <view class="progress-title">正在上传文件</view>
-        <view class="progress-percent">{{uploadProgress.toFixed(0)}}%</view>
-      </view>
-      <view class="progress-bar-bg">
-        <view class="progress-bar" style="width: {{uploadProgress}}%;"></view>
-      </view>
-      <view class="progress-info">
-        <image class="loading-icon" src="/assets/icons/loading.png" mode="aspectFit"></image>
-        <view class="progress-text">正在上传 {{selectedCount}} 个文件，请稍候...</view>
-      </view>
-    </view>
-    
-    <!-- 上传成功，准备分析 -->
-    <view class="success-area" wx:elif="{{uploadSuccess && !analyzing}}">
-      <view class="success-header">
-        <image class="success-icon" src="/assets/icons/success.png" mode="aspectFit"></image>
-        <view class="success-info">
-          <view class="success-title">上传成功</view>
-          <view class="success-count">已上传 {{selectedCount}} 个文件</view>
+    <!-- 操作按钮区域 -->
+    <view class="action-area">
+      <!-- 显示上传按钮 -->
+      <block wx:if="{{!uploading && !analyzing}}">
+        <button class="primary-btn choose-btn" bindtap="handleChooseFile">选择文件</button>
+        <button class="primary-btn upload-btn" bindtap="handleUploadFile" 
+          disabled="{{selectedCount === 0 || uploadSuccess}}">上传文件</button>
+        <button class="primary-btn analyze-btn" bindtap="handleAnalyzeFile"
+          disabled="{{!uploadSuccess}}">开始分析</button>
+        <button class="secondary-btn reset-btn" bindtap="handleReset" 
+          wx:if="{{fileList.length > 0}}">重新选择</button>
+      </block>
+
+      <!-- 上传中状态 -->
+      <view class="progress-area" wx:if="{{uploading}}">
+        <view class="progress-title">正在上传文件...</view>
+        <view class="progress-bar">
+          <view class="progress-inner" style="width: {{uploadProgress}}%"></view>
         </view>
+        <view class="progress-text">{{uploadProgress.toFixed(0)}}%</view>
       </view>
-      
-      <!-- 添加上传成功后的文件列表 -->
-      <view class="success-file-list">
-        <view class="success-file-item" wx:for="{{fileList}}" wx:key="name" wx:if="{{item.fileId}}">
-          <image class="file-icon" src="/assets/icons/file-{{item.type}}.png" mode="aspectFit"></image>
-          <view class="file-detail">
-            <view class="file-name">{{item.name}}</view>
-            <view class="file-meta">{{item.size}}</view>
-          </view>
-          <view class="file-status">
-            <view class="file-status-badge">已上传</view>
-          </view>
-        </view>
-      </view>
-      
-      <view class="action-buttons">
-        <button class="btn-secondary" bindtap="handleReset">重新上传</button>
-        <button class="btn-primary" bindtap="handleAnalyzeFile">开始分析</button>
-      </view>
-    </view>
-    
-    <!-- 分析中状态 -->
-    <view class="progress-area analysis-progress" wx:elif="{{analyzing}}">
-      <view class="progress-header">
+
+      <!-- 分析中状态 -->
+      <view class="progress-area" wx:if="{{analyzing}}">
         <view class="progress-title">{{analysisStage}}</view>
-        <view class="progress-percent">{{analysisProgress.toFixed(0)}}%</view>
-      </view>
-      <view class="progress-bar-bg">
-        <view class="progress-bar progress-bar-analysis" style="width: {{analysisProgress}}%;"></view>
-      </view>
-      <view class="analysis-info">
-        <image class="loading-icon" src="/assets/icons/analysis.png" mode="aspectFit"></image>
-        <view class="analysis-detail">
-          <view class="analysis-stage">{{analysisStage}}</view>
-          <view class="analysis-hint">分析大约需要1-3分钟，请耐心等待</view>
+        <view class="progress-bar">
+          <view class="progress-inner" style="width: {{analysisProgress}}%"></view>
         </view>
+        <view class="progress-text">{{analysisProgress.toFixed(0)}}%</view>
       </view>
     </view>
   </view>
