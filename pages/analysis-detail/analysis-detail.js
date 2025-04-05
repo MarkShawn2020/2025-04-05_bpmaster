@@ -1,7 +1,5 @@
-import Logger from '../../utils/logger';
-import apiService from '../../services/api-service';
-
-const logger = new Logger('AnalysisDetail');
+import { logger } from '../../utils/logger';
+import { apiService } from '../../services/api';
 
 Page({
   data: {

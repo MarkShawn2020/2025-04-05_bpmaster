@@ -1,8 +1,6 @@
 // pages/history/history.js
-import Logger from '../../utils/logger';
-import apiService from '../../services/api-service';
-
-const logger = new Logger('History');
+import { logger } from '../../utils/logger';
+import { apiService } from '../../services/api';
 
 Page({
   data: {
