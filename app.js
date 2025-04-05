@@ -7,18 +7,21 @@ wx.cloud.init({
   traceUser: true
 });
 
+// 判断是否为开发环境
+const isDev = wx.getAccountInfoSync().miniProgram.envVersion === 'develop' || 
+              wx.getAccountInfoSync().miniProgram.envVersion === 'trial';
+
 App({
   globalData: {
     userInfo: null,
     currentBP: null,
     uploadedFiles: [],
     analysisList: [],
-    isDev: __wxConfig.envVersion === 'develop' || __wxConfig.envVersion === 'trial',
+    isDev: isDev
   },
 
   onLaunch() {
     logger.info('App launched')
-    logger.info('环境类型:', __wxConfig.envVersion)
     
     // 检查更新
     if (wx.canIUse('getUpdateManager')) {
@@ -75,28 +78,15 @@ App({
       },
       success: (res) => {
         if (res.result && res.result.valid) {
-          logger.info('Token有效', res.result.message)
+          logger.info('Token有效')
           this.globalData.userInfo = res.result.userInfo
         } else {
-          logger.warn('Token无效，需要重新登录', res.result ? res.result.message : '')
-          
-          // 在开发环境中，自动重新登录
-          if (this.globalData.isDev) {
-            logger.info('开发环境自动重新登录')
-            this.login()
-          } else {
-            wx.removeStorageSync('token')
-          }
+          logger.warn('Token无效，需要重新登录')
+          wx.removeStorageSync('token')
         }
       },
       fail: (err) => {
         logger.error('验证Token失败', err)
-        
-        // 在开发环境中，自动重新登录
-        if (this.globalData.isDev) {
-          logger.info('开发环境失败后自动重新登录')
-          this.login()
-        }
       }
     })
   },
@@ -115,7 +105,6 @@ App({
               if (res.result && res.result.token) {
                 wx.setStorageSync('token', res.result.token)
                 this.globalData.userInfo = res.result.userInfo
-                logger.info('登录成功', this.globalData.isDev ? '开发环境' : '生产环境')
                 if (callback) callback(true)
               } else {
                 logger.error('登录失败', res.result ? res.result.message : '未知错误')

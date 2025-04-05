@@ -1,0 +1,39 @@
+<view class="container">
+  <view class="header">
+    <image class="logo" src="/assets/icons/default-avatar.png" mode="aspectFit"></image>
+    <view class="app-name">{{appName}}</view>
+    <view class="version">版本 {{version}}</view>
+  </view>
+  
+  <view class="card">
+    <view class="card-title">产品介绍</view>
+    <view class="description">{{description}}</view>
+  </view>
+  
+  <view class="card">
+    <view class="card-title">主要功能</view>
+    <view class="feature-list">
+      <view class="feature-item" wx:for="{{features}}" wx:key="index">
+        <view class="feature-dot"></view>
+        <view class="feature-text">{{item}}</view>
+      </view>
+    </view>
+  </view>
+  
+  <view class="card">
+    <view class="card-title">联系我们</view>
+    <view class="contact-item" bindtap="copyContact" data-type="email">
+      <view class="contact-label">邮箱</view>
+      <view class="contact-value">{{contactInfo.email}}</view>
+    </view>
+    <view class="contact-item" bindtap="copyContact" data-type="website">
+      <view class="contact-label">官网</view>
+      <view class="contact-value">{{contactInfo.website}}</view>
+    </view>
+  </view>
+  
+  <view class="footer">
+    <view class="copyright">© 2024 BP小诸葛 版权所有</view>
+    <view class="disclaimer">本应用仅供参考，具体分析结果需结合实际情况判断</view>
+  </view>
+</view> 

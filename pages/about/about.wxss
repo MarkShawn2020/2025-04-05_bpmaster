@@ -1,0 +1,126 @@
+/* pages/about/about.wxss */
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 30rpx;
+  background-color: #f6f8fa;
+  min-height: 100vh;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 40rpx;
+  padding: 40rpx 0;
+}
+
+.logo {
+  width: 160rpx;
+  height: 160rpx;
+  margin-bottom: 20rpx;
+}
+
+.app-name {
+  font-size: 36rpx;
+  font-weight: 600;
+  margin-bottom: 10rpx;
+  color: #1F2937;
+}
+
+.version {
+  font-size: 24rpx;
+  color: #6B7280;
+}
+
+.card {
+  width: 100%;
+  background-color: #fff;
+  border-radius: 12rpx;
+  padding: 30rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+}
+
+.card-title {
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #1F2937;
+  margin-bottom: 20rpx;
+  padding-bottom: 20rpx;
+  border-bottom: 1rpx solid #E5E7EB;
+}
+
+.description {
+  font-size: 28rpx;
+  color: #4B5563;
+  line-height: 1.6;
+}
+
+.feature-list {
+  margin-top: 10rpx;
+}
+
+.feature-item {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 20rpx;
+}
+
+.feature-dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  background-color: #3875FF;
+  margin-top: 12rpx;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+
+.feature-text {
+  font-size: 28rpx;
+  color: #4B5563;
+  line-height: 1.6;
+  flex: 1;
+}
+
+.contact-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #E5E7EB;
+}
+
+.contact-item:last-child {
+  border-bottom: none;
+}
+
+.contact-label {
+  font-size: 28rpx;
+  color: #4B5563;
+}
+
+.contact-value {
+  font-size: 28rpx;
+  color: #3875FF;
+}
+
+.footer {
+  margin-top: 20rpx;
+  text-align: center;
+  padding: 40rpx 0;
+}
+
+.copyright {
+  font-size: 24rpx;
+  color: #6B7280;
+  margin-bottom: 10rpx;
+}
+
+.disclaimer {
+  font-size: 24rpx;
+  color: #9CA3AF;
+  line-height: 1.5;
+  max-width: 600rpx;
+} 

@@ -1,123 +1,137 @@
 /**
- * 日志工具
- * 统一管理应用日志，支持不同级别的日志输出
+ * 日志工具模块
+ * 统一管理日志记录，支持不同级别日志
  */
 
 // 日志级别定义
-const LOG_LEVELS = {
+const LogLevel = {
   DEBUG: 0,
   INFO: 1,
   WARN: 2,
   ERROR: 3,
-  NONE: 4
+  NONE: 100
 };
 
-// 当前日志级别，可以通过环境变量或配置文件设置
-const CURRENT_LOG_LEVEL = LOG_LEVELS.DEBUG;
+// 判断是否为开发环境
+const isDev = wx.getAccountInfoSync().miniProgram.envVersion === 'develop' || 
+              wx.getAccountInfoSync().miniProgram.envVersion === 'trial';
+
+// 当前环境日志级别
+const currentLevel = isDev ? LogLevel.DEBUG : LogLevel.INFO;
 
 // 是否将日志上报到服务器
-const REPORT_TO_SERVER = false;
+const shouldReportToServer = !isDev;
 
-// 时间格式化
-const formatTime = () => {
-  const date = new Date();
-  return `${date.toISOString()}`;
-};
+/**
+ * 格式化日志信息
+ * @param {string} level 日志级别
+ * @param {string} message 日志消息
+ * @param {any} data 额外数据
+ * @returns {string} 格式化后的日志字符串
+ */
+function formatLog(level, message, data) {
+  const time = new Date().toISOString();
+  const formattedData = data !== undefined ? `, ${JSON.stringify(data)}` : '';
+  return `[${time}][${level}] ${message}${formattedData}`;
+}
 
-// 生成日志前缀
-const prefix = (level) => {
-  return `[${formatTime()}][${level}]`;
-};
-
-// 发送日志到服务器
-const reportToServer = (level, ...args) => {
-  if (!REPORT_TO_SERVER) return;
+/**
+ * 输出日志
+ * @param {string} level 日志级别
+ * @param {LogLevel} levelValue 日志级别值
+ * @param {string} message 日志消息
+ * @param {any} data 额外数据
+ */
+function log(level, levelValue, message, data) {
+  if (levelValue < currentLevel) return;
   
-  try {
-    const message = args.map(arg => {
-      if (typeof arg === 'object') {
-        try {
-          return JSON.stringify(arg);
-        } catch (e) {
-          return String(arg);
-        }
+  const logText = formatLog(level, message, data);
+  
+  switch (level) {
+    case 'DEBUG':
+      console.debug(logText);
+      break;
+    case 'INFO':
+      console.info(logText);
+      break;
+    case 'WARN':
+      console.warn(logText);
+      break;
+    case 'ERROR':
+      console.error(logText);
+      // 错误日志可以考虑上报到服务器
+      if (shouldReportToServer) {
+        reportErrorToServer(message, data);
       }
-      return arg;
-    }).join(' ');
-    
-    wx.request({
-      url: 'https://api.bpmaster.example.com/logs',
-      method: 'POST',
+      break;
+    default:
+      console.log(logText);
+  }
+}
+
+/**
+ * 上报错误到服务器
+ * @param {string} message 错误消息
+ * @param {any} data 错误数据
+ */
+function reportErrorToServer(message, data) {
+  // 实际项目中可以通过云函数上报错误
+  // 此处只是示例
+  try {
+    /* 使用云函数上报错误
+    wx.cloud.callFunction({
+      name: 'reportError',
       data: {
-        level,
         message,
+        data,
         timestamp: Date.now(),
-        platform: 'wxapp',
-        version: wx.getAccountInfoSync().miniProgram.version || 'dev'
-      },
-      fail: (err) => {
-        console.error('日志上报失败', err);
+        platform: 'mini-program',
+        version: '1.0.0'
       }
     });
-  } catch (e) {
-    console.error('日志上报异常', e);
+    */
+  } catch (err) {
+    console.error('上报错误失败', err);
   }
-};
+}
 
-// 日志实现
+/**
+ * 日志工具对象
+ */
 export const logger = {
-  debug: (...args) => {
-    if (CURRENT_LOG_LEVEL <= LOG_LEVELS.DEBUG) {
-      console.debug(prefix('DEBUG'), ...args);
-    }
+  /**
+   * 记录调试日志
+   * @param {string} message 日志消息
+   * @param {any} data 额外数据
+   */
+  debug(message, data) {
+    log('DEBUG', LogLevel.DEBUG, message, data);
   },
   
-  info: (...args) => {
-    if (CURRENT_LOG_LEVEL <= LOG_LEVELS.INFO) {
-      console.info(prefix('INFO'), ...args);
-      reportToServer('info', ...args);
-    }
+  /**
+   * 记录信息日志
+   * @param {string} message 日志消息
+   * @param {any} data 额外数据
+   */
+  info(message, data) {
+    log('INFO', LogLevel.INFO, message, data);
   },
   
-  warn: (...args) => {
-    if (CURRENT_LOG_LEVEL <= LOG_LEVELS.WARN) {
-      console.warn(prefix('WARN'), ...args);
-      reportToServer('warn', ...args);
-    }
+  /**
+   * 记录警告日志
+   * @param {string} message 日志消息
+   * @param {any} data 额外数据
+   */
+  warn(message, data) {
+    log('WARN', LogLevel.WARN, message, data);
   },
   
-  error: (...args) => {
-    if (CURRENT_LOG_LEVEL <= LOG_LEVELS.ERROR) {
-      console.error(prefix('ERROR'), ...args);
-      reportToServer('error', ...args);
-    }
-  },
-  
-  // 特殊场景（如埋点）可以单独设置是否上报
-  track: (eventName, params, shouldReport = true) => {
-    if (CURRENT_LOG_LEVEL <= LOG_LEVELS.INFO) {
-      console.info(prefix('TRACK'), eventName, params);
-    }
-    
-    if (shouldReport) {
-      try {
-        wx.request({
-          url: 'https://api.bpmaster.example.com/track',
-          method: 'POST',
-          data: {
-            event: eventName,
-            params,
-            timestamp: Date.now(),
-            platform: 'wxapp',
-            version: wx.getAccountInfoSync().miniProgram.version || 'dev'
-          },
-          fail: (err) => {
-            console.error('埋点上报失败', err);
-          }
-        });
-      } catch (e) {
-        console.error('埋点上报异常', e);
-      }
-    }
+  /**
+   * 记录错误日志
+   * @param {string} message 日志消息
+   * @param {any} data 额外数据
+   */
+  error(message, data) {
+    log('ERROR', LogLevel.ERROR, message, data);
   }
 }; 

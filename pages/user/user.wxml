@@ -1,0 +1,79 @@
+<view class="container">
+  <!-- 个人信息卡片 -->
+  <view class="user-card">
+    <view class="user-info">
+      <image class="avatar" src="{{userInfo.avatarUrl || '/assets/icons/default-avatar.png'}}"></image>
+      <view class="user-details">
+        <view class="nickname">{{userInfo.nickname || '未登录用户'}}</view>
+        <view class="user-id" wx:if="{{userInfo}}">ID: {{userInfo.userId}}</view>
+        <view class="dev-tag" wx:if="{{isDev}}">开发环境</view>
+      </view>
+    </view>
+    <view class="action-btn">
+      <button wx:if="{{!userInfo}}" class="login-btn" bindtap="handleLogin">登录</button>
+    </view>
+  </view>
+
+  <!-- 数据统计 -->
+  <view class="stats-container">
+    <view class="stat-item" bindtap="navToBpHistory">
+      <view class="stat-num">{{bpCount}}</view>
+      <view class="stat-label">BP文件</view>
+    </view>
+    <view class="stat-item" bindtap="navToReportHistory">
+      <view class="stat-num">{{reportCount}}</view>
+      <view class="stat-label">分析报告</view>
+    </view>
+  </view>
+
+  <!-- 最近上传的BP -->
+  <view class="recent-container">
+    <view class="section-title">最近上传</view>
+    <view class="bp-list">
+      <view wx:if="{{loading}}" class="loading">加载中...</view>
+      <view wx:elif="{{bpList.length === 0}}" class="empty-tip">
+        暂无上传记录
+      </view>
+      <block wx:else>
+        <view wx:for="{{bpList}}" wx:key="_id" class="bp-item">
+          <view class="bp-item-left">
+            <view class="bp-name">{{item.fileName}}</view>
+            <view class="bp-time">{{item.uploadTime}}</view>
+          </view>
+          <view class="bp-status">
+            <text class="{{item.status}}">{{item.status === 'pending' ? '待分析' : item.status === 'analyzing' ? '分析中' : item.status === 'completed' ? '已完成' : '失败'}}</text>
+          </view>
+        </view>
+      </block>
+    </view>
+  </view>
+
+  <!-- 设置列表 -->
+  <view class="settings-container">
+    <view class="setting-group">
+      <view class="setting-item" bindtap="handleClearCache">
+        <view class="setting-icon icon-cache"></view>
+        <view class="setting-text">清理缓存</view>
+        <view class="setting-arrow"></view>
+      </view>
+      <button class="setting-item contact-btn" open-type="contact" bindcontact="handleContact">
+        <view class="setting-icon icon-service"></view>
+        <view class="setting-text">联系客服</view>
+        <view class="setting-arrow"></view>
+      </button>
+      <view class="setting-item" bindtap="handleAbout">
+        <view class="setting-icon icon-about"></view>
+        <view class="setting-text">关于我们</view>
+        <view class="setting-arrow"></view>
+      </view>
+    </view>
+
+    <view class="logout-btn-wrap" wx:if="{{userInfo}}">
+      <button class="logout-btn" bindtap="handleLogout">退出登录</button>
+    </view>
+
+    <view class="version-info">
+      Version 1.0.0
+    </view>
+  </view>
+</view> 

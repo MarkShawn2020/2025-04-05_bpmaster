@@ -3,20 +3,18 @@
     "pages/index/index",
     "pages/upload/upload",
     "pages/analysis/analysis",
-    "pages/report/report",
-    "pages/history/history",
-    "pages/analysis-detail/analysis-detail",
-    "pages/test-empty/test-empty"
+    "pages/user/user",
+    "pages/about/about"
   ],
   "window": {
     "backgroundTextStyle": "light",
-    "navigationBarBackgroundColor": "#3563E9",
+    "navigationBarBackgroundColor": "#fff",
     "navigationBarTitleText": "BP小诸葛",
-    "navigationBarTextStyle": "white"
+    "navigationBarTextStyle": "black"
   },
   "tabBar": {
-    "color": "#8E9AAF",
-    "selectedColor": "#3563E9",
+    "color": "#999999",
+    "selectedColor": "#3875FF",
     "backgroundColor": "#ffffff",
     "borderStyle": "black",
     "list": [
@@ -33,10 +31,16 @@
         "selectedIconPath": "assets/icons/upload-active.png"
       },
       {
-        "pagePath": "pages/history/history",
-        "text": "历史",
-        "iconPath": "assets/icons/history.png",
-        "selectedIconPath": "assets/icons/history-active.png"
+        "pagePath": "pages/analysis/analysis",
+        "text": "分析",
+        "iconPath": "assets/icons/analysis.png",
+        "selectedIconPath": "assets/icons/analysis-active.png"
+      },
+      {
+        "pagePath": "pages/user/user",
+        "text": "我的",
+        "iconPath": "assets/icons/user.png",
+        "selectedIconPath": "assets/icons/user-active.png"
       }
     ]
   },
