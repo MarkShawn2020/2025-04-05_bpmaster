@@ -368,4 +368,7 @@
   font-size: 30rpx;
   font-weight: 500;
   border-radius: 8rpx;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 } 
