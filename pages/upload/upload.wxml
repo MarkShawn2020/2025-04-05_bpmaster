@@ -1,0 +1,106 @@
+<view class="container">
+  <view class="upload-card">
+    <view class="card-title">上传BP文件</view>
+    <view class="card-subtitle">支持PDF、Word、PPT等格式文件，单个文件最大20MB</view>
+    
+    <!-- 无文件状态 -->
+    <view class="upload-area" wx:if="{{!fileInfo}}" bindtap="handleChooseFile">
+      <image class="upload-icon" src="/assets/icons/upload-file.png" mode="aspectFit"></image>
+      <view class="upload-text">点击或拖拽文件到此处上传</view>
+      <view class="upload-hint">请确保上传的是您的商业计划书</view>
+    </view>
+    
+    <!-- 文件已选择状态 -->
+    <view class="file-info-area" wx:elif="{{fileInfo && !uploading && !uploadSuccess}}">
+      <view class="file-info">
+        <image class="file-icon" src="/assets/icons/file-{{fileInfo.type}}.png" mode="aspectFit"></image>
+        <view class="file-detail">
+          <view class="file-name">{{fileInfo.name}}</view>
+          <view class="file-meta">{{fileInfo.size}} | {{fileInfo.time}}</view>
+        </view>
+      </view>
+      
+      <view class="file-actions">
+        <button class="btn-secondary btn-sm" bindtap="handleChooseFile">重新选择</button>
+        <button class="btn-primary btn-sm" bindtap="handleUploadFile">开始上传</button>
+      </view>
+    </view>
+    
+    <!-- 上传中状态 -->
+    <view class="progress-area" wx:elif="{{uploading}}">
+      <view class="progress-header">
+        <view class="progress-title">正在上传...</view>
+        <view class="progress-percent">{{uploadProgress.toFixed(0)}}%</view>
+      </view>
+      <view class="progress-bar-bg">
+        <view class="progress-bar" style="width: {{uploadProgress}}%;"></view>
+      </view>
+      <view class="file-info">
+        <image class="file-icon-sm" src="/assets/icons/file-{{fileInfo.type}}.png" mode="aspectFit"></image>
+        <view class="file-name-sm">{{fileInfo.name}}</view>
+      </view>
+    </view>
+    
+    <!-- 上传成功，准备分析 -->
+    <view class="success-area" wx:elif="{{uploadSuccess && !analyzing}}">
+      <image class="success-icon" src="/assets/icons/success.png" mode="aspectFit"></image>
+      <view class="success-text">上传成功，即将开始分析</view>
+      <view class="file-info">
+        <image class="file-icon-sm" src="/assets/icons/file-{{fileInfo.type}}.png" mode="aspectFit"></image>
+        <view class="file-name-sm">{{fileInfo.name}}</view>
+      </view>
+      <button class="btn-primary" bindtap="handleAnalyzeFile">开始分析</button>
+    </view>
+    
+    <!-- 分析中状态 -->
+    <view class="progress-area" wx:elif="{{analyzing}}">
+      <view class="progress-header">
+        <view class="progress-title">{{analysisStage}}</view>
+        <view class="progress-percent">{{analysisProgress.toFixed(0)}}%</view>
+      </view>
+      <view class="progress-bar-bg">
+        <view class="progress-bar progress-bar-analysis" style="width: {{analysisProgress}}%;"></view>
+      </view>
+      <view class="analysis-info">
+        <view class="analysis-stage">{{analysisStage}}</view>
+        <view class="analysis-hint">分析大约需要1-3分钟，请耐心等待</view>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 错误提示 -->
+  <view class="error-card" wx:if="{{error}}">
+    <view class="error-title">发生错误</view>
+    <view class="error-message">{{error}}</view>
+    <button class="btn-primary" bindtap="handleReset">重新上传</button>
+  </view>
+  
+  <!-- 文件支持说明 -->
+  <view class="info-card">
+    <view class="info-title">支持的文件格式</view>
+    <view class="format-list">
+      <view class="format-item">
+        <image class="format-icon" src="/assets/icons/file-pdf.png" mode="aspectFit"></image>
+        <view class="format-name">PDF</view>
+      </view>
+      <view class="format-item">
+        <image class="format-icon" src="/assets/icons/file-doc.png" mode="aspectFit"></image>
+        <view class="format-name">Word</view>
+      </view>
+      <view class="format-item">
+        <image class="format-icon" src="/assets/icons/file-ppt.png" mode="aspectFit"></image>
+        <view class="format-name">PPT</view>
+      </view>
+      <view class="format-item">
+        <image class="format-icon" src="/assets/icons/file-txt.png" mode="aspectFit"></image>
+        <view class="format-name">TXT</view>
+      </view>
+    </view>
+    <view class="format-note">
+      <text class="format-note-text">注：上传文件请确保内容完整、排版清晰，以保证分析质量</text>
+    </view>
+  </view>
+
+  <!-- Toast组件 -->
+  <mp-toast id="toast"></mp-toast>
+</view> 

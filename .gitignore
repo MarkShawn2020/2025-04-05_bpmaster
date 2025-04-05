@@ -1,0 +1,22 @@
+# 小程序相关
+miniprogram_npm/
+node_modules/
+
+# IDE相关
+.DS_Store
+.idea/
+.vscode/
+
+# 项目相关
+dist/
+tmp/
+*.tmp
+*.log
+
+# 密钥
+private.key
+project.private.config.json
+
+# npm相关
+package-lock.json
+yarn.lock 

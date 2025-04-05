@@ -1,0 +1,12 @@
+此文件夹用于存放图标文件。
+实际开发中，需要添加以下图标：
+- home.png / home-active.png
+- upload.png / upload-active.png
+- history.png / history-active.png
+- file-pdf.png
+- file-doc.png
+- file-ppt.png
+- file-txt.png
+- upload-file.png
+- success.png
+等

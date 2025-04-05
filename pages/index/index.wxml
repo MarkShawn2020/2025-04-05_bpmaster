@@ -1,0 +1,68 @@
+<view class="container">
+  <!-- 顶部Banner轮播 -->
+  <swiper class="banner-swiper" indicator-dots="{{true}}" autoplay="{{true}}" interval="{{3000}}" duration="{{500}}" circular="{{true}}">
+    <block wx:for="{{bannerList}}" wx:key="id">
+      <swiper-item bindtap="onBannerTap" data-index="{{index}}">
+        <image src="{{item.imageUrl}}" class="banner-image" mode="aspectFill"></image>
+        <view class="banner-title">{{item.title}}</view>
+      </swiper-item>
+    </block>
+  </swiper>
+
+  <!-- 功能区 -->
+  <view class="feature-grid">
+    <view class="feature-item" wx:for="{{featureList}}" wx:key="id" bindtap="onFeatureTap" data-id="{{item.id}}">
+      <image src="{{item.icon}}" class="feature-icon" mode="aspectFit"></image>
+      <view class="feature-title">{{item.title}}</view>
+      <view class="feature-desc">{{item.desc}}</view>
+    </view>
+  </view>
+
+  <!-- 最近分析 -->
+  <view class="recent-section">
+    <view class="section-header">
+      <view class="section-title">最近分析</view>
+      <view class="section-more" bindtap="goToHistoryList">查看全部</view>
+    </view>
+
+    <view class="analysis-list" wx:if="{{!loading && recentAnalysisList.length > 0}}">
+      <view class="analysis-item" wx:for="{{recentAnalysisList}}" wx:key="id" bindtap="goToAnalysisDetail" data-id="{{item.id}}">
+        <view class="analysis-content">
+          <view class="analysis-title">{{item.fileName}}</view>
+          <view class="analysis-time">{{item.analysisDate}}</view>
+        </view>
+        <view class="analysis-score {{item.score >= 90 ? 'score-excellent' : (item.score >= 80 ? 'score-good' : 'score-average')}}">
+          {{item.score}}
+        </view>
+      </view>
+    </view>
+
+    <view class="empty-state" wx:elif="{{!loading && recentAnalysisList.length === 0}}">
+      <image src="/assets/images/empty.png" class="empty-image" mode="aspectFit"></image>
+      <view class="empty-text">暂无分析记录</view>
+      <button class="btn-primary" bindtap="goToUpload">立即上传分析</button>
+    </view>
+
+    <view class="loading-state" wx:elif="{{loading}}">
+      <view class="loading-spinner"></view>
+      <view class="loading-text">加载中...</view>
+    </view>
+  </view>
+
+  <!-- 用户登录面板 -->
+  <view class="login-panel-mask" wx:if="{{showLoginPanel}}" bindtap="hideLoginPanel"></view>
+  <view class="login-panel" wx:if="{{showLoginPanel}}">
+    <view class="login-panel-header">
+      <view class="login-panel-title">用户登录</view>
+      <view class="login-panel-close" bindtap="hideLoginPanel">×</view>
+    </view>
+    <view class="login-panel-content">
+      <image src="/assets/images/logo.png" class="login-logo" mode="aspectFit"></image>
+      <view class="login-desc">登录后体验BP小诸葛的全部功能</view>
+      <button class="login-btn" bindtap="handleLogin" loading="{{loginLoading}}">微信快捷登录</button>
+    </view>
+  </view>
+
+  <!-- Toast组件 -->
+  <mp-toast id="toast"></mp-toast>
+</view> 

@@ -1,0 +1,273 @@
+/* pages/upload/upload.wxss */
+
+.upload-card {
+  background-color: #fff;
+  border-radius: 12rpx;
+  padding: 30rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+}
+
+.card-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12rpx;
+}
+
+.card-subtitle {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  margin-bottom: 30rpx;
+}
+
+/* 上传区域 */
+.upload-area {
+  border: 2rpx dashed var(--primary-color);
+  border-radius: 8rpx;
+  background-color: var(--primary-light);
+  padding: 60rpx 30rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.upload-icon {
+  width: 120rpx;
+  height: 120rpx;
+  margin-bottom: 20rpx;
+}
+
+.upload-text {
+  font-size: 28rpx;
+  color: var(--primary-color);
+  font-weight: 500;
+  margin-bottom: 12rpx;
+}
+
+.upload-hint {
+  font-size: 24rpx;
+  color: var(--text-tertiary);
+}
+
+/* 文件信息区域 */
+.file-info-area {
+  padding: 30rpx;
+  border: 1px solid var(--border-color);
+  border-radius: 8rpx;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24rpx;
+}
+
+.file-icon {
+  width: 80rpx;
+  height: 80rpx;
+  margin-right: 20rpx;
+}
+
+.file-icon-sm {
+  width: 40rpx;
+  height: 40rpx;
+  margin-right: 16rpx;
+}
+
+.file-detail {
+  flex: 1;
+}
+
+.file-name {
+  font-size: 28rpx;
+  color: var(--text-primary);
+  margin-bottom: 8rpx;
+  word-break: break-all;
+}
+
+.file-name-sm {
+  font-size: 24rpx;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.file-meta {
+  font-size: 24rpx;
+  color: var(--text-tertiary);
+}
+
+.file-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 20rpx;
+}
+
+.btn-sm {
+  min-width: 160rpx;
+  font-size: 26rpx;
+  height: 68rpx;
+  line-height: 68rpx;
+  padding: 0 24rpx;
+}
+
+/* 进度区域 */
+.progress-area {
+  padding: 30rpx;
+  border: 1px solid var(--border-color);
+  border-radius: 8rpx;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.progress-title {
+  font-size: 28rpx;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.progress-percent {
+  font-size: 28rpx;
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.progress-bar-bg {
+  height: 16rpx;
+  background-color: var(--primary-light);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 24rpx;
+}
+
+.progress-bar {
+  height: 100%;
+  background-color: var(--primary-color);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.progress-bar-analysis {
+  background-color: var(--success-color);
+}
+
+.analysis-info {
+  margin-top: 20rpx;
+}
+
+.analysis-stage {
+  font-size: 28rpx;
+  color: var(--text-primary);
+  margin-bottom: 8rpx;
+}
+
+.analysis-hint {
+  font-size: 24rpx;
+  color: var(--text-tertiary);
+}
+
+/* 成功区域 */
+.success-area {
+  padding: 40rpx 30rpx;
+  border: 1px solid var(--border-color);
+  border-radius: 8rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.success-icon {
+  width: 100rpx;
+  height: 100rpx;
+  margin-bottom: 20rpx;
+}
+
+.success-text {
+  font-size: 28rpx;
+  color: var(--success-color);
+  font-weight: 500;
+  margin-bottom: 30rpx;
+}
+
+/* 错误卡片 */
+.error-card {
+  background-color: #fff;
+  border-radius: 12rpx;
+  padding: 30rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+  border-left: 6rpx solid var(--danger-color);
+}
+
+.error-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--danger-color);
+  margin-bottom: 16rpx;
+}
+
+.error-message {
+  font-size: 26rpx;
+  color: var(--text-primary);
+  margin-bottom: 24rpx;
+  word-break: break-all;
+}
+
+/* 信息卡片 */
+.info-card {
+  background-color: #fff;
+  border-radius: 12rpx;
+  padding: 30rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+}
+
+.info-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 24rpx;
+}
+
+.format-list {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0 -10rpx;
+}
+
+.format-item {
+  width: 25%;
+  padding: 0 10rpx;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.format-icon {
+  width: 60rpx;
+  height: 60rpx;
+  margin-bottom: 12rpx;
+}
+
+.format-name {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+
+.format-note {
+  padding-top: 20rpx;
+  border-top: 1px solid var(--border-color);
+  margin-top: 10rpx;
+}
+
+.format-note-text {
+  font-size: 24rpx;
+  color: var(--text-tertiary);
+} 

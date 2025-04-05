@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "BP小诸葛",
+  "usingComponents": {
+    "mp-toast": "/components/toast/toast"
+  }
+} 

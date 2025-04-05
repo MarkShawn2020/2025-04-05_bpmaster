@@ -1,0 +1,9 @@
+此文件夹用于存放图片文件。
+实际开发中，需要添加以下图片：
+- banner1.png
+- banner2.png
+- banner3.png
+- logo.png
+- empty.png
+- share.png
+等 

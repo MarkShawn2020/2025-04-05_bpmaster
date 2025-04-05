@@ -1,0 +1,9 @@
+<view class="toast-container {{position}} {{show ? 'show' : ''}}" wx:if="{{show}}">
+  <view class="toast toast-{{type}}">
+    <view class="toast-icon" wx:if="{{type === 'loading'}}">
+      <view class="loading-spinner"></view>
+    </view>
+    <view class="toast-icon {{type}}" wx:else></view>
+    <view class="toast-message">{{message}}</view>
+  </view>
+</view> 

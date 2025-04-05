@@ -1,0 +1,22 @@
+{
+  "name": "bp-xiaozhu",
+  "version": "1.0.0",
+  "description": "商业计划书智能评估小程序",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "微信小程序",
+    "BP评估",
+    "商业计划书",
+    "AI分析"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+  },
+  "devDependencies": {
+    "miniprogram-ci": "^1.9.3"
+  }
+} 

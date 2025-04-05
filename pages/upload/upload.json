@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "上传BP",
+  "usingComponents": {
+    "mp-toast": "/components/toast/toast"
+  }
+} 

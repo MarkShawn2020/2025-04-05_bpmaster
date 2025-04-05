@@ -1,0 +1,52 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/upload/upload",
+    "pages/analysis/analysis",
+    "pages/report/report",
+    "pages/history/history"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#3563E9",
+    "navigationBarTitleText": "BP小诸葛",
+    "navigationBarTextStyle": "white"
+  },
+  "tabBar": {
+    "color": "#8E9AAF",
+    "selectedColor": "#3563E9",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "assets/icons/home.png",
+        "selectedIconPath": "assets/icons/home-active.png"
+      },
+      {
+        "pagePath": "pages/upload/upload",
+        "text": "上传",
+        "iconPath": "assets/icons/upload.png",
+        "selectedIconPath": "assets/icons/upload-active.png"
+      },
+      {
+        "pagePath": "pages/history/history",
+        "text": "历史",
+        "iconPath": "assets/icons/history.png",
+        "selectedIconPath": "assets/icons/history-active.png"
+      }
+    ]
+  },
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents",
+  "style": "v2",
+  "usingComponents": {
+    "mp-toast": "components/toast/toast"
+  },
+  "permission": {
+    "scope.userLocation": {
+      "desc": "您的位置信息将用于增强用户体验"
+    }
+  }
+} 
