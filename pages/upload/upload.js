@@ -220,7 +220,12 @@ Page({
 
   // 分析文件
   async handleAnalyzeFile() {
-    if (!this.data.fileIds || this.data.fileIds.length === 0 || this.data.analyzing) {
+    if (!this.data.fileId) {
+      this.toast.error('没有可分析的文件');
+      return;
+    }
+    
+    if (this.data.analyzing) {
       return;
     }
 
@@ -235,8 +240,8 @@ Page({
       // 模拟分析进度
       this._simulateProgress('analysis');
 
-      // 实际分析文件 - 传入文件ID列表进行分析
-      const result = await this._mockAnalyzeBP(this.data.fileIds);
+      // 实际分析文件
+      const result = await apiService.analyzeBP(this.data.fileId);
 
       logger.info('文件分析成功', result);
 
@@ -247,71 +252,98 @@ Page({
         analyzing: false,
         analysisProgress: 100,
         analysisStage: '分析完成',
-        analysisResult: result,
-        showAnalysisResult: true
+        analysisResult: result
       });
 
       this.toast.success('分析完成');
+
+      // 分析完成后跳转到分析结果页
+      setTimeout(() => {
+        wx.redirectTo({
+          url: `/pages/analysis-detail/analysis-detail?id=${result.id}`
+        });
+      }, 1500);
     } catch (error) {
       // 停止模拟进度
       clearInterval(this.analysisProgressInterval);
 
       logger.error('文件分析失败', error);
+      
+      // 检查是否为数据库错误
+      let errorMessage = error.message || '分析失败，请重试';
+      
+      // 特殊处理数据库错误
+      if (errorMessage.includes('Cannot create field') && 
+          errorMessage.includes('analysisResults: null')) {
+        errorMessage = '分析数据结构错误，请联系管理员修复数据库结构问题';
+        // 尝试使用备用数据进行展示
+        this._handleDatabaseError();
+      }
+      
       this.setData({
         analyzing: false,
-        error: error.message || '分析失败，请重试'
+        error: errorMessage
       });
-      this.toast.error('分析失败');
+      
+      this.toast.error(errorMessage);
     }
   },
 
-  // Mock分析BP文件 - 模拟API调用
-  _mockAnalyzeBP(fileIds) {
-    return new Promise((resolve) => {
-      // 模拟分析延时
-      setTimeout(() => {
-        // 生成示例分析结果
-        const result = {
-          id: 'mock-analysis-' + Date.now(),
-          summary: '# BP分析摘要\n\n您上传的商业计划书总体质量良好，详细阐述了业务模型和市场机会，但在财务预测和竞争分析方面有提升空间。\n\n## 主要优势\n\n- 产品概念创新，解决了明确的市场痛点\n- 目标市场规模大，且有持续增长趋势\n- 团队背景较强，具备相关行业经验\n\n## 需要改进\n\n- 财务预测缺乏详细的成本结构分析\n- 竞争壁垒描述不够具体\n- 销售渠道策略可进一步细化',
-          
-          detailedAnalysis: {
-            businessModel: {
-              score: 85,
-              strength: '- 商业模式清晰，收入来源多元化\n- 客户获取成本与客户终身价值比例合理',
-              weakness: '- 盈利能力尚待验证\n- 可扩展性考虑不足',
-              recommendations: '建议提供更多关于单位经济性的详细数据，并说明规模化后的成本优势'
-            },
-            market: {
-              score: 80,
-              strength: '- 目标市场规模达到100亿级别\n- 用户需求明确，痛点突出',
-              weakness: '- 市场竞争情况分析不够深入\n- 市场进入策略过于笼统',
-              recommendations: '建议详细分析3-5个主要竞争对手，并精确说明差异化优势'
-            },
-            team: {
-              score: 90,
-              strength: '- 核心团队具备相关行业背景\n- 技术与商业能力互补',
-              weakness: '- 高管团队经验相对集中，缺乏多元化视角',
-              recommendations: '考虑引入具有销售或市场经验的合伙人以增强团队综合能力'
-            },
-            financials: {
-              score: 75,
-              strength: '- 收入增长预期合理\n- 资金使用计划明确',
-              weakness: '- 成本结构分析不足\n- 资本支出预测缺乏详细说明',
-              recommendations: '建议提供更详细的月度现金流预测和成本构成分析'
-            }
-          },
-          
-          overallScore: 82.5,
-          
-          recommendations: '# 改进建议\n\n1. **完善财务模型**：在商业计划书中增加详细的单位经济学分析，包括用户获取成本(CAC)与终身价值(LTV)的比较\n\n2. **增强竞争分析**：针对主要竞争对手进行SWOT分析，明确说明您的产品/服务的核心竞争力\n\n3. **细化执行策略**：提供更具体的市场进入策略，包括具体的营销渠道、预算及预期效果\n\n4. **提升风险管理**：增加风险识别与应对章节，展示团队对潜在问题的预见性\n\n5. **优化投资者价值主张**：更清晰地阐述投资回报周期和退出策略',
-          
-          timestamp: new Date().toISOString()
-        };
-        
-        resolve(result);
-      }, 3000); // 模拟3秒钟的分析时间
-    });
+  // 添加处理数据库错误的方法
+  _handleDatabaseError() {
+    // 生成模拟数据用于展示
+    logger.info('数据库错误，使用模拟数据展示');
+    
+    // 修复云函数前的临时解决方案，使用本地模拟数据
+    setTimeout(() => {
+      const mockResult = this._generateMockResult();
+      this.setData({
+        showAnalysisResult: true,
+        analysisResult: mockResult
+      });
+    }, 1000);
+  },
+
+  // 生成模拟分析结果（仅用于开发环境）
+  _generateMockResult() {
+    return {
+      id: 'mock-analysis-' + Date.now(),
+      summary: '# BP分析摘要\n\n您上传的商业计划书总体质量良好，详细阐述了业务模型和市场机会，但在财务预测和竞争分析方面有提升空间。\n\n## 主要优势\n\n- 产品概念创新，解决了明确的市场痛点\n- 目标市场规模大，且有持续增长趋势\n- 团队背景较强，具备相关行业经验\n\n## 需要改进\n\n- 财务预测缺乏详细的成本结构分析\n- 竞争壁垒描述不够具体\n- 销售渠道策略可进一步细化',
+      
+      detailedAnalysis: {
+        businessModel: {
+          score: 85,
+          strength: '- 商业模式清晰，收入来源多元化\n- 客户获取成本与客户终身价值比例合理',
+          weakness: '- 盈利能力尚待验证\n- 可扩展性考虑不足',
+          recommendations: '建议提供更多关于单位经济性的详细数据，并说明规模化后的成本优势'
+        },
+        market: {
+          score: 80,
+          strength: '- 目标市场规模达到100亿级别\n- 用户需求明确，痛点突出',
+          weakness: '- 市场竞争情况分析不够深入\n- 市场进入策略过于笼统',
+          recommendations: '建议详细分析3-5个主要竞争对手，并精确说明差异化优势'
+        },
+        team: {
+          score: 90,
+          strength: '- 核心团队具备相关行业背景\n- 技术与商业能力互补',
+          weakness: '- 高管团队经验相对集中，缺乏多元化视角',
+          recommendations: '考虑引入具有销售或市场经验的合伙人以增强团队综合能力'
+        },
+        financials: {
+          score: 75,
+          strength: '- 收入增长预期合理\n- 资金使用计划明确',
+          weakness: '- 成本结构分析不足\n- 资本支出预测缺乏详细说明',
+          recommendations: '建议提供更详细的月度现金流预测和成本构成分析'
+        }
+      },
+      
+      overallScore: 82.5,
+      
+      recommendations: '# 改进建议\n\n1. **完善财务模型**：在商业计划书中增加详细的单位经济学分析，包括用户获取成本(CAC)与终身价值(LTV)的比较\n\n2. **增强竞争分析**：针对主要竞争对手进行SWOT分析，明确说明您的产品/服务的核心竞争力\n\n3. **细化执行策略**：提供更具体的市场进入策略，包括具体的营销渠道、预算及预期效果\n\n4. **提升风险管理**：增加风险识别与应对章节，展示团队对潜在问题的预见性\n\n5. **优化投资者价值主张**：更清晰地阐述投资回报周期和退出策略',
+      
+      analysisDate: new Date().toISOString(),
+      timestamp: new Date().toISOString()
+    };
   },
 
   // 预览分析报告

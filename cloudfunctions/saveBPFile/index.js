@@ -3,54 +3,66 @@ const cloud = require('wx-server-sdk')
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV }) // 使用当前云环境
 
+const db = cloud.database()
+const bpFilesCollection = db.collection('bp_files')
+
 /**
  * 保存BP文件信息的云函数
- * 接收文件信息并存储到数据库
+ * @param {Object} event 
+ * @param {string} event.fileID 文件云存储ID
+ * @param {string} event.fileName 文件名
+ * @param {number} event.fileSize 文件大小
+ * @param {string} event.fileType 文件类型
+ * @returns {Object} 保存结果
  */
 exports.main = async (event, context) => {
-  console.log('保存BP文件云函数被调用', event)
-  
   const { fileID, fileName, fileSize, fileType } = event
+  const { OPENID } = cloud.getWXContext()
+  
+  console.log('保存BP文件信息', {
+    fileID,
+    fileName,
+    fileSize,
+    fileType,
+    openid: OPENID
+  })
   
   if (!fileID || !fileName) {
     return {
       code: 400,
-      message: '文件ID和文件名不能为空'
+      message: '缺少必要参数'
     }
   }
   
-  const wxContext = cloud.getWXContext()
-  const { OPENID } = wxContext
-  
   try {
-    const db = cloud.database()
-    const bpCollection = db.collection('bp_files')
-    
-    // 保存文件信息
-    const result = await bpCollection.add({
+    // 记录文件信息到数据库
+    const result = await bpFilesCollection.add({
       data: {
         fileID,
         fileName,
         fileSize: fileSize || 0,
-        fileType: fileType || 'unknown',
+        fileType: fileType || fileName.split('.').pop().toLowerCase(),
         uploadTime: db.serverDate(),
         openid: OPENID,
-        status: 'pending', // pending, analyzing, completed, failed
+        status: 'pending',
         isAnalyzed: false,
-        analysisResults: null
+        analysisResults: {},
+        createTime: db.serverDate()
       }
     })
     
+    console.log('文件信息保存成功', result)
+    
     return {
       code: 200,
-      message: '文件信息保存成功',
+      message: '保存成功',
       fileId: result._id
     }
-  } catch (err) {
-    console.error('保存BP文件信息失败', err)
+  } catch (error) {
+    console.error('保存BP文件信息失败', error)
     return {
       code: 500,
-      message: '保存失败: ' + err.message
+      message: `保存失败: ${error.message || error}`
     }
   }
 } 

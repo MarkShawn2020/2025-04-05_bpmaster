@@ -116,19 +116,51 @@ export const apiService = {
    * @returns {Promise} 分析结果
    */
   analyzeBP(fileId) {
+    logger.info('调用云函数分析BP文件', fileId);
+    
     return new Promise((resolve, reject) => {
       wx.cloud.callFunction({
         name: 'analyzeBP',
         data: { fileId },
         success: (res) => {
-          logger.info('BP分析成功', res);
-          resolve(res.result);
+          logger.info('云函数分析BP返回结果', res.result);
+          
+          if (res.result && res.result.code === 200) {
+            resolve(res.result.results);
+          } else {
+            reject(new Error(res.result?.message || '分析失败'));
+          }
         },
         fail: (err) => {
-          logger.error('BP分析失败', err);
+          logger.error('调用分析BP云函数失败', err);
           reject(err);
         }
       });
+    });
+  },
+  
+  /**
+   * 开始分析任务
+   * @param {string} fileId 文件ID
+   * @returns {Promise} 分析结果
+   */
+  startAnalysis(fileId) {
+    logger.info('开始BP分析任务', fileId);
+    
+    return this.analyzeBP(fileId).then(result => {
+      return {
+        code: 200,
+        message: '分析成功',
+        results: result
+      };
+    }).catch(error => {
+      // 分析失败，返回标准化错误对象
+      logger.error('BP分析失败', error);
+      return {
+        code: 500,
+        message: error.message || '分析失败',
+        error: error
+      };
     });
   },
   

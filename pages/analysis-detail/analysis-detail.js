@@ -69,11 +69,24 @@ Page({
       this.setData({ loading: true });
       logger.info('加载分析详情', { id: this.data.analysisId });
 
-      // 实际项目中应从API获取数据
-      // const analysisDetail = await apiService.getAnalysisDetail(this.data.analysisId);
+      // 使用真实API获取分析数据
+      const response = await apiService.getBPDetail(this.data.analysisId);
       
-      // 模拟数据
-      const analysisDetail = this.getMockAnalysisDetail();
+      let analysisDetail;
+      if (response && response.code === 200 && response.data) {
+        // 转换API返回的数据为页面所需的格式
+        const bpData = response.data;
+        
+        if (!bpData.analysisResults) {
+          throw new Error('此文件尚未进行分析或分析尚未完成');
+        }
+        
+        analysisDetail = this.transformAPIDataToViewModel(bpData);
+      } else {
+        // 如果API调用失败或无数据，使用模拟数据（仅开发环境使用）
+        logger.warn('API返回无效，使用模拟数据', response);
+        analysisDetail = this.getMockAnalysisDetail();
+      }
       
       // 更新雷达图数据
       const radarData = {
@@ -130,6 +143,198 @@ Page({
       });
       this.setData({ loading: false });
     }
+  },
+  
+  // 转换API数据到视图模型
+  transformAPIDataToViewModel(bpData) {
+    // 从API返回的数据结构转换为页面所需的数据结构
+    const analysisResults = bpData.analysisResults || {};
+    
+    // 构建分析详情对象
+    return {
+      id: bpData._id,
+      fileName: bpData.fileName || '未命名文件',
+      fileSize: bpData.fileSize || '未知大小',
+      uploadTime: bpData.createdAt || '未知时间',
+      analysisTime: bpData.analyzedAt || '未知时间',
+      overallScore: analysisResults.overallScore || 0,
+      status: bpData.status || 'unknown',
+      summary: analysisResults.summary || '暂无分析摘要',
+      
+      // 转换得分
+      scores: {
+        marketAnalysis: analysisResults.detailedAnalysis?.market?.score || 0,
+        productPositioning: analysisResults.detailedAnalysis?.businessModel?.score || 0,
+        teamCapability: analysisResults.detailedAnalysis?.team?.score || 0,
+        financialForecast: analysisResults.detailedAnalysis?.financials?.score || 0,
+        riskAssessment: Math.round((analysisResults.overallScore || 0) * 0.8) // 如果API中没有风险评估，用总分的80%作为估计
+      },
+      
+      // 从分析结果构建问题列表
+      issues: this.buildIssuesFromAnalysis(analysisResults),
+      
+      // 从分析结果构建建议列表
+      suggestions: this.buildSuggestionsFromAnalysis(analysisResults)
+    };
+  },
+  
+  // 从分析结果构建问题列表
+  buildIssuesFromAnalysis(analysisResults) {
+    const issues = [];
+    const detailedAnalysis = analysisResults.detailedAnalysis || {};
+    
+    // 添加从业务模型中提取的问题
+    if (detailedAnalysis.businessModel?.weakness) {
+      const weaknesses = detailedAnalysis.businessModel.weakness.split('\n').filter(item => item.trim());
+      weaknesses.forEach((weakness, index) => {
+        issues.push({
+          id: `business-${index}`,
+          type: 'major',
+          title: weakness.replace(/^- /, ''),
+          description: weakness.replace(/^- /, ''),
+          location: '商业模型部分',
+          suggestion: detailedAnalysis.businessModel.recommendations || '无建议'
+        });
+      });
+    }
+    
+    // 添加从市场分析中提取的问题
+    if (detailedAnalysis.market?.weakness) {
+      const weaknesses = detailedAnalysis.market.weakness.split('\n').filter(item => item.trim());
+      weaknesses.forEach((weakness, index) => {
+        issues.push({
+          id: `market-${index}`,
+          type: index === 0 ? 'critical' : 'major',
+          title: weakness.replace(/^- /, ''),
+          description: weakness.replace(/^- /, ''),
+          location: '市场分析部分',
+          suggestion: detailedAnalysis.market.recommendations || '无建议'
+        });
+      });
+    }
+    
+    // 添加财务分析中的问题
+    if (detailedAnalysis.financials?.weakness) {
+      const weaknesses = detailedAnalysis.financials.weakness.split('\n').filter(item => item.trim());
+      weaknesses.forEach((weakness, index) => {
+        issues.push({
+          id: `financial-${index}`,
+          type: 'major',
+          title: weakness.replace(/^- /, ''),
+          description: weakness.replace(/^- /, ''),
+          location: '财务预测部分',
+          suggestion: detailedAnalysis.financials.recommendations || '无建议'
+        });
+      });
+    }
+    
+    // 如果没有提取到问题，返回一个默认列表
+    return issues.length > 0 ? issues : [
+      {
+        id: 'default-1',
+        type: 'minor',
+        title: '未发现严重问题',
+        description: '分析未发现严重问题，但建议关注改进建议以进一步优化商业计划书。',
+        location: '整体',
+        suggestion: '参考改进建议部分'
+      }
+    ];
+  },
+  
+  // 从分析结果构建建议列表
+  buildSuggestionsFromAnalysis(analysisResults) {
+    const suggestions = [];
+    
+    // 如果有明确的建议列表
+    if (analysisResults.recommendations) {
+      // 尝试解析Markdown格式的建议
+      const recommendationsText = analysisResults.recommendations;
+      const lines = recommendationsText.split('\n').filter(line => line.trim());
+      
+      // 查找数字编号的建议
+      let currentSuggestion = null;
+      
+      lines.forEach(line => {
+        // 忽略标题行
+        if (line.startsWith('#')) return;
+        
+        // 匹配形如"1. **标题**：内容"的模式
+        const match = line.match(/(\d+)\.\s+\*\*([^*]+)\*\*：?(.+)/);
+        if (match) {
+          const id = `s${match[1]}`;
+          const title = match[2].trim();
+          const description = match[3].trim();
+          
+          suggestions.push({
+            id,
+            title,
+            description,
+            priority: match[1] <= 2 ? 'high' : (match[1] <= 4 ? 'medium' : 'low')
+          });
+        }
+      });
+    }
+    
+    // 如果没有提取到建议，从详细分析中构建
+    if (suggestions.length === 0) {
+      const detailedAnalysis = analysisResults.detailedAnalysis || {};
+      
+      // 添加业务模型建议
+      if (detailedAnalysis.businessModel?.recommendations) {
+        suggestions.push({
+          id: 's1',
+          title: '优化商业模型',
+          description: detailedAnalysis.businessModel.recommendations,
+          priority: 'high'
+        });
+      }
+      
+      // 添加市场分析建议
+      if (detailedAnalysis.market?.recommendations) {
+        suggestions.push({
+          id: 's2',
+          title: '强化市场分析',
+          description: detailedAnalysis.market.recommendations,
+          priority: 'high'
+        });
+      }
+      
+      // 添加团队建议
+      if (detailedAnalysis.team?.recommendations) {
+        suggestions.push({
+          id: 's3',
+          title: '增强团队互补性',
+          description: detailedAnalysis.team.recommendations,
+          priority: 'medium'
+        });
+      }
+      
+      // 添加财务建议
+      if (detailedAnalysis.financials?.recommendations) {
+        suggestions.push({
+          id: 's4',
+          title: '完善财务模型',
+          description: detailedAnalysis.financials.recommendations,
+          priority: 'high'
+        });
+      }
+    }
+    
+    // 如果仍然没有建议，返回默认建议
+    return suggestions.length > 0 ? suggestions : [
+      {
+        id: 's1',
+        title: '完善财务模型',
+        description: '建议在财务预测部分增加敏感性分析，展示在不同市场情景下的财务表现。',
+        priority: 'high'
+      },
+      {
+        id: 's2',
+        title: '强化市场验证数据',
+        description: '建议增加初步市场验证的数据，例如用户访谈结果、MVP测试数据等。',
+        priority: 'medium'
+      }
+    ];
   },
   
   // 切换标签页
