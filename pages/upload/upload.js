@@ -8,8 +8,7 @@ import { sleep, markdownToHtml } from '../../utils/util';
 
 Page({
   data: {
-    fileList: [], // 多文件列表
-    selectedCount: 0, // 选中的文件数量
+    fileList: [], // 文件列表，只会存储一个文件
     uploadProgress: 0,
     uploading: false,
     uploadSuccess: false,
@@ -27,12 +26,6 @@ Page({
     this.toast = this.selectComponent('#toast');
   },
 
-  // 更新选中文件计数
-  _updateSelectedCount() {
-    const selectedCount = this.data.fileList.filter(file => file.selected).length;
-    this.setData({ selectedCount });
-  },
-
   // 选择文件
   async handleChooseFile() {
     try {
@@ -40,45 +33,19 @@ Page({
       const file = await chooseFile();
       logger.info('选择文件成功', {name: file.name, size: file.size, type: file.name.split('.').pop().toLowerCase()});
 
-      // 检查是否已存在相同文件
-      const existingIndex = this.data.fileList.findIndex(item => item.name === file.name);
-      if (existingIndex !== -1) {
-        // 替换已有文件
-        let newFileList = [...this.data.fileList];
-        newFileList[existingIndex] = {
+      // 创建新的文件列表（只包含一个文件）
+      this.setData({
+        fileList: [{
           name: file.name,
           size: formatFileSize(file.size),
           path: file.path,
           time: new Date().toLocaleString(),
           type: file.name.split('.').pop().toLowerCase(),
-          selected: true,
           originalFile: file
-        };
-        this.setData({
-          fileList: newFileList,
-          uploadSuccess: false,
-          error: ''
-        }, () => {
-          this._updateSelectedCount();
-        });
-      } else {
-        // 添加新文件
-        this.setData({
-          fileList: [...this.data.fileList, {
-            name: file.name,
-            size: formatFileSize(file.size),
-            path: file.path,
-            time: new Date().toLocaleString(),
-            type: file.name.split('.').pop().toLowerCase(),
-            selected: true,
-            originalFile: file
-          }],
-          uploadSuccess: false,
-          error: ''
-        }, () => {
-          this._updateSelectedCount();
-        });
-      }
+        }],
+        uploadSuccess: false,
+        error: ''
+      });
     } catch (error) {
       logger.error('选择文件失败', error);
       // 显示更具体的错误信息
@@ -93,8 +60,7 @@ Page({
 
   // 导航到文件分析页面
   navigateToFileAnalysis(e) {
-    const index = e.currentTarget.dataset.index;
-    const file = this.data.fileList[index];
+    const file = this.data.fileList[0];
     
     logger.info('点击文件，准备跳转到分析页', { name: file.name, fileId: file.fileId });
     
@@ -113,32 +79,19 @@ Page({
     }
   },
 
-  // 切换文件选择状态
-  toggleFileSelection(e) {
-    const index = e.currentTarget.dataset.index;
-    let fileList = [...this.data.fileList];
-    fileList[index].selected = !fileList[index].selected;
-    this.setData({ fileList }, () => {
-      this._updateSelectedCount();
-    });
-  },
-
   // 删除文件
-  removeFile(e) {
-    const index = e.currentTarget.dataset.index;
-    let fileList = [...this.data.fileList];
-    fileList.splice(index, 1);
-    this.setData({ fileList }, () => {
-      this._updateSelectedCount();
+  removeFile() {
+    this.setData({
+      fileList: [],
+      uploadSuccess: false
     });
   },
 
   // 上传文件
   async handleUploadFile() {
-    // 检查是否有选中的文件
-    const selectedFiles = this.data.fileList.filter(file => file.selected);
-    if (selectedFiles.length === 0) {
-      this.toast.error('请选择至少一个文件');
+    // 检查是否有文件
+    if (this.data.fileList.length === 0) {
+      this.toast.error('请选择文件');
       return;
     }
 
@@ -156,55 +109,36 @@ Page({
       // 模拟上传进度
       this._simulateProgress('upload');
 
-      // 实际上传文件 - 这里只上传选中的文件
-      const uploadPromises = selectedFiles.map(file => {
-        return apiService.uploadBP({
-          name: file.name,
-          path: file.path
-        });
+      const file = this.data.fileList[0];
+      
+      // 实际上传文件
+      const result = await apiService.uploadBP({
+        name: file.name,
+        path: file.path
       });
-
-      const results = await Promise.all(uploadPromises);
-      logger.info('文件上传成功', results);
+      
+      logger.info('文件上传成功', result);
 
       // 停止模拟进度
       clearInterval(this.uploadProgressInterval);
 
-      // 更新文件列表，为每个上传成功的文件添加 fileId
-      const fileList = [...this.data.fileList];
-      results.forEach((result, index) => {
-        const fileIndex = fileList.findIndex(f => f.name === selectedFiles[index].name);
-        if (fileIndex !== -1) {
-          fileList[fileIndex].fileId = result.fileId || `mock-file-id-${Date.now()}-${index}`;
-          fileList[fileIndex].uploadTime = new Date().toLocaleString();
-        }
-      });
-
-      // 确保所有选中的文件都有fileId（模拟环境下可能没有返回fileId）
-      selectedFiles.forEach((selectedFile) => {
-        const fileIndex = fileList.findIndex(f => f.name === selectedFile.name);
-        if (fileIndex !== -1 && !fileList[fileIndex].fileId) {
-          fileList[fileIndex].fileId = `mock-file-id-${Date.now()}-${fileIndex}`;
-          fileList[fileIndex].uploadTime = new Date().toLocaleString();
-        }
-      });
-
-      logger.info('更新后的文件列表', fileList.map(f => ({ name: f.name, fileId: f.fileId })));
+      // 更新文件列表，为文件添加 fileId
+      const updatedFile = {
+        ...file,
+        fileId: result.fileId || `mock-file-id-${Date.now()}`,
+        uploadTime: new Date().toLocaleString()
+      };
 
       this.setData({
         uploading: false,
         uploadProgress: 100,
         uploadSuccess: true,
-        fileList: fileList,
-        fileIds: fileList.filter(f => f.selected && f.fileId).map(f => f.fileId)
+        fileList: [updatedFile],
+        fileIds: [updatedFile.fileId]
       });
 
       this.toast.success('上传成功');
 
-      // 自动开始分析
-      setTimeout(() => {
-        this.handleAnalyzeFile();
-      }, 1000);
     } catch (error) {
       // 停止模拟进度
       clearInterval(this.uploadProgressInterval);
@@ -225,16 +159,17 @@ Page({
     console.log('[handleAnalyzeFile] 用户点击分析文件');
     
     // 检查是否有上传成功的文件
-    const uploadedFiles = this.data.fileList.filter(file => file.fileId);
-    if (uploadedFiles.length === 0) {
+    if (this.data.fileList.length === 0 || !this.data.fileList[0].fileId) {
       this.toast.error('没有可分析的文件');
       return;
     }
     
+    const file = this.data.fileList[0];
+    
     // 确认是否开始分析
     wx.showModal({
       title: '开始分析',
-      content: '确定开始分析选中的文件吗？',
+      content: `确定开始分析文件"${file.name}"吗？`,
       confirmText: '开始分析',
       success: (res) => {
         if (res.confirm) {
@@ -244,8 +179,8 @@ Page({
             mask: true
           });
           
-          // 获取第一个要分析的文件ID
-          const fileId = uploadedFiles[0].fileId;
+          // 获取文件ID
+          const fileId = file.fileId;
           
           // 调用API开始分析
           apiService.startAnalysis(fileId).then(res => {
@@ -254,23 +189,17 @@ Page({
             if (res && res.code === 200) {
               this.toast.success('分析任务已提交');
               
-              // 更新当前文件状态为分析中
-              const updatedList = this.data.fileList.map(item => {
-                if (item.fileId === fileId) {
-                  return { ...item, status: 'analyzing' };
-                }
-                return item;
-              });
-              
+              // 更新文件状态为分析中
+              const updatedFile = { ...file, status: 'analyzing' };
               this.setData({
-                fileList: updatedList,
+                fileList: [updatedFile],
                 analyzing: false
               });
               
               // 导航到分析详情页面
               setTimeout(() => {
                 wx.navigateTo({
-                  url: `/pages/analysis-detail/analysis-detail?id=${fileId}&fileName=${encodeURIComponent(uploadedFiles[0].name)}`,
+                  url: `/pages/analysis-detail/analysis-detail?id=${fileId}&fileName=${encodeURIComponent(file.name)}`,
                   fail: (err) => {
                     console.error('导航到分析页失败', err);
                     this.toast.error('打开分析页失败');
@@ -288,12 +217,6 @@ Page({
         }
       }
     });
-  },
-
-  // 移除旧的模拟分析进度方法
-  simulateAnalysisProgress: function() {
-    // 此方法已不再使用，但保留为空以防有其他地方调用
-    console.log('[simulateAnalysisProgress] 此方法已废弃');
   },
 
   // 预览分析报告
@@ -393,7 +316,6 @@ Page({
   handleReset() {
     this.setData({
       fileList: [],
-      selectedCount: 0,
       uploadProgress: 0,
       uploading: false,
       uploadSuccess: false,

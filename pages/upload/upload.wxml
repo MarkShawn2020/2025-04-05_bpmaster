@@ -13,28 +13,27 @@
     <!-- 文件列表区域 -->
     <view class="file-list" wx:if="{{fileList.length > 0}}">
       <view class="file-list-header">
-        <text class="header-title">已选择文件 ({{selectedCount}})</text>
+        <text class="header-title">已选择文件</text>
       </view>
       
       <view class="file-list-content">
-        <view class="file-item" wx:for="{{fileList}}" wx:key="index">
-          <view class="file-info" bindtap="toggleFileSelection" data-index="{{index}}">
-            <view class="checkbox {{item.selected ? 'checked' : ''}}"></view>
-            <view class="file-icon {{item.type}}"></view>
+        <view class="file-item">
+          <view class="file-info">
+            <view class="file-icon {{fileList[0].type}}"></view>
             <view class="file-details">
-              <view class="file-name">{{item.name}}</view>
-              <view class="file-meta">{{item.size}} · {{item.time}}</view>
+              <view class="file-name">{{fileList[0].name}}</view>
+              <view class="file-meta">{{fileList[0].size}} · {{fileList[0].time}}</view>
               <!-- 显示上传和分析状态 -->
-              <view class="file-status" wx:if="{{item.fileId}}">
+              <view class="file-status" wx:if="{{fileList[0].fileId}}">
                 <text class="status-text success">已上传</text>
-                <text class="status-text {{item.status === 'analyzing' ? 'analyzing' : ''}}" wx:if="{{item.status}}">{{item.status === 'analyzing' ? '分析中' : ''}}</text>
+                <text class="status-text {{fileList[0].status === 'analyzing' ? 'analyzing' : ''}}" wx:if="{{fileList[0].status}}">{{fileList[0].status === 'analyzing' ? '分析中' : ''}}</text>
               </view>
             </view>
           </view>
           <view class="file-actions">
             <!-- 对已上传的文件显示查看分析按钮 -->
-            <button class="action-btn view-btn" wx:if="{{item.fileId}}" bindtap="navigateToFileAnalysis" data-index="{{index}}">查看分析</button>
-            <button class="action-btn delete-btn" bindtap="removeFile" data-index="{{index}}">删除</button>
+            <button class="action-btn view-btn" wx:if="{{fileList[0].fileId}}" bindtap="navigateToFileAnalysis" data-index="0">查看分析</button>
+            <button class="action-btn delete-btn" bindtap="removeFile">删除</button>
           </view>
         </view>
       </view>
@@ -44,9 +43,9 @@
     <view class="action-area">
       <!-- 显示上传按钮 -->
       <block wx:if="{{!uploading && !analyzing}}">
-        <button class="primary-btn choose-btn" bindtap="handleChooseFile">选择文件</button>
+        
         <button class="primary-btn upload-btn" bindtap="handleUploadFile" 
-          disabled="{{selectedCount === 0 || uploadSuccess}}">上传文件</button>
+          disabled="{{fileList.length === 0 || uploadSuccess}}">上传文件</button>
         <button class="primary-btn analyze-btn" bindtap="handleAnalyzeFile"
           disabled="{{!uploadSuccess}}">开始分析</button>
         <button class="secondary-btn reset-btn" bindtap="handleReset" 
