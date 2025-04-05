@@ -24,6 +24,11 @@ Page({
   onLoad(options) {
     logger.info('上传页面加载', options);
     this.toast = this.selectComponent('#toast');
+    
+    // 确保toast组件初始化
+    if (!this.toast) {
+      logger.warn('Toast组件未能正确初始化，将使用原生Toast');
+    }
   },
 
   // 选择文件
@@ -51,9 +56,9 @@ Page({
       // 显示更具体的错误信息
       if (error.errMsg && error.errMsg.includes('cancel')) {
         // 用户取消选择
-        this.toast.info('已取消选择文件');
+        this._showToast('info', '已取消选择文件');
       } else {
-        this.toast.error('选择文件失败，请确保微信聊天记录中有PDF文件');
+        this._showToast('error', '选择文件失败，请确保微信聊天记录中有PDF文件');
       }
     }
   },
@@ -70,12 +75,12 @@ Page({
         url: `/pages/analysis-detail/analysis-detail?id=${file.fileId}&fileName=${encodeURIComponent(file.name)}`,
         fail: (err) => {
           logger.error('导航到分析页失败', err);
-          this.toast.error('打开分析页失败');
+          this._showToast('error', '打开分析页失败');
         }
       });
     } else {
       // 如果文件未上传，提示用户先上传
-      this.toast.info('请先上传文件后查看分析');
+      this._showToast('info', '请先上传文件后查看分析');
     }
   },
 
@@ -91,7 +96,7 @@ Page({
   async handleUploadFile() {
     // 检查是否有文件
     if (this.data.fileList.length === 0) {
-      this.toast.error('请选择文件');
+      this._showToast('error', '请选择文件');
       return;
     }
 
@@ -137,7 +142,7 @@ Page({
         fileIds: [updatedFile.fileId]
       });
 
-      this.toast.success('上传成功');
+      this._showToast('success', '上传成功');
 
     } catch (error) {
       // 停止模拟进度
@@ -146,9 +151,10 @@ Page({
       logger.error('文件上传失败', error);
       this.setData({
         uploading: false,
-        error: error.message || '上传失败，请重试'
+        error: error?.message || '上传失败，请重试'
       });
-      this.toast.error('上传失败');
+      
+      this._showToast('error', '上传失败');
     }
   },
 
@@ -160,7 +166,7 @@ Page({
     
     // 检查是否有上传成功的文件
     if (this.data.fileList.length === 0 || !this.data.fileList[0].fileId) {
-      this.toast.error('没有可分析的文件');
+      this._showToast('error', '没有可分析的文件');
       return;
     }
     
@@ -187,7 +193,7 @@ Page({
             wx.hideLoading();
             
             if (res && res.code === 200) {
-              this.toast.success('分析任务已提交');
+              this._showToast('success', '分析任务已提交');
               
               // 更新文件状态为分析中
               const updatedFile = { ...file, status: 'analyzing' };
@@ -202,17 +208,17 @@ Page({
                   url: `/pages/analysis-detail/analysis-detail?id=${fileId}&fileName=${encodeURIComponent(file.name)}`,
                   fail: (err) => {
                     console.error('导航到分析页失败', err);
-                    this.toast.error('打开分析页失败');
+                    this._showToast('error', '打开分析页失败');
                   }
                 });
               }, 1000);
             } else {
-              this.toast.error(res?.message || '提交分析任务失败');
+              this._showToast('error', res?.message || '提交分析任务失败');
             }
           }).catch(err => {
             wx.hideLoading();
             console.error('开始分析失败', err);
-            this.toast.error('分析失败，请稍后再试');
+            this._showToast('error', '分析失败，请稍后再试');
           });
         }
       }
@@ -233,7 +239,7 @@ Page({
     } catch (error) {
       logger.error('预览报告失败', error);
       this.setData({ previewLoading: false });
-      this.toast.error('预览失败');
+      this._showToast('error', '预览失败');
     }
   },
   
@@ -335,5 +341,27 @@ Page({
       path: '/pages/index/index',
       imageUrl: '/assets/images/share.png'
     };
-  }
+  },
+
+  // 辅助方法：安全地显示toast
+  _showToast(type, message) {
+    if (this.toast) {
+      // 使用自定义toast组件
+      this.toast[type](message);
+    } else {
+      // 降级为微信原生toast
+      const iconMap = {
+        success: 'success',
+        error: 'error',
+        info: 'none',
+        loading: 'loading'
+      };
+      
+      wx.showToast({
+        title: message,
+        icon: iconMap[type] || 'none',
+        duration: 2000
+      });
+    }
+  },
 }) 
