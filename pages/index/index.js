@@ -91,6 +91,7 @@ Page({
     try {
       const app = getApp();
       const token = wx.getStorageSync('token');
+      const isDev = app.globalData.isDev;
       
       if (token && app.globalData.userInfo) {
         this.setData({
@@ -102,6 +103,23 @@ Page({
         // 获取最近分析列表
         // 注释掉这行以测试空状态
         // this.getRecentAnalysisList();
+      } else if (isDev) {
+        // 在开发环境中自动登录
+        logger.info('开发环境自动登录检查');
+        app.login((success) => {
+          if (success) {
+            this.setData({
+              isLoggedIn: true,
+              userInfo: app.globalData.userInfo,
+              loading: false
+            });
+          } else {
+            this.setData({
+              isLoggedIn: false,
+              loading: false
+            });
+          }
+        });
       } else {
         this.setData({
           isLoggedIn: false,
@@ -173,14 +191,40 @@ Page({
 
   // 去上传页面
   goToUpload() {
-    if (!this.data.isLoggedIn) {
-      this.showLoginPanel();
+    const app = getApp();
+    
+    // 如果已登录，直接跳转
+    if (this.data.isLoggedIn) {
+      wx.switchTab({
+        url: '/pages/upload/upload'
+      });
       return;
     }
     
-    wx.switchTab({
-      url: '/pages/upload/upload'
-    });
+    // 开发环境自动登录
+    if (app.globalData.isDev) {
+      logger.info('开发环境上传页面自动登录');
+      app.login((success) => {
+        if (success) {
+          this.setData({
+            isLoggedIn: true,
+            userInfo: app.globalData.userInfo
+          });
+          
+          // 登录成功后跳转
+          wx.switchTab({
+            url: '/pages/upload/upload'
+          });
+        } else {
+          // 即使在开发环境，登录失败也显示登录面板
+          this.showLoginPanel();
+        }
+      });
+      return;
+    }
+    
+    // 生产环境显示登录面板
+    this.showLoginPanel();
   },
 
   // 显示登录面板
@@ -226,14 +270,40 @@ Page({
 
   // 前往历史分析页
   goToHistoryList() {
-    if (!this.data.isLoggedIn) {
-      this.showLoginPanel();
+    const app = getApp();
+    
+    // 如果已登录，直接跳转
+    if (this.data.isLoggedIn) {
+      wx.switchTab({
+        url: '/pages/history/history'
+      });
       return;
     }
     
-    wx.switchTab({
-      url: '/pages/history/history'
-    });
+    // 开发环境自动登录
+    if (app.globalData.isDev) {
+      logger.info('开发环境历史页面自动登录');
+      app.login((success) => {
+        if (success) {
+          this.setData({
+            isLoggedIn: true,
+            userInfo: app.globalData.userInfo
+          });
+          
+          // 登录成功后跳转
+          wx.switchTab({
+            url: '/pages/history/history'
+          });
+        } else {
+          // 即使在开发环境，登录失败也显示登录面板
+          this.showLoginPanel();
+        }
+      });
+      return;
+    }
+    
+    // 生产环境显示登录面板
+    this.showLoginPanel();
   },
 
   // 前往分析详情页
@@ -261,9 +331,36 @@ Page({
   // 点击功能
   onFeatureTap(e) {
     const id = e.currentTarget.dataset.id;
+    const app = getApp();
     
     logger.info('点击功能', id);
     
+    // 如果在开发环境中但未登录，先尝试自动登录
+    if (app.globalData.isDev && !this.data.isLoggedIn) {
+      logger.info('开发环境功能点击自动登录');
+      app.login((success) => {
+        if (success) {
+          this.setData({
+            isLoggedIn: true,
+            userInfo: app.globalData.userInfo
+          }, () => {
+            // 登录成功后继续处理功能点击
+            this.handleFeature(id);
+          });
+        } else {
+          // 即使开发环境登录失败，也显示登录面板
+          this.showLoginPanel();
+        }
+      });
+      return;
+    }
+    
+    // 正常处理功能点击
+    this.handleFeature(id);
+  },
+
+  // 处理功能点击的实际逻辑
+  handleFeature(id) {
     switch (id) {
       case 1: // 上传
         this.goToUpload();
