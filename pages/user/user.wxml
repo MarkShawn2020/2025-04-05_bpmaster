@@ -41,9 +41,7 @@
             <view class="bp-time">{{item.uploadTime}}</view>
           </view>
           <view class="bp-action">
-            <text class="status-tag {{item.status}}">
-              {{item.status === 'pending' ? '待分析' : item.status === 'analyzing' ? '分析中' : item.status === 'completed' ? '已完成' : '失败'}}
-            </text>
+
             <!-- 已完成状态 - 查看报告 -->
             <button 
               wx:if="{{item.status === 'completed'}}" 
