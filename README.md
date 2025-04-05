@@ -20,13 +20,89 @@
 ├── components/          # 自定义组件
 ├── pages/               # 页面文件
 ├── services/            # 服务接口
-└── utils/               # 工具函数
+├── utils/               # 工具函数
+└── cloudfunctions/      # 云函数目录
+    ├── login/           # 用户登录
+    ├── validateToken/   # 验证用户Token
+    ├── saveBPFile/      # 保存BP文件信息
+    ├── analyzeBP/       # 分析BP文件
+    ├── getBPList/       # 获取BP文件列表
+    ├── getBPDetail/     # 获取BP文件详情
+    ├── deleteBP/        # 删除BP文件
+    ├── generateReport/  # 生成分析报告
+    ├── getReportList/   # 获取报告列表
+    ├── getReportDetail/ # 获取报告详情
+    └── getReportFileID/ # 获取报告文件ID
 ```
 
 ## 开发环境
 
 - 微信开发者工具
 - Node.js
+- 微信云开发
+
+## 云开发配置步骤
+
+1. 在微信开发者工具中创建新项目，选择云开发模板
+2. 按以下步骤配置云开发环境:
+   - 创建/选择云开发环境
+   - 在`app.js`中初始化云开发环境:
+   ```js
+   wx.cloud.init({
+     env: wx.cloud.DYNAMIC_CURRENT_ENV, // 使用当前环境配置
+     traceUser: true
+   });
+   ```
+   - 在`project.config.json`中配置云函数根目录:
+   ```json
+   {
+     "cloudfunctionRoot": "cloudfunctions/"
+   }
+   ```
+
+3. 创建数据库集合:
+   - 在云开发控制台中选择"数据库"
+   - 创建以下集合:
+     - `users` - 存储用户信息
+     - `bp_files` - 存储BP文件信息
+     - `reports` - 存储报告信息
+   - 设置合适的权限(建议"仅创建者可读写")
+
+4. 部署云函数:
+   - 右键点击`cloudfunctions`目录下的每个云函数
+   - 选择"上传并部署: 云端安装依赖"
+
+## 常见问题及解决方案
+
+### 云函数调用错误
+
+**问题**: 环境ID错误
+```
+Error: errCode: -501000 | errMsg: [100003] Param Invalid: env check invalid be filterd
+```
+
+**解决方案**: 
+修改`app.js`中的云环境配置，使用`DYNAMIC_CURRENT_ENV`:
+```js
+wx.cloud.init({
+  env: wx.cloud.DYNAMIC_CURRENT_ENV,
+  traceUser: true
+});
+```
+
+### 数据库集合不存在
+
+**问题**: 数据库集合未创建
+```
+fail -502005 database collection not exists. [ResourceNotFound] Db or Table not exist
+```
+
+**解决方案**:
+在云开发控制台中创建必要的数据库集合:
+1. 打开微信开发者工具的云开发控制台
+2. 选择"数据库" → "集合管理"
+3. 点击"新建集合"，创建`users`、`bp_files`和`reports`集合
+4. 设置适当的读写权限
 
 ## 数据结构
 
@@ -90,4 +166,4 @@ BP分析结果的数据结构如下：
     ]
   }
 }
-``` 
+```
