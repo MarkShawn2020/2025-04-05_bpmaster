@@ -14,7 +14,7 @@
 
 ```
 ├── app.js               # 小程序入口文件
-├── app.json             # 小程序全局配置
+├── app.json             # 小程序全局配置 
 ├── app.wxss             # 小程序全局样式
 ├── project.config.json  # 项目配置文件
 ├── components/          # 自定义组件
