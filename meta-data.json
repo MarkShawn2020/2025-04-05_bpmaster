@@ -1,0 +1,82 @@
+{
+    "project": {
+      "name": "BP小诸葛",
+      "version": "1.0.0",
+      "description": "商业计划书智能评估小程序",
+      "appId": "wx66652d2aa1191058",
+      "libVersion": "3.8.0"
+    },
+    "architecture": {
+      "frontend": "微信小程序",
+      "backend": "RESTful API"
+    },
+    "api": {
+      "baseUrl": "https://api.bpmaster.example.com",
+      "endpoints": {
+        "auth": ["/auth/login", "/auth/verify", "/auth/logout"],
+        "bp": ["/bp/upload", "/bp/analyze", "/bp/list", "/bp/detail", "/bp/delete"],
+        "report": ["/report/generate", "/report/list", "/report/detail", "/report/download"]
+      }
+    },
+    "pages": [
+      "pages/index/index",
+      "pages/upload/upload", 
+      "pages/analysis/analysis",
+      "pages/report/report",
+      "pages/history/history",
+      "pages/analysis-detail/analysis-detail"
+    ],
+    "supportedFileTypes": {
+      "PDF": {
+        "extension": "pdf",
+        "mimeType": "application/pdf"
+      },
+      "WORD": {
+        "extension": ["doc", "docx"],
+        "mimeType": ["application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
+      },
+      "EXCEL": {
+        "extension": ["xls", "xlsx"],
+        "mimeType": ["application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]
+      },
+      "PPT": {
+        "extension": ["ppt", "pptx"],
+        "mimeType": ["application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation"]
+      }
+    },
+    "dataModel": {
+      "projectInfo": {
+        "projectName": "商业计划书项目名称",
+        "companyName": "企业名称",
+        "industryCategory": "行业分类",
+        "developmentStage": "发展阶段"
+      },
+      "businessPlan": {
+        "projectSummary": "项目简介",
+        "productsAndServices": "产品与服务",
+        "industryAndMarket": "行业与市场",
+        "coreTechnology": "核心技术",
+        "businessModel": "商业模式",
+        "coreTeam": "核心团队",
+        "strategicPlanning": "战略规划"
+      },
+      "teamMembers": ["团队成员信息"],
+      "patents": ["专利信息"],
+      "financials": {
+        "revenueProjections": ["收入预测"],
+        "expenseProjections": ["支出预测"],
+        "profitProjections": ["利润预测"]
+      }
+    },
+    "components": {
+      "custom": ["mp-toast"],
+      "services": ["apiService", "aiService", "logger"]
+    },
+    "maxFileSize": 20971520, // 20MB
+    "themeColors": {
+      "primary": "#3563E9",
+      "success": "#2DCA8C",
+      "warning": "#FFB800",
+      "danger": "#FF4D4F"
+    }
+  }
