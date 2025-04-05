@@ -10,17 +10,17 @@ Page({
     bannerList: [
       {
         id: 1,
-        imageUrl: '/assets/images/banner1.png',
+        imageUrl: '/assets/images/banner1.jpeg',
         title: 'BP小诸葛 - 让AI为你的商业计划书保驾护航'
       },
       {
         id: 2,
-        imageUrl: '/assets/images/banner2.png',
+        imageUrl: '/assets/images/banner2.jpeg',
         title: '一键生成专业的BP评估报告'
       },
       {
         id: 3,
-        imageUrl: '/assets/images/banner3.png',
+        imageUrl: '/assets/images/banner3.jpeg',
         title: '基于海量数据，洞察商业趋势'
       }
     ],
