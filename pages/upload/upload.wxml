@@ -4,26 +4,43 @@
     <view class="card-subtitle">支持PDF、Word、PPT等格式文件，单个文件最大20MB</view>
     
     <!-- 无文件状态 -->
-    <view class="upload-area" wx:if="{{!fileInfo}}" bindtap="handleChooseFile">
+    <view class="upload-area" wx:if="{{fileList.length === 0}}" bindtap="handleChooseFile">
       <image class="upload-icon" src="/assets/icons/upload-file.png" mode="aspectFit"></image>
       <view class="upload-text">点击选择文件</view>
       <view class="upload-hint">请将BP文件发送到微信聊天中，然后从聊天记录中选择</view>
       <view class="upload-tip">支持PDF、Word、PPT等格式，最大20MB</view>
     </view>
     
-    <!-- 文件已选择状态 -->
-    <view class="file-info-area" wx:elif="{{fileInfo && !uploading && !uploadSuccess}}">
-      <view class="file-info">
-        <image class="file-icon" src="/assets/icons/file-{{fileInfo.type}}.png" mode="aspectFit"></image>
-        <view class="file-detail">
-          <view class="file-name">{{fileInfo.name}}</view>
-          <view class="file-meta">{{fileInfo.size}} | {{fileInfo.time}}</view>
+    <!-- 文件列表状态 -->
+    <view class="file-list-area" wx:elif="{{fileList.length > 0 && !uploading && !uploadSuccess}}">
+      <view class="file-list-header">
+        <view class="file-count">已选择 {{selectedCount}}/{{fileList.length}} 个文件</view>
+        <view class="file-actions-header">
+          <button class="btn-text" bindtap="handleChooseFile">添加文件</button>
         </view>
       </view>
       
-      <view class="file-actions">
-        <button class="btn-secondary btn-sm" bindtap="handleChooseFile">重新选择</button>
-        <button class="btn-primary btn-sm" bindtap="handleUploadFile">开始上传</button>
+      <view class="file-list">
+        <view class="file-item" wx:for="{{fileList}}" wx:key="name">
+          <view class="file-select">
+            <checkbox checked="{{item.selected}}" bindtap="toggleFileSelection" data-index="{{index}}" />
+          </view>
+          <view class="file-info">
+            <image class="file-icon" src="/assets/icons/file-{{item.type}}.png" mode="aspectFit"></image>
+            <view class="file-detail">
+              <view class="file-name">{{item.name}}</view>
+              <view class="file-meta">{{item.size}} | {{item.time}}</view>
+            </view>
+          </view>
+          <view class="file-actions">
+            <view class="delete-btn" bindtap="removeFile" data-index="{{index}}">×</view>
+          </view>
+        </view>
+      </view>
+      
+      <view class="file-list-footer">
+        <button class="btn-secondary" bindtap="handleReset">清空</button>
+        <button class="btn-primary" bindtap="handleUploadFile">开始上传</button>
       </view>
     </view>
     
@@ -36,20 +53,14 @@
       <view class="progress-bar-bg">
         <view class="progress-bar" style="width: {{uploadProgress}}%;"></view>
       </view>
-      <view class="file-info">
-        <image class="file-icon-sm" src="/assets/icons/file-{{fileInfo.type}}.png" mode="aspectFit"></image>
-        <view class="file-name-sm">{{fileInfo.name}}</view>
-      </view>
+      <view class="file-count">正在上传 {{selectedCount}} 个文件</view>
     </view>
     
     <!-- 上传成功，准备分析 -->
     <view class="success-area" wx:elif="{{uploadSuccess && !analyzing}}">
       <image class="success-icon" src="/assets/icons/success.png" mode="aspectFit"></image>
       <view class="success-text">上传成功，即将开始分析</view>
-      <view class="file-info">
-        <image class="file-icon-sm" src="/assets/icons/file-{{fileInfo.type}}.png" mode="aspectFit"></image>
-        <view class="file-name-sm">{{fileInfo.name}}</view>
-      </view>
+      <view class="file-count">已上传 {{selectedCount}} 个文件</view>
       <button class="btn-primary" bindtap="handleAnalyzeFile">开始分析</button>
     </view>
     
@@ -69,6 +80,138 @@
     </view>
   </view>
   
+  <!-- 分析结果显示 -->
+  <view class="analysis-result-container" wx:if="{{showAnalysisResult && analysisResult}}">
+    <view class="card analysis-result-card">
+      <view class="analysis-result-header">
+        <view class="analysis-result-title">BP分析结果</view>
+        <view class="analysis-result-score">
+          <text class="score-value">{{analysisResult.overallScore}}</text>
+          <text class="score-label">总分</text>
+        </view>
+      </view>
+      
+      <!-- 摘要部分 -->
+      <view class="analysis-section">
+        <view class="analysis-section-title">分析摘要</view>
+        <rich-text nodes="{{analysisResult.summary}}" class="markdown-content"></rich-text>
+      </view>
+      
+      <!-- 详细分析 -->
+      <view class="analysis-section">
+        <view class="analysis-section-title">详细评估</view>
+        
+        <!-- 商业模型 -->
+        <view class="analysis-detail-item">
+          <view class="analysis-detail-header">
+            <view class="analysis-detail-title">商业模型</view>
+            <view class="analysis-detail-score {{analysisResult.detailedAnalysis.businessModel.score >= 90 ? 'score-excellent' : (analysisResult.detailedAnalysis.businessModel.score >= 80 ? 'score-good' : 'score-average')}}">
+              {{analysisResult.detailedAnalysis.businessModel.score}}
+            </view>
+          </view>
+          <view class="analysis-detail-content">
+            <view class="analysis-detail-section">
+              <view class="analysis-detail-label">优势：</view>
+              <rich-text nodes="{{analysisResult.detailedAnalysis.businessModel.strength}}" class="markdown-content"></rich-text>
+            </view>
+            <view class="analysis-detail-section">
+              <view class="analysis-detail-label">不足：</view>
+              <rich-text nodes="{{analysisResult.detailedAnalysis.businessModel.weakness}}" class="markdown-content"></rich-text>
+            </view>
+            <view class="analysis-detail-section">
+              <view class="analysis-detail-label">建议：</view>
+              <rich-text nodes="{{analysisResult.detailedAnalysis.businessModel.recommendations}}" class="markdown-content"></rich-text>
+            </view>
+          </view>
+        </view>
+        
+        <!-- 市场分析 -->
+        <view class="analysis-detail-item">
+          <view class="analysis-detail-header">
+            <view class="analysis-detail-title">市场分析</view>
+            <view class="analysis-detail-score {{analysisResult.detailedAnalysis.market.score >= 90 ? 'score-excellent' : (analysisResult.detailedAnalysis.market.score >= 80 ? 'score-good' : 'score-average')}}">
+              {{analysisResult.detailedAnalysis.market.score}}
+            </view>
+          </view>
+          <view class="analysis-detail-content">
+            <view class="analysis-detail-section">
+              <view class="analysis-detail-label">优势：</view>
+              <rich-text nodes="{{analysisResult.detailedAnalysis.market.strength}}" class="markdown-content"></rich-text>
+            </view>
+            <view class="analysis-detail-section">
+              <view class="analysis-detail-label">不足：</view>
+              <rich-text nodes="{{analysisResult.detailedAnalysis.market.weakness}}" class="markdown-content"></rich-text>
+            </view>
+            <view class="analysis-detail-section">
+              <view class="analysis-detail-label">建议：</view>
+              <rich-text nodes="{{analysisResult.detailedAnalysis.market.recommendations}}" class="markdown-content"></rich-text>
+            </view>
+          </view>
+        </view>
+        
+        <!-- 团队能力 -->
+        <view class="analysis-detail-item">
+          <view class="analysis-detail-header">
+            <view class="analysis-detail-title">团队能力</view>
+            <view class="analysis-detail-score {{analysisResult.detailedAnalysis.team.score >= 90 ? 'score-excellent' : (analysisResult.detailedAnalysis.team.score >= 80 ? 'score-good' : 'score-average')}}">
+              {{analysisResult.detailedAnalysis.team.score}}
+            </view>
+          </view>
+          <view class="analysis-detail-content">
+            <view class="analysis-detail-section">
+              <view class="analysis-detail-label">优势：</view>
+              <rich-text nodes="{{analysisResult.detailedAnalysis.team.strength}}" class="markdown-content"></rich-text>
+            </view>
+            <view class="analysis-detail-section">
+              <view class="analysis-detail-label">不足：</view>
+              <rich-text nodes="{{analysisResult.detailedAnalysis.team.weakness}}" class="markdown-content"></rich-text>
+            </view>
+            <view class="analysis-detail-section">
+              <view class="analysis-detail-label">建议：</view>
+              <rich-text nodes="{{analysisResult.detailedAnalysis.team.recommendations}}" class="markdown-content"></rich-text>
+            </view>
+          </view>
+        </view>
+        
+        <!-- 财务状况 -->
+        <view class="analysis-detail-item">
+          <view class="analysis-detail-header">
+            <view class="analysis-detail-title">财务状况</view>
+            <view class="analysis-detail-score {{analysisResult.detailedAnalysis.financials.score >= 90 ? 'score-excellent' : (analysisResult.detailedAnalysis.financials.score >= 80 ? 'score-good' : 'score-average')}}">
+              {{analysisResult.detailedAnalysis.financials.score}}
+            </view>
+          </view>
+          <view class="analysis-detail-content">
+            <view class="analysis-detail-section">
+              <view class="analysis-detail-label">优势：</view>
+              <rich-text nodes="{{analysisResult.detailedAnalysis.financials.strength}}" class="markdown-content"></rich-text>
+            </view>
+            <view class="analysis-detail-section">
+              <view class="analysis-detail-label">不足：</view>
+              <rich-text nodes="{{analysisResult.detailedAnalysis.financials.weakness}}" class="markdown-content"></rich-text>
+            </view>
+            <view class="analysis-detail-section">
+              <view class="analysis-detail-label">建议：</view>
+              <rich-text nodes="{{analysisResult.detailedAnalysis.financials.recommendations}}" class="markdown-content"></rich-text>
+            </view>
+          </view>
+        </view>
+      </view>
+      
+      <!-- 改进建议 -->
+      <view class="analysis-section">
+        <view class="analysis-section-title">综合建议</view>
+        <rich-text nodes="{{analysisResult.recommendations}}" class="markdown-content"></rich-text>
+      </view>
+      
+      <!-- 操作按钮 -->
+      <view class="analysis-actions">
+        <button class="btn-secondary" bindtap="closeAnalysisResult">返回</button>
+        <button class="btn-primary" bindtap="previewReport" loading="{{previewLoading}}">生成Word文档</button>
+      </view>
+    </view>
+  </view>
+  
   <!-- 错误提示 -->
   <view class="error-card" wx:if="{{error}}">
     <view class="error-title">发生错误</view>
@@ -77,7 +220,7 @@
   </view>
   
   <!-- 文件支持说明 -->
-  <view class="info-card">
+  <view class="info-card" wx:if="{{!showAnalysisResult}}">
     <view class="info-title">支持的文件格式</view>
     <view class="format-list">
       <view class="format-item">
