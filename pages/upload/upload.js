@@ -21,8 +21,9 @@ Page({
   // 选择文件
   async handleChooseFile() {
     try {
+      logger.info('开始选择文件...');
       const file = await chooseFile();
-      logger.info('选择文件成功', file);
+      logger.info('选择文件成功', {name: file.name, size: file.size, type: file.name.split('.').pop().toLowerCase()});
 
       this.setData({
         fileInfo: {
@@ -37,7 +38,13 @@ Page({
       });
     } catch (error) {
       logger.error('选择文件失败', error);
-      this.selectComponent('#toast').error(error.message || '选择文件失败');
+      // 显示更具体的错误信息
+      if (error.errMsg && error.errMsg.includes('cancel')) {
+        // 用户取消选择
+        this.selectComponent('#toast').info('已取消选择文件');
+      } else {
+        this.selectComponent('#toast').error(error.message || '选择文件失败，请确保微信聊天记录中有PDF文件');
+      }
     }
   },
 

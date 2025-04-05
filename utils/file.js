@@ -65,10 +65,7 @@ export const chooseFile = () => {
       count: 1,
       type: 'file',
       extension: [
-        ...SUPPORTED_FILE_TYPES.PDF.extension,
-        ...(Array.isArray(SUPPORTED_FILE_TYPES.WORD.extension) ? SUPPORTED_FILE_TYPES.WORD.extension : [SUPPORTED_FILE_TYPES.WORD.extension]),
-        ...(Array.isArray(SUPPORTED_FILE_TYPES.EXCEL.extension) ? SUPPORTED_FILE_TYPES.EXCEL.extension : [SUPPORTED_FILE_TYPES.EXCEL.extension]),
-        ...(Array.isArray(SUPPORTED_FILE_TYPES.PPT.extension) ? SUPPORTED_FILE_TYPES.PPT.extension : [SUPPORTED_FILE_TYPES.PPT.extension])
+        'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt'
       ],
       success(res) {
         logger.info('文件选择成功', res.tempFiles[0].name);

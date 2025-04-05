@@ -6,8 +6,9 @@
     <!-- 无文件状态 -->
     <view class="upload-area" wx:if="{{!fileInfo}}" bindtap="handleChooseFile">
       <image class="upload-icon" src="/assets/icons/upload-file.png" mode="aspectFit"></image>
-      <view class="upload-text">点击或拖拽文件到此处上传</view>
-      <view class="upload-hint">请确保上传的是您的商业计划书</view>
+      <view class="upload-text">点击选择文件</view>
+      <view class="upload-hint">请将BP文件发送到微信聊天中，然后从聊天记录中选择</view>
+      <view class="upload-tip">支持PDF、Word、PPT等格式，最大20MB</view>
     </view>
     
     <!-- 文件已选择状态 -->

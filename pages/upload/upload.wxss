@@ -48,7 +48,15 @@
 
 .upload-hint {
   font-size: 24rpx;
+  color: var(--text-secondary);
+  margin-bottom: 8rpx;
+  text-align: center;
+}
+
+.upload-tip {
+  font-size: 22rpx;
   color: var(--text-tertiary);
+  text-align: center;
 }
 
 /* 文件信息区域 */
