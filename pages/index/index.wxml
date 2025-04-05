@@ -45,7 +45,7 @@
     </view>
 
     <view class="empty-state" wx:elif="{{!loading && recentAnalysisList.length === 0}}">
-      <image src="/assets/images/empty.png" class="empty-image" mode="aspectFit"></image>
+      <image src="/assets/images/empty.png" class="empty-image" mode="widthFix"></image>
       <view class="empty-text">暂无分析记录</view>
       <button class="btn-primary" bindtap="goToUpload">立即上传分析</button>
     </view>

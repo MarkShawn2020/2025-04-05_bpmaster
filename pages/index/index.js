@@ -64,12 +64,25 @@ Page({
 
     // 获取用户登录状态
     this.checkLoginStatus();
+    
+    // 测试空状态显示
+    this.testEmptyState();
+  },
+  
+  // 临时函数：测试空状态显示
+  testEmptyState() {
+    this.setData({
+      recentAnalysisList: [], // 设置为空数组
+      loading: false         // 确保loading为false
+    });
+    console.log('测试空状态显示');
   },
   
   onShow() {
     // 如果已登录，获取最近分析列表
     if (this.data.isLoggedIn) {
-      this.getRecentAnalysisList();
+      // 注释掉这行以测试空状态
+      // this.getRecentAnalysisList();
     }
   },
 
@@ -87,7 +100,8 @@ Page({
         });
         
         // 获取最近分析列表
-        this.getRecentAnalysisList();
+        // 注释掉这行以测试空状态
+        // this.getRecentAnalysisList();
       } else {
         this.setData({
           isLoggedIn: false,
@@ -199,7 +213,7 @@ Page({
         });
         
         // 获取最近分析列表
-        this.getRecentAnalysisList();
+        // this.getRecentAnalysisList(); // 注释掉以测试空状态
         
         // 显示登录成功提示
         this.selectComponent('#toast').success('登录成功');

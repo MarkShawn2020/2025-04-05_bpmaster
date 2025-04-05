@@ -5,7 +5,8 @@
     "pages/analysis/analysis",
     "pages/report/report",
     "pages/history/history",
-    "pages/analysis-detail/analysis-detail"
+    "pages/analysis-detail/analysis-detail",
+    "pages/test-empty/test-empty"
   ],
   "window": {
     "backgroundTextStyle": "light",
