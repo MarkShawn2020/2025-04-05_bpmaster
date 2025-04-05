@@ -3,7 +3,7 @@ import { logger } from './utils/logger'
 
 // 初始化云开发
 wx.cloud.init({
-  env: 'cloud1-7gfmwz4qfae46e0', // 默认环境配置，请修改为你的云开发环境ID
+  env: wx.cloud.DYNAMIC_CURRENT_ENV, // 使用当前环境配置
   traceUser: true
 });
 
