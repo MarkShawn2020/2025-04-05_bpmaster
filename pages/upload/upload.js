@@ -91,6 +91,28 @@ Page({
     }
   },
 
+  // 导航到文件分析页面
+  navigateToFileAnalysis(e) {
+    const index = e.currentTarget.dataset.index;
+    const file = this.data.fileList[index];
+    
+    logger.info('点击文件，准备跳转到分析页', { name: file.name, fileId: file.fileId });
+    
+    // 如果文件已上传且有分析结果，直接跳转到分析页
+    if (file.fileId) {
+      wx.navigateTo({
+        url: `/pages/analysis/analysis?fileId=${file.fileId}&fileName=${encodeURIComponent(file.name)}`,
+        fail: (err) => {
+          logger.error('导航到分析页失败', err);
+          this.toast.error('打开分析页失败');
+        }
+      });
+    } else {
+      // 如果文件未上传，提示用户先上传
+      this.toast.info('请先上传文件后查看分析');
+    }
+  },
+
   // 切换文件选择状态
   toggleFileSelection(e) {
     const index = e.currentTarget.dataset.index;
@@ -148,11 +170,33 @@ Page({
       // 停止模拟进度
       clearInterval(this.uploadProgressInterval);
 
+      // 更新文件列表，为每个上传成功的文件添加 fileId
+      const fileList = [...this.data.fileList];
+      results.forEach((result, index) => {
+        const fileIndex = fileList.findIndex(f => f.name === selectedFiles[index].name);
+        if (fileIndex !== -1) {
+          fileList[fileIndex].fileId = result.fileId || `mock-file-id-${Date.now()}-${index}`;
+          fileList[fileIndex].uploadTime = new Date().toLocaleString();
+        }
+      });
+
+      // 确保所有选中的文件都有fileId（模拟环境下可能没有返回fileId）
+      selectedFiles.forEach((selectedFile) => {
+        const fileIndex = fileList.findIndex(f => f.name === selectedFile.name);
+        if (fileIndex !== -1 && !fileList[fileIndex].fileId) {
+          fileList[fileIndex].fileId = `mock-file-id-${Date.now()}-${fileIndex}`;
+          fileList[fileIndex].uploadTime = new Date().toLocaleString();
+        }
+      });
+
+      logger.info('更新后的文件列表', fileList.map(f => ({ name: f.name, fileId: f.fileId })));
+
       this.setData({
         uploading: false,
         uploadProgress: 100,
         uploadSuccess: true,
-        fileIds: results.map(result => result.fileId)
+        fileList: fileList,
+        fileIds: fileList.filter(f => f.selected && f.fileId).map(f => f.fileId)
       });
 
       this.toast.success('上传成功');

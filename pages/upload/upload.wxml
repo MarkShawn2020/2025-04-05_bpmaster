@@ -25,7 +25,7 @@
           <view class="file-select">
             <checkbox checked="{{item.selected}}" bindtap="toggleFileSelection" data-index="{{index}}" />
           </view>
-          <view class="file-info">
+          <view class="file-info" bindtap="navigateToFileAnalysis" data-index="{{index}}">
             <image class="file-icon" src="/assets/icons/file-{{item.type}}.png" mode="aspectFit"></image>
             <view class="file-detail">
               <view class="file-name">{{item.name}}</view>
@@ -61,6 +61,21 @@
       <image class="success-icon" src="/assets/icons/success.png" mode="aspectFit"></image>
       <view class="success-text">上传成功，即将开始分析</view>
       <view class="file-count">已上传 {{selectedCount}} 个文件</view>
+      
+      <!-- 添加上传成功后的文件列表 -->
+      <view class="success-file-list">
+        <view class="success-file-item" wx:for="{{fileList}}" wx:key="name" wx:if="{{item.fileId}}" bindtap="navigateToFileAnalysis" data-index="{{index}}">
+          <image class="file-icon" src="/assets/icons/file-{{item.type}}.png" mode="aspectFit"></image>
+          <view class="file-detail">
+            <view class="file-name">{{item.name}}</view>
+            <view class="file-meta">{{item.size}} | 上传于{{item.uploadTime || item.time}}</view>
+          </view>
+          <view class="file-status">
+            <view class="file-status-badge">已上传</view>
+          </view>
+        </view>
+      </view>
+      
       <button class="btn-primary" bindtap="handleAnalyzeFile">开始分析</button>
     </view>
     

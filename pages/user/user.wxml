@@ -35,7 +35,7 @@
         暂无上传记录
       </view>
       <block wx:else>
-        <view wx:for="{{bpList}}" wx:key="_id" class="bp-item">
+        <view wx:for="{{bpList}}" wx:key="_id" class="bp-item" bindtap="navigateToAnalysis" data-file-id="{{item._id}}" data-file-name="{{item.fileName}}">
           <view class="bp-item-left">
             <view class="bp-name">{{item.fileName}}</view>
             <view class="bp-time">{{item.uploadTime}}</view>

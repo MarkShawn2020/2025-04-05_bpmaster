@@ -85,6 +85,26 @@ Page({
     });
   },
   
+  // 导航到文件分析页面
+  navigateToAnalysis(e) {
+    const fileId = e.currentTarget.dataset.fileId;
+    const fileName = e.currentTarget.dataset.fileName;
+    
+    logger.info('点击文件，准备跳转到分析页', { fileName, fileId });
+    
+    if (fileId) {
+      wx.navigateTo({
+        url: `/pages/analysis-detail/analysis-detail?id=${fileId}&fileName=${encodeURIComponent(fileName)}`,
+        fail: (err) => {
+          logger.error('导航到分析页失败', err);
+          toast.error('打开分析页失败');
+        }
+      });
+    } else {
+      toast.info('此文件暂无分析数据');
+    }
+  },
+  
   // 重新登录
   handleLogin() {
     toast.loading('登录中...');
