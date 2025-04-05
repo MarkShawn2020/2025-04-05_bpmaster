@@ -10,6 +10,7 @@ Page({
     reportCount: 0,
     bpList: [],  // 最近上传的BP
     isDev: getApp().globalData.isDev,
+    isPreviewingFile: false, // 添加标记变量，追踪文件预览状态
   },
 
   onLoad() {
@@ -18,6 +19,21 @@ Page({
   },
 
   onShow() {
+    // 检查是否从文件预览返回
+    if(this.data.isPreviewingFile) {
+      logger.info('从文件预览返回');
+      this.setData({
+        isPreviewingFile: false
+      });
+      // 确保所有toast都被清除
+      setTimeout(() => {
+        toast.hide();
+      }, 100);
+    } else {
+      // 清除可能存在的toast
+      toast.hide();
+    }
+    
     // 每次显示页面时都刷新数据
     this.loadUserInfo();  // 添加这里以确保每次进入页面都重新获取用户信息
   },
@@ -36,7 +52,22 @@ Page({
       // 尝试重新验证登录状态
       getApp().checkLoginStatus();
       this.setData({ loading: false }); // 确保加载状态更新
-      toast.info('请先登录');
+      
+      // 如果不是从预览返回，才显示提示
+      if (!this.data.isPreviewingFile) {
+        // 使用modal代替toast
+        wx.showModal({
+          title: '未登录',
+          content: '请先登录以查看您的文件',
+          confirmText: '去登录',
+          cancelText: '稍后再说',
+          success: (res) => {
+            if (res.confirm) {
+              this.handleLogin();
+            }
+          }
+        });
+      }
     }
   },
   
@@ -113,8 +144,11 @@ Page({
     logger.info('预览文件', { fileName, fileId });
     
     if (fileId) {
-      // 显示加载提示
-      toast.loading('加载文件中...');
+      // 使用微信原生loading，而不是toast
+      wx.showLoading({
+        title: '加载文件中...',
+        mask: true // 添加遮罩防止用户操作
+      });
       
       // 先获取BP文件详细信息，包含实际的云存储fileID
       apiService.getBPFileInfo(fileId)
@@ -141,10 +175,16 @@ Page({
           });
         })
         .then(downloadRes => {
-          toast.hide();
+          // 隐藏loading
+          wx.hideLoading();
           
           if (downloadRes.statusCode === 200) {
             const filePath = downloadRes.tempFilePath;
+            
+            // 设置预览状态标记
+            this.setData({
+              isPreviewingFile: true
+            });
             
             // 使用本地路径预览文件
             wx.openDocument({
@@ -155,8 +195,19 @@ Page({
                 logger.info('文件预览成功');
               },
               fail: (err) => {
+                // 预览失败时重置状态
+                this.setData({
+                  isPreviewingFile: false
+                });
+                
                 logger.error('文件预览失败', err);
-                toast.error('预览失败，请稍后再试');
+                
+                // 使用原生modal而不是toast
+                wx.showModal({
+                  title: '预览失败',
+                  content: '无法预览文件，请稍后再试',
+                  showCancel: false
+                });
                 
                 // 处理权限问题
                 if (err.errMsg && err.errMsg.includes('not permission')) {
@@ -177,25 +228,34 @@ Page({
             });
           } else {
             logger.error('下载文件失败', downloadRes);
-            toast.error('文件下载失败');
+            
+            // 使用原生modal而不是toast
+            wx.showModal({
+              title: '下载失败',
+              content: '文件下载失败，请稍后再试',
+              showCancel: false
+            });
           }
         })
         .catch(err => {
-          toast.hide();
+          // 隐藏loading
+          wx.hideLoading();
+          
           logger.error('获取或下载文件失败', err);
-          toast.error('无法预览文件，请稍后再试');
           
           // 显示更详细的错误提示
-          setTimeout(() => {
-            wx.showModal({
-              title: '文件预览失败',
-              content: '无法获取文件信息或预览权限。原因：' + (err.message || '未知错误'),
-              showCancel: false
-            });
-          }, 1000);
+          wx.showModal({
+            title: '文件预览失败',
+            content: '无法获取文件信息或预览权限。原因：' + (err.message || '未知错误'),
+            showCancel: false
+          });
         });
     } else {
-      toast.info('文件不存在或已被删除');
+      wx.showModal({
+        title: '文件错误',
+        content: '文件不存在或已被删除',
+        showCancel: false
+      });
     }
   },
   
