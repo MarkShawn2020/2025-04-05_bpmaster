@@ -68,9 +68,9 @@
             <button 
               wx:else 
               class="action-btn retry-btn" 
-              catchtap="retryAnalysis" 
+              catchtap="navigateToAnalysis" 
               data-file-id="{{item._id}}" 
-              data-file-name="{{item.fileName}}">重试</button>
+              data-file-name="{{item.fileName}}">查看报告</button>
           </view>
         </view>
       </block>
