@@ -4,7 +4,7 @@
     <view class="user-info">
       <image class="avatar" src="{{userInfo.avatarUrl || '/assets/icons/default-avatar.png'}}"></image>
       <view class="user-details">
-        <view class="nickname">{{userInfo.nickname || '未登录用户'}}</view>
+        <view class="nickname">{{userInfo ? (userInfo.nickname || '用户' + userInfo.openid.substring(0, 5)) : '未登录用户'}}</view>
         <view class="user-id" wx:if="{{userInfo}}">ID: {{userInfo.userId}}</view>
         <view class="dev-tag" wx:if="{{isDev}}">开发环境</view>
       </view>
@@ -66,10 +66,21 @@
         <view class="setting-text">关于我们</view>
         <view class="setting-arrow"></view>
       </view>
+      <!-- 开发环境工具 -->
+      <view class="setting-item" bindtap="handleDevTools" wx:if="{{isDev}}">
+        <view class="setting-icon icon-dev"></view>
+        <view class="setting-text">开发工具</view>
+        <view class="setting-arrow"></view>
+      </view>
     </view>
 
     <view class="logout-btn-wrap" wx:if="{{userInfo}}">
       <button class="logout-btn" bindtap="handleLogout">退出登录</button>
+    </view>
+
+    <!-- 开发环境下的重置按钮 -->
+    <view class="reset-btn-wrap" wx:if="{{isDev}}">
+      <button class="reset-btn" bindtap="handleResetApp">完全重置应用</button>
     </view>
 
     <view class="version-info">

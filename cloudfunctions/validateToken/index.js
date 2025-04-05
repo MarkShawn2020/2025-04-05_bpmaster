@@ -20,94 +20,61 @@ exports.main = async (event, context) => {
   }
   
   const wxContext = cloud.getWXContext()
-  const { OPENID, ENV } = wxContext
+  const { OPENID } = wxContext
+  
+  console.log('当前用户OPENID:', OPENID)
   
   try {
     // 验证token
     const db = cloud.database()
     const userCollection = db.collection('users')
     
-    // 开发环境下的验证逻辑
-    if (ENV === 'local' || ENV === 'development') {
-      console.log('开发环境下的token验证')
-      
-      // 查询用户，只验证token的存在性，不严格匹配openid
-      const user = await userCollection.where({
-        token: token
-      }).get()
-      
-      if (user.data.length > 0) {
-        // 找到任意匹配token的用户即可
-        const userData = user.data[0]
-        return {
-          valid: true,
-          code: 200,
-          message: '开发环境Token验证成功',
-          userInfo: {
-            userId: userData._id,
-            nickname: userData.nickname || '',
-            avatarUrl: userData.avatarUrl || ''
-          }
-        }
-      } else {
-        // 开发环境下，如果找不到token，尝试创建一个测试用户
-        const testUserData = {
-          openid: OPENID,
-          nickname: '测试用户',
-          avatarUrl: '',
-          token: token,
-          createdAt: db.serverDate(),
-          lastLoginAt: db.serverDate()
-        }
-        
-        const result = await userCollection.add({
-          data: testUserData
-        })
-        
-        return {
-          valid: true,
-          code: 200,
-          message: '开发环境创建测试用户成功',
-          userInfo: {
-            userId: result._id,
-            nickname: testUserData.nickname,
-            avatarUrl: testUserData.avatarUrl
-          }
-        }
-      }
-    }
-    
-    // 生产环境下的严格验证逻辑
+    // 查询用户
     const user = await userCollection.where({
-      openid: OPENID,
       token: token
     }).get()
     
+    console.log('查询到的用户:', user.data.length > 0 ? `ID:${user.data[0]._id}` : '未找到')
+    
     if (user.data.length === 0) {
       return {
-        valid: false,
         code: 401,
-        message: 'Token无效或已过期'
+        message: 'Token无效或已过期',
+        valid: false
+      }
+    }
+    
+    // 检查用户ID和OPENID是否匹配
+    if (user.data[0].openid !== OPENID) {
+      console.log('Token与当前用户不匹配', `Token用户:${user.data[0].openid}`, `当前用户:${OPENID}`)
+      
+      return {
+        code: 401,
+        message: 'Token与当前用户不匹配',
+        valid: false
       }
     }
     
     // 返回用户信息
     const userData = user.data[0]
+    
     return {
-      valid: true,
       code: 200,
       message: 'Token验证成功',
+      valid: true,
       userInfo: {
         userId: userData._id,
-        nickname: userData.nickname || '',
-        avatarUrl: userData.avatarUrl || ''
+        nickname: userData.nickname || '用户' + userData.openid.substring(0, 5),
+        avatarUrl: userData.avatarUrl || '',
+        openid: userData.openid
       }
     }
   } catch (err) {
     console.error('验证Token失败', err)
     return {
       code: 500,
-      message: '验证失败: ' + err.message
+      message: '验证失败: ' + err.message,
+      valid: false
     }
   }
 } 

@@ -264,4 +264,24 @@
   font-size: 24rpx;
   color: #9CA3AF;
   padding: 30rpx 0;
+}
+
+/* 开发环境下的重置按钮 */
+.reset-btn-wrap {
+  padding: 20rpx 30rpx;
+}
+
+.reset-btn {
+  width: 100%;
+  background-color: #fff;
+  border: 1rpx solid #FF6B00;
+  color: #FF6B00;
+  border-radius: 8rpx;
+  font-size: 32rpx;
+  padding: 16rpx 0;
+}
+
+/* 开发图标 */
+.icon-dev {
+  background-color: #FF6B00 !important;
 } 
