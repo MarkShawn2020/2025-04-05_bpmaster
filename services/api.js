@@ -1,86 +1,8 @@
 /**
  * API服务
- * 封装所有与后端API的交互
+ * 封装所有与云开发的交互
  */
 import { logger } from '../utils/logger';
-
-// 基础URL
-const BASE_URL = 'https://api.bpmaster.example.com';
-
-// API路径
-const API = {
-  AUTH: {
-    LOGIN: '/auth/login',
-    VERIFY: '/auth/verify',
-    LOGOUT: '/auth/logout',
-  },
-  BP: {
-    UPLOAD: '/bp/upload',
-    ANALYZE: '/bp/analyze',
-    LIST: '/bp/list',
-    DETAIL: '/bp/detail',
-    DELETE: '/bp/delete',
-  },
-  REPORT: {
-    GENERATE: '/report/generate',
-    LIST: '/report/list',
-    DETAIL: '/report/detail',
-    DOWNLOAD: '/report/download',
-  }
-};
-
-/**
- * 发送请求
- * @param {string} url 请求地址
- * @param {string} method 请求方法
- * @param {Object} data 请求数据
- * @param {Object} options 其他选项
- * @returns {Promise} 请求结果
- */
-const request = (url, method = 'GET', data = {}, options = {}) => {
-  const token = wx.getStorageSync('token') || '';
-  
-  return new Promise((resolve, reject) => {
-    logger.debug(`发起请求: ${method} ${url}`);
-    
-    wx.request({
-      url: `${BASE_URL}${url}`,
-      method,
-      data,
-      header: {
-        'content-type': 'application/json',
-        'authorization': token ? `Bearer ${token}` : '',
-        ...options.header
-      },
-      success(res) {
-        logger.debug(`请求成功: ${method} ${url}`, res.statusCode);
-        
-        // 处理HTTP状态码
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          resolve(res.data);
-        } else if (res.statusCode === 401) {
-          // 未授权，可能是token过期
-          logger.warn('未授权，需要重新登录');
-          wx.removeStorageSync('token');
-          reject(new Error('登录已过期，请重新登录'));
-          
-          // 跳转到登录页面
-          wx.navigateTo({
-            url: '/pages/index/index?auth=1'
-          });
-        } else {
-          const errorMsg = res.data && res.data.message ? res.data.message : `请求失败: ${res.statusCode}`;
-          logger.error(`请求失败: ${method} ${url}`, res.statusCode, errorMsg);
-          reject(new Error(errorMsg));
-        }
-      },
-      fail(err) {
-        logger.error(`请求异常: ${method} ${url}`, err);
-        reject(err);
-      }
-    });
-  });
-};
 
 // API服务
 export const apiService = {
@@ -90,7 +12,20 @@ export const apiService = {
    * @returns {Promise} 登录结果
    */
   login(code) {
-    return request(API.AUTH.LOGIN, 'POST', { code });
+    return new Promise((resolve, reject) => {
+      wx.cloud.callFunction({
+        name: 'login',
+        data: { code },
+        success: (res) => {
+          logger.info('云函数登录成功', res);
+          resolve(res.result);
+        },
+        fail: (err) => {
+          logger.error('云函数登录失败', err);
+          reject(err);
+        }
+      });
+    });
   },
   
   /**
@@ -98,7 +33,21 @@ export const apiService = {
    * @returns {Promise} 验证结果
    */
   verifyToken() {
-    return request(API.AUTH.VERIFY, 'POST');
+    const token = wx.getStorageSync('token') || '';
+    return new Promise((resolve, reject) => {
+      wx.cloud.callFunction({
+        name: 'validateToken',
+        data: { token },
+        success: (res) => {
+          logger.info('验证Token成功', res);
+          resolve(res.result);
+        },
+        fail: (err) => {
+          logger.error('验证Token失败', err);
+          reject(err);
+        }
+      });
+    });
   },
   
   /**
@@ -106,7 +55,10 @@ export const apiService = {
    * @returns {Promise} 登出结果
    */
   logout() {
-    return request(API.AUTH.LOGOUT, 'POST');
+    return new Promise((resolve) => {
+      wx.removeStorageSync('token');
+      resolve({ success: true });
+    });
   },
   
   /**
@@ -116,51 +68,44 @@ export const apiService = {
    */
   uploadBP(file) {
     return new Promise((resolve, reject) => {
-      logger.info('开始上传BP文件', file.name);
+      logger.info('开始上传BP文件到云存储', file.name);
       
-      const uploadTask = wx.uploadFile({
-        url: `${BASE_URL}${API.BP.UPLOAD}`,
+      // 生成云存储路径
+      const cloudPath = `bp_files/${Date.now()}_${file.name}`;
+      
+      // 上传到云存储
+      wx.cloud.uploadFile({
+        cloudPath: cloudPath,
         filePath: file.path,
-        name: 'file',
-        header: {
-          'authorization': `Bearer ${wx.getStorageSync('token') || ''}`,
-        },
-        success(res) {
-          try {
-            logger.info('BP文件上传成功', res);
-            
-            if (res.statusCode === 200) {
-              const result = JSON.parse(res.data);
-              resolve(result);
-            } else if (res.statusCode === 401) {
-              // 未授权，可能是token过期
-              logger.warn('未授权，需要重新登录');
-              wx.removeStorageSync('token');
-              reject(new Error('登录已过期，请重新登录'));
-              
-              // 跳转到登录页面
-              wx.navigateTo({
-                url: '/pages/index/index?auth=1'
+        success: (res) => {
+          logger.info('文件上传到云存储成功', res);
+          
+          // 调用云函数记录文件信息
+          wx.cloud.callFunction({
+            name: 'saveBPFile',
+            data: {
+              fileID: res.fileID,
+              fileName: file.name,
+              fileSize: file.size,
+              fileType: file.name.split('.').pop().toLowerCase()
+            },
+            success: (result) => {
+              logger.info('保存文件信息成功', result);
+              resolve({
+                fileId: result.result.fileId,
+                fileUrl: res.fileID
               });
-            } else {
-              logger.error('上传接口返回错误', res);
-              reject(new Error(`上传失败: ${res.statusCode}`));
+            },
+            fail: (err) => {
+              logger.error('保存文件信息失败', err);
+              reject(err);
             }
-          } catch (error) {
-            logger.error('解析上传结果失败', error);
-            reject(error);
-          }
+          });
         },
-        fail(err) {
-          logger.error('文件上传失败', err);
+        fail: (err) => {
+          logger.error('文件上传到云存储失败', err);
           reject(err);
         }
-      });
-      
-      // 上传进度监听
-      uploadTask.onProgressUpdate((res) => {
-        logger.debug('上传进度', res.progress);
-        // 可以在这里更新UI上的进度条
       });
     });
   },
@@ -171,7 +116,20 @@ export const apiService = {
    * @returns {Promise} 分析结果
    */
   analyzeBP(fileId) {
-    return request(API.BP.ANALYZE, 'POST', { fileId });
+    return new Promise((resolve, reject) => {
+      wx.cloud.callFunction({
+        name: 'analyzeBP',
+        data: { fileId },
+        success: (res) => {
+          logger.info('BP分析成功', res);
+          resolve(res.result);
+        },
+        fail: (err) => {
+          logger.error('BP分析失败', err);
+          reject(err);
+        }
+      });
+    });
   },
   
   /**
@@ -181,7 +139,20 @@ export const apiService = {
    * @returns {Promise} BP列表
    */
   getBPList(page = 1, pageSize = 10) {
-    return request(API.BP.LIST, 'GET', { page, pageSize });
+    return new Promise((resolve, reject) => {
+      wx.cloud.callFunction({
+        name: 'getBPList',
+        data: { page, pageSize },
+        success: (res) => {
+          logger.info('获取BP列表成功', res);
+          resolve(res.result);
+        },
+        fail: (err) => {
+          logger.error('获取BP列表失败', err);
+          reject(err);
+        }
+      });
+    });
   },
   
   /**
@@ -190,7 +161,20 @@ export const apiService = {
    * @returns {Promise} BP详情
    */
   getBPDetail(id) {
-    return request(`${API.BP.DETAIL}/${id}`, 'GET');
+    return new Promise((resolve, reject) => {
+      wx.cloud.callFunction({
+        name: 'getBPDetail',
+        data: { id },
+        success: (res) => {
+          logger.info('获取BP详情成功', res);
+          resolve(res.result);
+        },
+        fail: (err) => {
+          logger.error('获取BP详情失败', err);
+          reject(err);
+        }
+      });
+    });
   },
   
   /**
@@ -199,7 +183,20 @@ export const apiService = {
    * @returns {Promise} 删除结果
    */
   deleteBP(id) {
-    return request(`${API.BP.DELETE}/${id}`, 'POST');
+    return new Promise((resolve, reject) => {
+      wx.cloud.callFunction({
+        name: 'deleteBP',
+        data: { id },
+        success: (res) => {
+          logger.info('删除BP成功', res);
+          resolve(res.result);
+        },
+        fail: (err) => {
+          logger.error('删除BP失败', err);
+          reject(err);
+        }
+      });
+    });
   },
   
   /**
@@ -209,7 +206,20 @@ export const apiService = {
    * @returns {Promise} 生成结果
    */
   generateReport(bpId, options = {}) {
-    return request(API.REPORT.GENERATE, 'POST', { bpId, options });
+    return new Promise((resolve, reject) => {
+      wx.cloud.callFunction({
+        name: 'generateReport',
+        data: { bpId, options },
+        success: (res) => {
+          logger.info('生成报告成功', res);
+          resolve(res.result);
+        },
+        fail: (err) => {
+          logger.error('生成报告失败', err);
+          reject(err);
+        }
+      });
+    });
   },
   
   /**
@@ -219,7 +229,20 @@ export const apiService = {
    * @returns {Promise} 报告列表
    */
   getReportList(page = 1, pageSize = 10) {
-    return request(API.REPORT.LIST, 'GET', { page, pageSize });
+    return new Promise((resolve, reject) => {
+      wx.cloud.callFunction({
+        name: 'getReportList',
+        data: { page, pageSize },
+        success: (res) => {
+          logger.info('获取报告列表成功', res);
+          resolve(res.result);
+        },
+        fail: (err) => {
+          logger.error('获取报告列表失败', err);
+          reject(err);
+        }
+      });
+    });
   },
   
   /**
@@ -228,7 +251,20 @@ export const apiService = {
    * @returns {Promise} 报告详情
    */
   getReportDetail(id) {
-    return request(`${API.REPORT.DETAIL}/${id}`, 'GET');
+    return new Promise((resolve, reject) => {
+      wx.cloud.callFunction({
+        name: 'getReportDetail',
+        data: { id },
+        success: (res) => {
+          logger.info('获取报告详情成功', res);
+          resolve(res.result);
+        },
+        fail: (err) => {
+          logger.error('获取报告详情失败', err);
+          reject(err);
+        }
+      });
+    });
   },
   
   /**
@@ -238,25 +274,31 @@ export const apiService = {
    */
   downloadReport(id) {
     return new Promise((resolve, reject) => {
-      const downloadUrl = `${BASE_URL}${API.REPORT.DOWNLOAD}/${id}`;
-      logger.info('开始下载报告', downloadUrl);
-      
-      wx.downloadFile({
-        url: downloadUrl,
-        header: {
-          'authorization': `Bearer ${wx.getStorageSync('token') || ''}`,
-        },
-        success(res) {
-          if (res.statusCode === 200) {
-            logger.info('报告下载成功');
-            resolve(res.tempFilePath);
+      // 先获取报告文件ID
+      wx.cloud.callFunction({
+        name: 'getReportFileID',
+        data: { id },
+        success: (res) => {
+          if (res.result && res.result.fileID) {
+            // 从云存储下载文件
+            wx.cloud.downloadFile({
+              fileID: res.result.fileID,
+              success: (downloadRes) => {
+                logger.info('报告下载成功');
+                resolve(downloadRes.tempFilePath);
+              },
+              fail: (err) => {
+                logger.error('报告下载失败', err);
+                reject(err);
+              }
+            });
           } else {
-            logger.error('报告下载失败', res);
-            reject(new Error(`下载失败: ${res.statusCode}`));
+            logger.error('获取报告文件ID失败');
+            reject(new Error('获取报告文件ID失败'));
           }
         },
-        fail(err) {
-          logger.error('报告下载异常', err);
+        fail: (err) => {
+          logger.error('获取报告文件ID失败', err);
           reject(err);
         }
       });

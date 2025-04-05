@@ -1,13 +1,18 @@
 // app.js
 import { logger } from './utils/logger'
 
+// 初始化云开发
+wx.cloud.init({
+  env: 'cloud1-7gfmwz4qfae46e0', // 默认环境配置，请修改为你的云开发环境ID
+  traceUser: true
+});
+
 App({
   globalData: {
     userInfo: null,
     currentBP: null,
     uploadedFiles: [],
     analysisList: [],
-    baseUrl: 'https://api.bpmaster.example.com',
   },
 
   onLaunch() {
@@ -60,18 +65,16 @@ App({
   },
 
   validateToken(token) {
-    // 验证token有效性的请求
-    wx.request({
-      url: `${this.globalData.baseUrl}/auth/verify`,
-      method: 'POST',
-      header: {
-        'content-type': 'application/json',
-        'Authorization': `Bearer ${token}`
+    // 使用云函数验证token
+    wx.cloud.callFunction({
+      name: 'validateToken',
+      data: {
+        token
       },
       success: (res) => {
-        if (res.statusCode === 200 && res.data.valid) {
+        if (res.result && res.result.valid) {
           logger.info('Token有效')
-          this.globalData.userInfo = res.data.userInfo
+          this.globalData.userInfo = res.result.userInfo
         } else {
           logger.warn('Token无效，需要重新登录')
           wx.removeStorageSync('token')
@@ -87,20 +90,19 @@ App({
     wx.login({
       success: (res) => {
         if (res.code) {
-          // 发送code到后端换取token
-          wx.request({
-            url: `${this.globalData.baseUrl}/auth/login`,
-            method: 'POST',
+          // 使用云函数登录
+          wx.cloud.callFunction({
+            name: 'login',
             data: {
               code: res.code
             },
             success: (res) => {
-              if (res.statusCode === 200 && res.data.token) {
-                wx.setStorageSync('token', res.data.token)
-                this.globalData.userInfo = res.data.userInfo
+              if (res.result && res.result.token) {
+                wx.setStorageSync('token', res.result.token)
+                this.globalData.userInfo = res.result.userInfo
                 if (callback) callback(true)
               } else {
-                logger.error('登录失败', res.data.message)
+                logger.error('登录失败', res.result ? res.result.message : '未知错误')
                 if (callback) callback(false)
               }
             },
