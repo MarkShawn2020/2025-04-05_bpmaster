@@ -50,5 +50,13 @@
     "scope.userLocation": {
       "desc": "您的位置信息将用于增强用户体验"
     }
-  }
+  },
+  "requiredPrivateInfos": [
+    "getLocation"
+  ],
+  "plugins": {},
+  "functionalPages": {
+    "independent": true
+  },
+  "openWeChat": {}
 } 

@@ -35,13 +35,44 @@
         暂无上传记录
       </view>
       <block wx:else>
-        <view wx:for="{{bpList}}" wx:key="_id" class="bp-item" bindtap="navigateToAnalysis" data-file-id="{{item._id}}" data-file-name="{{item.fileName}}">
-          <view class="bp-item-left">
+        <view wx:for="{{bpList}}" wx:key="_id" class="bp-item">
+          <view class="bp-item-left" bindtap="previewFile" data-file-id="{{item._id}}" data-file-name="{{item.fileName}}">
             <view class="bp-name">{{item.fileName}}</view>
             <view class="bp-time">{{item.uploadTime}}</view>
           </view>
-          <view class="bp-status">
-            <text class="{{item.status}}">{{item.status === 'pending' ? '待分析' : item.status === 'analyzing' ? '分析中' : item.status === 'completed' ? '已完成' : '失败'}}</text>
+          <view class="bp-action">
+            <text class="status-tag {{item.status}}">
+              {{item.status === 'pending' ? '待分析' : item.status === 'analyzing' ? '分析中' : item.status === 'completed' ? '已完成' : '失败'}}
+            </text>
+            <!-- 已完成状态 - 查看报告 -->
+            <button 
+              wx:if="{{item.status === 'completed'}}" 
+              class="action-btn view-btn" 
+              catchtap="navigateToAnalysis" 
+              data-file-id="{{item._id}}" 
+              data-file-name="{{item.fileName}}">查看报告</button>
+            
+            <!-- 待分析状态 - 开始分析 -->
+            <button 
+              wx:elif="{{item.status === 'pending'}}" 
+              class="action-btn analyze-btn" 
+              catchtap="startAnalysis" 
+              data-file-id="{{item._id}}" 
+              data-file-name="{{item.fileName}}">开始分析</button>
+            
+            <!-- 分析中状态 - 显示禁用按钮 -->
+            <button 
+              wx:elif="{{item.status === 'analyzing'}}" 
+              class="action-btn disabled-btn"
+              disabled>分析中...</button>
+            
+            <!-- 失败状态 - 重试分析 -->
+            <button 
+              wx:else 
+              class="action-btn retry-btn" 
+              catchtap="retryAnalysis" 
+              data-file-id="{{item._id}}" 
+              data-file-name="{{item.fileName}}">重试</button>
           </view>
         </view>
       </block>
@@ -59,6 +90,7 @@
 
       <button class="setting-item contact-btn" open-type="contact" bindcontact="handleContact">
         <view class="setting-icon icon-service"></view>
+        
         <view class="setting-text">联系客服</view>
         <view class="setting-arrow"></view>
       </button>

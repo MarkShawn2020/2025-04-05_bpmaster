@@ -303,5 +303,79 @@ export const apiService = {
         }
       });
     });
+  },
+  
+  /**
+   * 获取BP文件信息
+   * @param {string} id 文件ID (数据库ID)
+   * @returns {Promise} 文件信息，包含实际的云存储fileID
+   */
+  getBPFileInfo(id) {
+    return new Promise((resolve, reject) => {
+      if (!id) {
+        reject(new Error('文件ID不能为空'));
+        return;
+      }
+      
+      logger.info('获取BP文件信息', id);
+      
+      // 正式环境调用云函数
+      wx.cloud.callFunction({
+        name: 'getBPDetail',
+        data: { id },
+        success: (res) => {
+          logger.info('获取BP文件信息成功', res);
+          if (res.result && res.result.code === 200 && res.result.data) {
+            resolve(res.result.data);
+          } else {
+            logger.error('获取BP文件信息失败：无效的响应数据', res);
+            reject(new Error('获取文件信息失败'));
+          }
+        },
+        fail: (err) => {
+          logger.error('获取BP文件信息失败', err);
+          reject(err);
+        }
+      });
+    });
+  },
+  
+  /**
+   * 获取文件临时访问URL
+   * @param {string} fileID 云存储文件ID
+   * @returns {Promise} 文件临时访问URL
+   */
+  getFileUrl(fileID) {
+    return new Promise((resolve, reject) => {
+      if (!fileID) {
+        logger.error('获取文件URL失败：文件ID为空');
+        reject(new Error('文件ID不能为空'));
+        return;
+      }
+      
+      logger.info('正在获取文件临时访问URL', fileID);
+      
+      // 直接调用云API获取临时URL，不再使用模拟数据
+      wx.cloud.getTempFileURL({
+        fileList: [{ fileID, maxAge: 3600 }]
+      }).then(res => {
+        if (res.fileList && res.fileList.length > 0) {
+          const fileInfo = res.fileList[0];
+          if (fileInfo.tempFileURL) {
+            logger.info('获取文件URL成功', fileInfo.tempFileURL);
+            resolve(fileInfo.tempFileURL);
+          } else {
+            logger.error('获取文件URL失败：返回的URL为空');
+            reject(new Error('获取文件URL失败'));
+          }
+        } else {
+          logger.error('获取文件URL失败：返回数据不完整', res);
+          reject(new Error('获取文件URL失败'));
+        }
+      }).catch(err => {
+        logger.error('获取文件URL失败', err);
+        reject(err);
+      });
+    });
   }
 }; 

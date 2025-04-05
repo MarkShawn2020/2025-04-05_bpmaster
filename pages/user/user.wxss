@@ -162,28 +162,69 @@
   color: #9CA3AF;
 }
 
-.bp-status text {
-  font-size: 24rpx;
-  padding: 4rpx 16rpx;
-  border-radius: 20rpx;
+/* 修改后的状态标签和操作按钮样式 */
+.bp-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10rpx;
 }
 
-.bp-status .pending {
+.status-tag {
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
+  margin-bottom: 10rpx;
+}
+
+.action-btn {
+  font-size: 24rpx;
+  padding: 8rpx 20rpx;
+  border-radius: 30rpx;
+  line-height: 1.2;
+  min-height: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.view-btn {
+  background-color: #3875FF;
+  color: #fff;
+}
+
+.analyze-btn {
+  background-color: #10B981;
+  color: #fff;
+}
+
+.retry-btn {
+  background-color: #F59E0B;
+  color: #fff;
+}
+
+.disabled-btn {
+  background-color: #E5E7EB;
+  color: #9CA3AF;
+}
+
+/* 状态标签样式 */
+.pending {
   background-color: #FEF3C7;
   color: #D97706;
 }
 
-.bp-status .analyzing {
+.analyzing {
   background-color: #DBEAFE;
   color: #2563EB;
 }
 
-.bp-status .completed {
+.completed {
   background-color: #D1FAE5;
   color: #059669;
 }
 
-.bp-status .failed {
+.failed {
   background-color: #FEE2E2;
   color: #DC2626;
 }

@@ -90,7 +90,7 @@ Page({
     const fileId = e.currentTarget.dataset.fileId;
     const fileName = e.currentTarget.dataset.fileName;
     
-    logger.info('点击文件，准备跳转到分析页', { fileName, fileId });
+    logger.info('查看分析报告', { fileName, fileId });
     
     if (fileId) {
       wx.navigateTo({
@@ -103,6 +103,193 @@ Page({
     } else {
       toast.info('此文件暂无分析数据');
     }
+  },
+  
+  // 预览文件
+  previewFile(e) {
+    const fileId = e.currentTarget.dataset.fileId;
+    const fileName = e.currentTarget.dataset.fileName;
+    
+    logger.info('预览文件', { fileName, fileId });
+    
+    if (fileId) {
+      // 显示加载提示
+      toast.loading('加载文件中...');
+      
+      // 先获取BP文件详细信息，包含实际的云存储fileID
+      apiService.getBPFileInfo(fileId)
+        .then(fileInfo => {
+          if (!fileInfo || !fileInfo.fileID) {
+            throw new Error('找不到文件的云存储ID');
+          }
+          
+          logger.info('获取到文件信息', fileInfo);
+          
+          // 使用真正的云存储fileID获取临时访问URL
+          return apiService.getFileUrl(fileInfo.fileID);
+        })
+        .then(tempUrl => {
+          logger.info('获取文件临时URL成功', tempUrl);
+          
+          // 下载文件到本地
+          return new Promise((resolve, reject) => {
+            wx.downloadFile({
+              url: tempUrl,
+              success: res => resolve(res),
+              fail: err => reject(err)
+            });
+          });
+        })
+        .then(downloadRes => {
+          toast.hide();
+          
+          if (downloadRes.statusCode === 200) {
+            const filePath = downloadRes.tempFilePath;
+            
+            // 使用本地路径预览文件
+            wx.openDocument({
+              filePath: filePath,
+              fileType: this.getFileType(fileName),
+              showMenu: true,
+              success: () => {
+                logger.info('文件预览成功');
+              },
+              fail: (err) => {
+                logger.error('文件预览失败', err);
+                toast.error('预览失败，请稍后再试');
+                
+                // 处理权限问题
+                if (err.errMsg && err.errMsg.includes('not permission')) {
+                  setTimeout(() => {
+                    wx.showModal({
+                      title: '需要权限',
+                      content: '预览文件需要授权，请在设置中允许使用文档预览功能',
+                      confirmText: '去设置',
+                      success: (modalRes) => {
+                        if (modalRes.confirm) {
+                          wx.openSetting();
+                        }
+                      }
+                    });
+                  }, 1000);
+                }
+              }
+            });
+          } else {
+            logger.error('下载文件失败', downloadRes);
+            toast.error('文件下载失败');
+          }
+        })
+        .catch(err => {
+          toast.hide();
+          logger.error('获取或下载文件失败', err);
+          toast.error('无法预览文件，请稍后再试');
+          
+          // 显示更详细的错误提示
+          setTimeout(() => {
+            wx.showModal({
+              title: '文件预览失败',
+              content: '无法获取文件信息或预览权限。原因：' + (err.message || '未知错误'),
+              showCancel: false
+            });
+          }, 1000);
+        });
+    } else {
+      toast.info('文件不存在或已被删除');
+    }
+  },
+  
+  // 开始分析文件
+  startAnalysis(e) {
+    const fileId = e.currentTarget.dataset.fileId;
+    const fileName = e.currentTarget.dataset.fileName;
+    
+    logger.info('开始分析文件', { fileName, fileId });
+    
+    wx.showModal({
+      title: '开始分析',
+      content: `确定开始分析"${fileName}"吗？`,
+      confirmText: '开始分析',
+      success: (res) => {
+        if (res.confirm) {
+          toast.loading('准备分析...');
+          
+          // 调用API开始分析
+          apiService.startAnalysis(fileId).then(res => {
+            if (res && res.code === 200) {
+              toast.success('分析任务已提交');
+              
+              // 更新当前文件状态为分析中
+              const updatedList = this.data.bpList.map(item => {
+                if (item._id === fileId) {
+                  return { ...item, status: 'analyzing' };
+                }
+                return item;
+              });
+              
+              this.setData({ bpList: updatedList });
+              
+              // 可以选择导航到分析页面查看进度
+              setTimeout(() => {
+                wx.showModal({
+                  title: '分析已开始',
+                  content: '是否前往查看分析进度？',
+                  confirmText: '前往',
+                  cancelText: '留在此页',
+                  success: (modalRes) => {
+                    if (modalRes.confirm) {
+                      this.navigateToAnalysis(e);
+                    }
+                  }
+                });
+              }, 1000);
+            } else {
+              toast.error(res?.message || '提交分析任务失败');
+            }
+          }).catch(err => {
+            logger.error('开始分析失败', err);
+            toast.error('分析失败，请稍后再试');
+          });
+        }
+      }
+    });
+  },
+  
+  // 重试分析
+  retryAnalysis(e) {
+    // 实现与startAnalysis基本相同，但提示信息不同
+    const fileId = e.currentTarget.dataset.fileId;
+    const fileName = e.currentTarget.dataset.fileName;
+    
+    logger.info('重试分析文件', { fileName, fileId });
+    
+    wx.showModal({
+      title: '重试分析',
+      content: `确定重新开始分析"${fileName}"吗？`,
+      confirmText: '确定重试',
+      success: (res) => {
+        if (res.confirm) {
+          // 基本逻辑与startAnalysis相同
+          this.startAnalysis(e);
+        }
+      }
+    });
+  },
+  
+  // 获取文件类型
+  getFileType(fileName) {
+    const ext = fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
+    const typeMap = {
+      'pdf': 'pdf',
+      'doc': 'doc',
+      'docx': 'docx',
+      'xls': 'xls',
+      'xlsx': 'xlsx',
+      'ppt': 'ppt',
+      'pptx': 'pptx',
+      'txt': 'txt'
+    };
+    return typeMap[ext] || 'pdf'; // 默认返回pdf
   },
   
   // 重新登录
