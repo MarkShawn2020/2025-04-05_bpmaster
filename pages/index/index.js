@@ -125,9 +125,33 @@ Page({
             fileName: '美团商业计划书.pdf',
             analysisDate: '2023-09-10 10:15',
             score: 88.3
+          },
+          {
+            id: '3',
+            fileName: '小红书产品方案.docx',
+            analysisDate: '2023-09-05 16:45',
+            score: 85.7
+          },
+          {
+            id: '4',
+            fileName: '知乎社区运营方案.pptx',
+            analysisDate: '2023-08-28 09:20',
+            score: 79.2
+          },
+          {
+            id: '5',
+            fileName: '阿里巴巴电商发展规划.pdf',
+            analysisDate: '2023-08-22 11:05',
+            score: 90.1
+          },
+          {
+            id: '6',
+            fileName: '滴滴出行商业模式分析.doc',
+            analysisDate: '2023-08-15 13:40',
+            score: 82.6
           }
         ],
-        totalAnalysisCount: 2,
+        totalAnalysisCount: 6,
         loading: false
       });
     }, 1000);
