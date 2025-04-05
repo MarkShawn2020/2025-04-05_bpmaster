@@ -1,0 +1,9 @@
+{
+  "usingComponents": {
+    "mp-toast": "../../components/toast/toast"
+  },
+  "navigationBarTitleText": "历史记录",
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark",
+  "backgroundColor": "#f5f7fa"
+} 

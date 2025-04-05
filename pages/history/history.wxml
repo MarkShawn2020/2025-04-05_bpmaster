@@ -1,0 +1,78 @@
+<!--pages/history/history.wxml-->
+<view class="container">
+  <view class="header">
+    <view class="title">历史记录</view>
+    <view wx:if="{{!isSelecting}}" class="select-btn" bindtap="enableSelectMode">选择</view>
+    <view wx:else class="cancel-btn" bindtap="cancelSelectMode">取消</view>
+  </view>
+  
+  <!-- 工具栏 -->
+  <view class="toolbar" wx:if="{{isSelecting}}">
+    <view class="tool-item" bindtap="toggleSelectAll">
+      <text class="tool-text">{{selectedItems.length === analysisList.length ? '取消全选' : '全选'}}</text>
+    </view>
+    <view class="tool-item" bindtap="deleteSelected">
+      <text class="tool-text tool-text-danger">删除</text>
+    </view>
+  </view>
+
+  <!-- 分析记录列表 -->
+  <view class="analysis-list" wx:if="{{!loading && analysisList.length > 0}}">
+    <view class="analysis-item {{isSelecting ? 'selecting' : ''}}" 
+          wx:for="{{analysisList}}" 
+          wx:key="id" 
+          bindtap="viewAnalysisDetail" 
+          data-id="{{item.id}}">
+      
+      <!-- 选择框 -->
+      <view class="select-box" wx:if="{{isSelecting}}">
+        <view class="checkbox {{selectedItems.includes(item.id) ? 'checked' : ''}}">
+          <view class="check-inner" wx:if="{{selectedItems.includes(item.id)}}"></view>
+        </view>
+      </view>
+      
+      <view class="analysis-content">
+        <view class="analysis-title">{{item.fileName}}</view>
+        <view class="analysis-meta">
+          <view class="analysis-time">{{item.analysisDate}}</view>
+          <view class="analysis-size">{{item.fileSize}}</view>
+        </view>
+      </view>
+      
+      <view class="analysis-score {{item.score >= 90 ? 'score-excellent' : (item.score >= 80 ? 'score-good' : 'score-average')}}">
+        {{item.score}}
+      </view>
+      
+      <!-- 操作按钮 -->
+      <view class="action-btn" wx:if="{{!isSelecting}}" catchtap="deleteAnalysis" data-id="{{item.id}}">
+        <view class="delete-icon"></view>
+      </view>
+    </view>
+    
+    <!-- 加载更多 -->
+    <view class="load-more" wx:if="{{hasMore}}" bindtap="loadMore">
+      <text class="load-more-text">加载更多</text>
+    </view>
+    <view class="no-more" wx:else>
+      <text class="no-more-text">没有更多记录了</text>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:elif="{{!loading && analysisList.length === 0}}">
+    <image src="/assets/images/empty.png" class="empty-image" mode="aspectFit"></image>
+    <view class="empty-text">暂无分析记录</view>
+    <navigator url="/pages/upload/upload" open-type="switchTab">
+      <button class="btn-primary">立即上传分析</button>
+    </navigator>
+  </view>
+
+  <!-- 加载状态 -->
+  <view class="loading-state" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
+    <view class="loading-text">加载中...</view>
+  </view>
+
+  <!-- Toast组件 -->
+  <mp-toast id="toast"></mp-toast>
+</view>

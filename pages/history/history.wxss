@@ -1,0 +1,237 @@
+.container {
+  min-height: 100vh;
+  background-color: #f5f7fa;
+  padding-bottom: 30rpx;
+}
+
+.header {
+  padding: 30rpx 30rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.select-btn, .cancel-btn {
+  font-size: 28rpx;
+  color: #3563E9;
+  padding: 10rpx 20rpx;
+}
+
+.cancel-btn {
+  color: #666;
+}
+
+/* 工具栏样式 */
+.toolbar {
+  display: flex;
+  background-color: #fff;
+  padding: 20rpx 30rpx;
+  border-bottom: 1rpx solid #eee;
+}
+
+.tool-item {
+  margin-right: 40rpx;
+  padding: 10rpx 0;
+}
+
+.tool-text {
+  font-size: 28rpx;
+  color: #666;
+}
+
+.tool-text-danger {
+  color: #FF4D4F;
+}
+
+/* 分析列表样式 */
+.analysis-list {
+  padding: 20rpx 30rpx;
+}
+
+.analysis-item {
+  background-color: #fff;
+  border-radius: 12rpx;
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+  display: flex;
+  align-items: center;
+  position: relative;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+}
+
+.analysis-item.selecting {
+  padding-left: 80rpx;
+}
+
+.select-box {
+  position: absolute;
+  left: 30rpx;
+}
+
+.checkbox {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  border: 2rpx solid #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.checkbox.checked {
+  border-color: #3563E9;
+  background-color: #3563E9;
+}
+
+.check-inner {
+  width: 20rpx;
+  height: 20rpx;
+  border-radius: 50%;
+  background-color: #fff;
+}
+
+.analysis-content {
+  flex: 1;
+  margin-right: 20rpx;
+}
+
+.analysis-title {
+  font-size: 32rpx;
+  color: #333;
+  margin-bottom: 10rpx;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 400rpx;
+}
+
+.analysis-meta {
+  display: flex;
+  align-items: center;
+  font-size: 24rpx;
+  color: #999;
+}
+
+.analysis-time {
+  margin-right: 20rpx;
+}
+
+.analysis-score {
+  font-size: 42rpx;
+  font-weight: bold;
+  color: #3563E9;
+  min-width: 80rpx;
+  text-align: center;
+}
+
+.score-excellent {
+  color: #52C41A;
+}
+
+.score-good {
+  color: #3563E9;
+}
+
+.score-average {
+  color: #FA8C16;
+}
+
+.action-btn {
+  padding: 15rpx;
+  margin-left: 10rpx;
+}
+
+.delete-icon {
+  width: 36rpx;
+  height: 36rpx;
+  background-color: #FF4D4F;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23000000'%3E%3Cpath d='M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM8 9h8v10H8V9zm7.5-5l-1-1h-5l-1 1H5v2h14V4h-3.5z'/%3E%3C/svg%3E") no-repeat 50% 50%;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23000000'%3E%3Cpath d='M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM8 9h8v10H8V9zm7.5-5l-1-1h-5l-1 1H5v2h14V4h-3.5z'/%3E%3C/svg%3E") no-repeat 50% 50%;
+  mask-size: contain;
+  -webkit-mask-size: contain;
+}
+
+/* 加载更多和没有更多样式 */
+.load-more, .no-more {
+  text-align: center;
+  padding: 30rpx 0;
+}
+
+.load-more-text, .no-more-text {
+  font-size: 26rpx;
+  color: #999;
+}
+
+.load-more-text {
+  color: #3563E9;
+}
+
+/* 空状态样式 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100rpx 0;
+}
+
+.empty-image {
+  width: 240rpx;
+  height: 240rpx;
+  margin-bottom: 30rpx;
+}
+
+.empty-text {
+  font-size: 30rpx;
+  color: #999;
+  margin-bottom: 40rpx;
+}
+
+.btn-primary {
+  background-color: #3563E9;
+  color: #fff;
+  font-size: 30rpx;
+  padding: 20rpx 40rpx;
+  border-radius: 8rpx;
+  border: none;
+}
+
+/* 加载状态样式 */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100rpx 0;
+}
+
+.loading-spinner {
+  width: 60rpx;
+  height: 60rpx;
+  border: 4rpx solid #f3f3f3;
+  border-top: 4rpx solid #3563E9;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20rpx;
+}
+
+.loading-text {
+  font-size: 28rpx;
+  color: #999;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+} 

@@ -4,7 +4,8 @@
     "pages/upload/upload",
     "pages/analysis/analysis",
     "pages/report/report",
-    "pages/history/history"
+    "pages/history/history",
+    "pages/analysis-detail/analysis-detail"
   ],
   "window": {
     "backgroundTextStyle": "light",

@@ -1,0 +1,140 @@
+<view class="container">
+  <!-- 加载状态 -->
+  <view class="loading-state" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
+    <view class="loading-text">加载分析结果中...</view>
+  </view>
+
+  <block wx:if="{{!loading && analysisDetail}}">
+    <!-- 顶部信息卡片 -->
+    <view class="header-card">
+      <view class="file-info">
+        <view class="file-name">{{analysisDetail.fileName}}</view>
+        <view class="file-meta">
+          <text class="file-size">{{analysisDetail.fileSize}}</text>
+          <text class="analysis-time">分析时间：{{analysisDetail.analysisTime}}</text>
+        </view>
+      </view>
+      <view class="score-container">
+        <view class="score-value {{analysisDetail.overallScore >= 90 ? 'excellent' : (analysisDetail.overallScore >= 80 ? 'good' : 'average')}}">
+          {{analysisDetail.overallScore}}
+        </view>
+        <view class="score-label">总评分</view>
+      </view>
+    </view>
+
+    <!-- 操作按钮区域 -->
+    <view class="action-buttons">
+      <button class="action-btn share-btn" open-type="share">
+        <image src="/assets/images/share.png" class="btn-icon"></image>
+        <text>分享</text>
+      </button>
+      <button class="action-btn export-btn" bindtap="exportReport">
+        <image src="/assets/icons/upload-file.png" class="btn-icon"></image>
+        <text>导出报告</text>
+      </button>
+    </view>
+
+    <!-- 选项卡导航 -->
+    <view class="tabs">
+      <view class="tab {{activeTab === 'summary' ? 'active' : ''}}" bindtap="switchTab" data-tab="summary">
+        <text>总体评估</text>
+      </view>
+      <view class="tab {{activeTab === 'issues' ? 'active' : ''}}" bindtap="switchTab" data-tab="issues">
+        <text>问题 ({{issuesList.length}})</text>
+      </view>
+      <view class="tab {{activeTab === 'suggestions' ? 'active' : ''}}" bindtap="switchTab" data-tab="suggestions">
+        <text>改进建议 ({{suggestionsList.length}})</text>
+      </view>
+    </view>
+
+    <!-- 总体评估内容 -->
+    <view class="tab-content" wx:if="{{activeTab === 'summary'}}">
+      <view class="summary-box">
+        <view class="section-title">总体评价</view>
+        <view class="summary-text">{{analysisDetail.summary}}</view>
+      </view>
+
+      <!-- 雷达图展示各项评分 -->
+      <view class="chart-container">
+        <view class="section-title">各维度评分</view>
+        <view class="radar-chart">
+          <!-- 实际项目中应使用雷达图组件，这里仅为示意 -->
+          <view class="dimension-scores">
+            <view class="dimension-item" wx:for="{{radarData.categories}}" wx:key="name">
+              <view class="dimension-name">{{item.name}}</view>
+              <view class="dimension-score">{{radarData.series[0].data[index]}}</view>
+              <view class="score-bar">
+                <view class="score-bar-inner" style="width: {{radarData.series[0].data[index]}}%;"></view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 行业对比柱状图 -->
+      <view class="chart-container">
+        <view class="section-title">行业对比分析</view>
+        <view class="bar-chart">
+          <!-- 实际项目中应使用柱状图组件，这里仅为示意 -->
+          <view class="bar-chart-legend">
+            <view class="legend-item">
+              <view class="legend-color your-score"></view>
+              <text class="legend-text">您的得分</text>
+            </view>
+            <view class="legend-item">
+              <view class="legend-color industry-avg"></view>
+              <text class="legend-text">行业平均</text>
+            </view>
+          </view>
+          <view class="bar-chart-content">
+            <view class="bar-group" wx:for="{{barData.categories}}" wx:key="*this">
+              <view class="bar-label">{{item}}</view>
+              <view class="bar-wrapper">
+                <view class="bar your-score" style="height: {{barData.series[0].data[index]}}%;">
+                  <text class="bar-value">{{barData.series[0].data[index]}}</text>
+                </view>
+                <view class="bar industry-avg" style="height: {{barData.series[1].data[index]}}%;">
+                  <text class="bar-value">{{barData.series[1].data[index]}}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 问题列表内容 -->
+    <view class="tab-content" wx:if="{{activeTab === 'issues'}}">
+      <view class="issues-list">
+        <view class="issue-item" wx:for="{{issuesList}}" wx:key="id">
+          <view class="issue-header">
+            <view class="issue-type {{item.type}}">{{item.type === 'critical' ? '严重' : (item.type === 'major' ? '重要' : '一般')}}</view>
+            <view class="issue-title">{{item.title}}</view>
+          </view>
+          <view class="issue-location">位置: {{item.location}}</view>
+          <view class="issue-description">{{item.description}}</view>
+          <view class="issue-suggestion">
+            <view class="suggestion-title">建议</view>
+            <view class="suggestion-content">{{item.suggestion}}</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 改进建议内容 -->
+    <view class="tab-content" wx:if="{{activeTab === 'suggestions'}}">
+      <view class="suggestions-list">
+        <view class="suggestion-item" wx:for="{{suggestionsList}}" wx:key="id">
+          <view class="suggestion-header">
+            <view class="suggestion-priority {{item.priority}}">
+              {{item.priority === 'high' ? '高优先级' : (item.priority === 'medium' ? '中优先级' : '低优先级')}}
+            </view>
+            <view class="suggestion-title">{{item.title}}</view>
+          </view>
+          <view class="suggestion-description">{{item.description}}</view>
+        </view>
+      </view>
+    </view>
+  </block>
+</view> 
