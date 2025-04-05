@@ -6,7 +6,8 @@
     "pages/about/about",
     "pages/analysis-detail/analysis-detail",
     "pages/history/history",
-    "pages/report/report"
+    "pages/report/report",
+    "pages/analysis-result/analysis-result"
   ],
   "window": {
     "backgroundTextStyle": "light",

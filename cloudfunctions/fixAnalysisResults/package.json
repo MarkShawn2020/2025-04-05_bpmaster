@@ -1,4 +1,4 @@
-{
+x{
   "name": "fixAnalysisResults",
   "version": "1.0.0",
   "description": "修复数据库中analysisResults为null的记录",

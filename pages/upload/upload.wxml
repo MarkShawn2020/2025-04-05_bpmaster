@@ -8,7 +8,6 @@
       <image class="upload-icon" src="/assets/icons/upload-file.png" mode="aspectFit"></image>
       <view class="upload-text">点击选择文件</view>
       <view class="upload-hint">请将BP文件发送到微信聊天中，然后从聊天记录中选择</view>
-      <view class="upload-tip">支持PDF、Word、PPT等格式，最大20MB</view>
     </view>
     
     <!-- 文件列表状态 -->
@@ -25,7 +24,7 @@
           <view class="file-select">
             <checkbox checked="{{item.selected}}" bindtap="toggleFileSelection" data-index="{{index}}" />
           </view>
-          <view class="file-info" bindtap="navigateToFileAnalysis" data-index="{{index}}">
+          <view class="file-info">
             <image class="file-icon" src="/assets/icons/file-{{item.type}}.png" mode="aspectFit"></image>
             <view class="file-detail">
               <view class="file-name">{{item.name}}</view>
@@ -47,28 +46,35 @@
     <!-- 上传中状态 -->
     <view class="progress-area" wx:elif="{{uploading}}">
       <view class="progress-header">
-        <view class="progress-title">正在上传...</view>
+        <view class="progress-title">正在上传文件</view>
         <view class="progress-percent">{{uploadProgress.toFixed(0)}}%</view>
       </view>
       <view class="progress-bar-bg">
         <view class="progress-bar" style="width: {{uploadProgress}}%;"></view>
       </view>
-      <view class="file-count">正在上传 {{selectedCount}} 个文件</view>
+      <view class="progress-info">
+        <image class="loading-icon" src="/assets/icons/loading.png" mode="aspectFit"></image>
+        <view class="progress-text">正在上传 {{selectedCount}} 个文件，请稍候...</view>
+      </view>
     </view>
     
     <!-- 上传成功，准备分析 -->
     <view class="success-area" wx:elif="{{uploadSuccess && !analyzing}}">
-      <image class="success-icon" src="/assets/icons/success.png" mode="aspectFit"></image>
-      <view class="success-text">上传成功，即将开始分析</view>
-      <view class="file-count">已上传 {{selectedCount}} 个文件</view>
+      <view class="success-header">
+        <image class="success-icon" src="/assets/icons/success.png" mode="aspectFit"></image>
+        <view class="success-info">
+          <view class="success-title">上传成功</view>
+          <view class="success-count">已上传 {{selectedCount}} 个文件</view>
+        </view>
+      </view>
       
       <!-- 添加上传成功后的文件列表 -->
       <view class="success-file-list">
-        <view class="success-file-item" wx:for="{{fileList}}" wx:key="name" wx:if="{{item.fileId}}" bindtap="navigateToFileAnalysis" data-index="{{index}}">
+        <view class="success-file-item" wx:for="{{fileList}}" wx:key="name" wx:if="{{item.fileId}}">
           <image class="file-icon" src="/assets/icons/file-{{item.type}}.png" mode="aspectFit"></image>
           <view class="file-detail">
             <view class="file-name">{{item.name}}</view>
-            <view class="file-meta">{{item.size}} | 上传于{{item.uploadTime || item.time}}</view>
+            <view class="file-meta">{{item.size}}</view>
           </view>
           <view class="file-status">
             <view class="file-status-badge">已上传</view>
@@ -76,11 +82,14 @@
         </view>
       </view>
       
-      <button class="btn-primary" bindtap="handleAnalyzeFile">开始分析</button>
+      <view class="action-buttons">
+        <button class="btn-secondary" bindtap="handleReset">重新上传</button>
+        <button class="btn-primary" bindtap="handleAnalyzeFile">开始分析</button>
+      </view>
     </view>
     
     <!-- 分析中状态 -->
-    <view class="progress-area" wx:elif="{{analyzing}}">
+    <view class="progress-area analysis-progress" wx:elif="{{analyzing}}">
       <view class="progress-header">
         <view class="progress-title">{{analysisStage}}</view>
         <view class="progress-percent">{{analysisProgress.toFixed(0)}}%</view>
@@ -89,8 +98,11 @@
         <view class="progress-bar progress-bar-analysis" style="width: {{analysisProgress}}%;"></view>
       </view>
       <view class="analysis-info">
-        <view class="analysis-stage">{{analysisStage}}</view>
-        <view class="analysis-hint">分析大约需要1-3分钟，请耐心等待</view>
+        <image class="loading-icon" src="/assets/icons/analysis.png" mode="aspectFit"></image>
+        <view class="analysis-detail">
+          <view class="analysis-stage">{{analysisStage}}</view>
+          <view class="analysis-hint">分析大约需要1-3分钟，请耐心等待</view>
+        </view>
       </view>
     </view>
   </view>

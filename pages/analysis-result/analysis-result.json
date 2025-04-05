@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "分析结果",
+  "usingComponents": {
+    "mp-toast": "../../components/toast/toast"
+  }
+} 

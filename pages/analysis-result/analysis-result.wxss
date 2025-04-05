@@ -1,0 +1,291 @@
+/* 容器样式 */
+.container {
+  padding: 30rpx;
+  min-height: 100vh;
+  box-sizing: border-box;
+  background-color: #f5f7fa;
+}
+
+/* 加载状态 */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100rpx 0;
+}
+
+.loading-icon {
+  width: 100rpx;
+  height: 100rpx;
+  margin-bottom: 30rpx;
+  animation: rotate 1.5s linear infinite;
+}
+
+.loading-text {
+  font-size: 30rpx;
+  color: #666;
+}
+
+/* 错误状态 */
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100rpx 0;
+}
+
+.error-icon {
+  width: 120rpx;
+  height: 120rpx;
+  margin-bottom: 30rpx;
+}
+
+.error-text {
+  font-size: 32rpx;
+  color: #f5222d;
+  margin-bottom: 40rpx;
+}
+
+/* 头部卡片 */
+.header-card {
+  background-color: #fff;
+  border-radius: 16rpx;
+  padding: 40rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.file-info {
+  flex: 1;
+}
+
+.file-name {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12rpx;
+  word-break: break-all;
+}
+
+.analysis-date {
+  font-size: 28rpx;
+  color: #999;
+}
+
+.score-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-left: 30rpx;
+  min-width: 120rpx;
+}
+
+.score-value {
+  font-size: 56rpx;
+  font-weight: 600;
+  color: #1890ff;
+}
+
+.score-label {
+  font-size: 24rpx;
+  color: #999;
+}
+
+/* 标签页导航 */
+.tab-nav {
+  display: flex;
+  background-color: #fff;
+  border-radius: 16rpx;
+  overflow: hidden;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.1);
+}
+
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 30rpx 0;
+  font-size: 30rpx;
+  color: #666;
+  position: relative;
+}
+
+.tab-item.active {
+  color: #1890ff;
+  font-weight: 500;
+}
+
+.tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 20%;
+  width: 60%;
+  height: 6rpx;
+  background-color: #1890ff;
+  border-radius: 3rpx;
+}
+
+/* 内容卡片 */
+.content-card {
+  background-color: #fff;
+  border-radius: 16rpx;
+  padding: 40rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.1);
+}
+
+.tab-content {
+  min-height: 300rpx;
+}
+
+/* Markdown内容 */
+.markdown-content {
+  font-size: 28rpx;
+  color: #333;
+  line-height: 1.8;
+}
+
+/* 分析部分 */
+.analysis-section {
+  margin-bottom: 40rpx;
+  padding-bottom: 40rpx;
+  border-bottom: 2rpx solid #f0f2f5;
+}
+
+.analysis-section:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30rpx;
+  padding-bottom: 20rpx;
+  border-bottom: 1rpx solid #f0f2f5;
+}
+
+.section-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.section-score {
+  font-size: 44rpx;
+  font-weight: 600;
+  min-width: 80rpx;
+  text-align: center;
+}
+
+.section-score.excellent {
+  color: #52c41a;
+}
+
+.section-score.good {
+  color: #1890ff;
+}
+
+.section-score.average {
+  color: #f5222d;
+}
+
+.section-content {
+  padding: 0 10rpx;
+}
+
+.sub-section {
+  margin-bottom: 30rpx;
+}
+
+.sub-section:last-child {
+  margin-bottom: 0;
+}
+
+.sub-title {
+  font-size: 30rpx;
+  font-weight: 500;
+  color: #555;
+  margin-bottom: 16rpx;
+  padding-left: 20rpx;
+  border-left: 6rpx solid #1890ff;
+}
+
+.sub-content {
+  font-size: 28rpx;
+  color: #666;
+  line-height: 1.6;
+  padding: 0 10rpx;
+}
+
+/* 底部操作栏 */
+.footer-actions {
+  display: flex;
+  justify-content: space-around;
+  padding: 30rpx 0;
+  background-color: #fff;
+  border-radius: 16rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.1);
+  margin-bottom: 30rpx;
+}
+
+.btn-action {
+  background: none;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 28rpx;
+  color: #666;
+  line-height: 1.4;
+  padding: 0;
+  margin: 0;
+}
+
+.btn-action::after {
+  border: none;
+}
+
+.action-icon {
+  width: 48rpx;
+  height: 48rpx;
+  margin-bottom: 10rpx;
+}
+
+/* 按钮样式 */
+.btn-primary {
+  background-color: #1890ff;
+  color: #fff;
+  border: none;
+  border-radius: 8rpx;
+  font-size: 30rpx;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 30rpx auto;
+  width: 400rpx;
+}
+
+.btn-primary::after {
+  border: none;
+}
+
+/* 动画 */
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+} 
