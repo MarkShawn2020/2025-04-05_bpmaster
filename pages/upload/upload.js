@@ -84,15 +84,9 @@ Page({
       // 显示更具体的错误信息
       if (error.errMsg && error.errMsg.includes('cancel')) {
         // 用户取消选择
-        this.toast.show({
-          title: '已取消选择文件',
-          icon: 'info'
-        });
+        this.toast.info('已取消选择文件');
       } else {
-        this.toast.show({
-          title: '选择文件失败，请确保微信聊天记录中有PDF文件',
-          icon: 'error'
-        });
+        this.toast.error('选择文件失败，请确保微信聊天记录中有PDF文件');
       }
     }
   },
@@ -122,10 +116,7 @@ Page({
     // 检查是否有选中的文件
     const selectedFiles = this.data.fileList.filter(file => file.selected);
     if (selectedFiles.length === 0) {
-      this.toast.show({
-        title: '请选择至少一个文件',
-        icon: 'error'
-      });
+      this.toast.error('请选择至少一个文件');
       return;
     }
 
@@ -164,10 +155,7 @@ Page({
         fileIds: results.map(result => result.fileId)
       });
 
-      this.toast.show({
-        title: '上传成功',
-        icon: 'success'
-      });
+      this.toast.success('上传成功');
 
       // 自动开始分析
       setTimeout(() => {
@@ -182,10 +170,7 @@ Page({
         uploading: false,
         error: error.message || '上传失败，请重试'
       });
-      this.toast.show({
-        title: '上传失败',
-        icon: 'error'
-      });
+      this.toast.error('上传失败');
     }
   },
 
@@ -222,10 +207,7 @@ Page({
         showAnalysisResult: true
       });
 
-      this.toast.show({
-        title: '分析完成',
-        icon: 'success'
-      });
+      this.toast.success('分析完成');
     } catch (error) {
       // 停止模拟进度
       clearInterval(this.analysisProgressInterval);
@@ -235,10 +217,7 @@ Page({
         analyzing: false,
         error: error.message || '分析失败，请重试'
       });
-      this.toast.show({
-        title: '分析失败',
-        icon: 'error'
-      });
+      this.toast.error('分析失败');
     }
   },
 
@@ -305,10 +284,7 @@ Page({
     } catch (error) {
       logger.error('预览报告失败', error);
       this.setData({ previewLoading: false });
-      this.toast.show({
-        title: '预览失败',
-        icon: 'error'
-      });
+      this.toast.error('预览失败');
     }
   },
   

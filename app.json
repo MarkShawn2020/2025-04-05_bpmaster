@@ -2,7 +2,6 @@
   "pages": [
     "pages/index/index",
     "pages/upload/upload",
-    "pages/analysis/analysis",
     "pages/user/user",
     "pages/about/about"
   ],
@@ -29,12 +28,6 @@
         "text": "上传",
         "iconPath": "assets/icons/upload.png",
         "selectedIconPath": "assets/icons/upload-active.png"
-      },
-      {
-        "pagePath": "pages/analysis/analysis",
-        "text": "分析",
-        "iconPath": "assets/icons/analysis.png",
-        "selectedIconPath": "assets/icons/analysis-active.png"
       },
       {
         "pagePath": "pages/user/user",
