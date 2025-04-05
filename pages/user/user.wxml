@@ -56,11 +56,13 @@
         <view class="setting-text">清理缓存</view>
         <view class="setting-arrow"></view>
       </view>
+
       <button class="setting-item contact-btn" open-type="contact" bindcontact="handleContact">
         <view class="setting-icon icon-service"></view>
         <view class="setting-text">联系客服</view>
         <view class="setting-arrow"></view>
       </button>
+      
       <view class="setting-item" bindtap="handleAbout">
         <view class="setting-icon icon-about"></view>
         <view class="setting-text">关于我们</view>
@@ -78,10 +80,6 @@
       <button class="logout-btn" bindtap="handleLogout">退出登录</button>
     </view>
 
-    <!-- 开发环境下的重置按钮 -->
-    <view class="reset-btn-wrap" wx:if="{{isDev}}">
-      <button class="reset-btn" bindtap="handleResetApp">完全重置应用</button>
-    </view>
 
     <view class="version-info">
       Version 1.0.0
