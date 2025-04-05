@@ -32,15 +32,15 @@
           </view>
           <view class="file-actions">
             <!-- 对已上传的文件显示查看分析按钮 -->
-            <button class="action-btn view-btn" wx:if="{{fileList[0].fileId}}" bindtap="navigateToFileAnalysis" data-index="0">查看分析</button>
-            <button class="action-btn delete-btn" bindtap="removeFile">删除</button>
+            <!-- <button class="action-btn view-btn" wx:if="{{fileList[0].fileId}}" bindtap="navigateToFileAnalysis" data-index="0">查看分析</button> -->
+            <view class="circular-delete-btn" bindtap="removeFile">×</view>
           </view>
         </view>
       </view>
     </view>
     
     <!-- 操作按钮区域 -->
-    <view class="action-area">
+    <view class="action-area" wx:if="{{fileList.length > 0}}">
       <!-- 显示上传按钮 -->
       <block wx:if="{{!uploading && !analyzing}}">
         
@@ -48,8 +48,6 @@
           disabled="{{fileList.length === 0 || uploadSuccess}}">上传文件</button>
         <button class="primary-btn analyze-btn" bindtap="handleAnalyzeFile"
           disabled="{{!uploadSuccess}}">开始分析</button>
-        <button class="secondary-btn reset-btn" bindtap="handleReset" 
-          wx:if="{{fileList.length > 0}}">重新选择</button>
       </block>
 
       <!-- 上传中状态 -->
