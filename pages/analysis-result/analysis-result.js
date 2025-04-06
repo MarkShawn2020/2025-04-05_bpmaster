@@ -1,7 +1,8 @@
 const app = getApp();
-import { info, error, debug } from '../../utils/logger.js';
+import { info, error, debug, warn } from '../../utils/logger.js';
 import { getFileType } from '../../utils/file.js';
 import { uploadFile, callCozeWorkflow } from '../../utils/api.js';
+import { formatCurrentTime, formatDisplayTime } from '../../utils/date.js';
 
 Page({
   data: {
@@ -10,13 +11,14 @@ Page({
     fileTime: '',
     fileId: '',
     fileUrl: '',
-    fileType: '',
+    fileType: 'unknown',
     sessionId: '',
     
     isAnalyzing: true,
     isCompleted: false,
     hasError: false,
     errorMessage: '',
+    isImageExists: false,
     
     mdContent: '',
     loadingTip: '正在分析您的商业计划书...',
@@ -29,33 +31,86 @@ Page({
   onLoad: function(options) {
     info('分析结果页面加载', options);
     
-    if (!options.fileId) {
+    try {
+      if (!options.fileId) {
+        this.setData({
+          isAnalyzing: false,
+          hasError: true,
+          errorMessage: '缺少必要的文件信息'
+        });
+        this.showToast('缺少必要的文件信息', 'error');
+        return;
+      }
+      
+      // 检查所需的图片资源是否存在
+      this.checkImageResources();
+      
+      // 从options中获取文件信息，确保正确解码文件名和时间
+      const fileName = options.fileName ? decodeURIComponent(options.fileName) : '未知文件';
+      const fileSize = options.fileSize ? decodeURIComponent(options.fileSize) : '未知大小';
+      const fileTimeRaw = options.fileTime ? decodeURIComponent(options.fileTime) : '';
+      // 格式化日期
+      const fileTime = fileTimeRaw ? formatDisplayTime(fileTimeRaw) : formatCurrentTime();
+      
+      this.setData({
+        fileId: options.fileId,
+        fileName: fileName,
+        fileSize: fileSize,
+        fileTime: fileTime,
+        fileUrl: options.fileUrl ? decodeURIComponent(options.fileUrl) : '',
+        fileType: options.fileType || getFileType(fileName) || 'unknown'
+      });
+      
+      info('文件信息', { 
+        fileId: this.data.fileId, 
+        fileName: this.data.fileName,
+        fileSize: this.data.fileSize,
+        fileTime: this.data.fileTime,
+        fileType: this.data.fileType
+      });
+      
+      // 生成会话ID
+      this.setData({
+        sessionId: 'session_' + new Date().getTime()
+      });
+      
+      // 开始分析
+      this.startAnalysis();
+    } catch (err) {
+      error('分析结果页面加载异常', err);
       this.setData({
         isAnalyzing: false,
         hasError: true,
-        errorMessage: '缺少必要的文件信息'
+        errorMessage: '加载异常，请返回重试'
       });
-      this.showToast('缺少必要的文件信息', 'error');
-      return;
+      this.showToast('加载异常，请返回重试', 'error');
     }
+  },
+  
+  // 检查图片资源是否存在
+  checkImageResources: function() {
+    // 初始化图片资源检查
+    info('检查必要的图片资源');
     
-    // 从options中获取文件信息
-    this.setData({
-      fileId: options.fileId,
-      fileName: options.fileName || '未知文件',
-      fileSize: options.fileSize || '未知大小',
-      fileTime: options.fileTime || this.formatCurrentTime(),
-      fileUrl: options.fileUrl || '',
-      fileType: options.fileType || getFileType(options.fileName || '')
-    });
-    
-    // 生成会话ID
-    this.setData({
-      sessionId: 'session_' + new Date().getTime()
-    });
-    
-    // 开始分析
-    this.startAnalysis();
+    try {
+      // 检查loading图标是否存在
+      wx.getImageInfo({
+        src: '/images/loading-icon.png',
+        success: () => {
+          this.setData({
+            isImageExists: true
+          });
+        },
+        fail: (err) => {
+          error('加载图标资源不存在', err);
+          this.setData({
+            isImageExists: false
+          });
+        }
+      });
+    } catch (err) {
+      error('检查图片资源失败', err);
+    }
   },
   
   // 开始分析
@@ -80,20 +135,40 @@ Page({
   // 调用Coze流式工作流API
   callCozeWorkflow: function() {
     const that = this;
-    const workflowId = app.globalData.config.cozeWorkflowId;
-    const token = app.globalData.config.cozeApiToken;
     
-    if (!workflowId || !token) {
-      error('缺少Coze配置', { workflowId, token });
+    // 检查全局配置
+    if (!app.globalData || !app.globalData.config || !app.globalData.config.coze) {
+      error('Coze配置不存在', { globalData: app.globalData });
       this.setData({
         isAnalyzing: false,
         hasError: true,
         errorMessage: '系统配置错误，请联系管理员'
       });
+      this.showToast('系统配置错误', 'error');
       return;
     }
     
-    const url = 'https://api.coze.cn/v1/workflow/stream_run';
+    // 获取配置
+    const cozeConfig = app.globalData.config.coze;
+    const workflowId = cozeConfig.WORKFLOW_ID;
+    const token = cozeConfig.TOKEN;
+    const apiUrl = cozeConfig.API_URL;
+    
+    info('Coze配置信息', { workflowId, apiUrl, tokenLength: token ? token.length : 0 });
+    
+    if (!workflowId || !token || !apiUrl) {
+      error('缺少Coze必要配置项', { workflowId, token, apiUrl });
+      this.setData({
+        isAnalyzing: false,
+        hasError: true,
+        errorMessage: '系统配置错误，请联系管理员'
+      });
+      this.showToast('系统配置错误，请联系管理员', 'error');
+      return;
+    }
+    
+    info('调用Coze工作流', { workflowId, fileId: this.data.fileId });
+    
     const headers = {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
@@ -106,14 +181,25 @@ Page({
         file_name: this.data.fileName,
         file_type: this.data.fileType,
         file_url: this.data.fileUrl,
-        user_id: app.globalData.userInfo ? app.globalData.userInfo.openId : ''
+        user_id: app.globalData.userInfo ? app.globalData.userInfo.openId || app.globalData.userInfo.userId || '' : ''
       }
     };
     
-    info('调用Coze工作流', { workflowId, fileId: this.data.fileId });
+    // 设置超时计时器，防止工作流卡死
+    if (this.workflowTimeout) {
+      clearTimeout(this.workflowTimeout);
+    }
+    
+    this.workflowTimeout = setTimeout(() => {
+      // 如果2分钟后仍处于分析中状态，则自动完成
+      if (this.data.isAnalyzing) {
+        info('工作流执行超时，自动完成');
+        this.handleWorkflowComplete();
+      }
+    }, 120000); // 2分钟超时
     
     const requestTask = wx.request({
-      url: url,
+      url: apiUrl,
       method: 'POST',
       header: headers,
       data: data,
@@ -126,6 +212,9 @@ Page({
       fail: function(err) {
         // 请求失败
         error('Coze工作流请求失败', err);
+        if (that.workflowTimeout) {
+          clearTimeout(that.workflowTimeout);
+        }
         that.setData({
           isAnalyzing: false,
           hasError: true,
@@ -134,7 +223,13 @@ Page({
         that.showToast('服务调用失败，请稍后重试', 'error');
       },
       complete: function() {
-        // 请求完成
+        // 请求完成，但可能没收到[DONE]标记，启动一个短超时
+        setTimeout(() => {
+          if (that.data.isAnalyzing && that.data.mdContent) {
+            info('工作流数据接收完毕但未收到完成标记，自动完成');
+            that.handleWorkflowComplete();
+          }
+        }, 5000); // 5秒后如果有内容但未完成，则自动完成
       }
     });
     
@@ -259,6 +354,15 @@ Page({
   handleWorkflowComplete: function() {
     info('工作流执行完成');
     
+    // 防止重复调用
+    if (!this.data.isAnalyzing) return;
+    
+    // 清除超时计时器
+    if (this.workflowTimeout) {
+      clearTimeout(this.workflowTimeout);
+      this.workflowTimeout = null;
+    }
+    
     this.setData({
       isAnalyzing: false,
       isCompleted: true,
@@ -379,27 +483,26 @@ Page({
     return String.fromCharCode.apply(null, new Uint8Array(buf));
   },
   
-  // 格式化当前时间
-  formatCurrentTime: function() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hour = String(now.getHours()).padStart(2, '0');
-    const minute = String(now.getMinutes()).padStart(2, '0');
-    
-    return `${year}-${month}-${day} ${hour}:${minute}`;
-  },
-  
   // 显示Toast
   showToast: function(message, type = 'info') {
-    const toast = this.selectComponent('#toast');
-    if (toast) {
-      toast.show(message, type);
-    } else {
+    try {
+      const toast = this.selectComponent('#toast');
+      if (toast && typeof toast.show === 'function') {
+        toast.show(message, type);
+      } else {
+        // 使用系统自带的toast
+        wx.showToast({
+          title: message,
+          icon: type === 'success' ? 'success' : 'none',
+          duration: 2000
+        });
+      }
+    } catch (err) {
+      // 出错时使用系统toast
+      error('显示toast失败', err);
       wx.showToast({
         title: message,
-        icon: type === 'success' ? 'success' : 'none',
+        icon: 'none',
         duration: 2000
       });
     }
@@ -411,5 +514,13 @@ Page({
       path: '/pages/index/index',
       imageUrl: '/images/share-img.png'
     };
+  },
+  
+  onUnload: function() {
+    // 清除超时计时器
+    if (this.workflowTimeout) {
+      clearTimeout(this.workflowTimeout);
+      this.workflowTimeout = null;
+    }
   }
 }); 

@@ -3,10 +3,14 @@
   <!-- 文件信息卡片 -->
   <view class="analysis-card">
     <view class="file-info">
-      <image class="file-icon" src="{{'/images/file-icons/' + fileType + '.png'}}"></image>
+      <image class="file-icon" src="{{fileType ? '/images/file-icons/file-' + fileType + '.png' : '/images/file-icons/file-unknown.png'}}"></image>
       <view class="file-detail">
-        <view class="file-name">{{fileName}}</view>
-        <view class="file-meta">{{fileSize}} · {{fileTime}}</view>
+        <view class="file-name">{{fileName || '未知文件'}}</view>
+        <view class="file-meta">
+          <text class="file-size">{{fileSize || '未知大小'}}</text>
+          <text class="meta-separator" wx:if="{{fileSize && fileTime}}">·</text>
+          <text class="file-time">{{fileTime || ''}}</text>
+        </view>
       </view>
     </view>
     
@@ -15,7 +19,7 @@
       <view class="analysis-title">AI评估报告</view>
       <view class="analysis-status">
         <text class="status-text {{isAnalyzing ? 'status-loading' : (isCompleted ? 'status-success' : '')}}">{{statusText}}</text>
-        <image wx:if="{{isAnalyzing}}" class="status-icon" src="/images/loading.gif"></image>
+        <image wx:if="{{isAnalyzing && isImageExists}}" class="status-icon" src="/images/loading-icon.png"></image>
         <image wx:if="{{isCompleted}}" class="status-icon" src="/images/check-circle.png"></image>
       </view>
     </view>
@@ -23,9 +27,21 @@
     <!-- 分析中状态 -->
     <block wx:if="{{isAnalyzing && !mdContent}}">
       <view class="loading-container">
-        <image class="loading-animation" src="/images/ai-thinking.gif"></image>
         <view class="loading-text">{{loadingTip}}</view>
         <view class="loading-tips">分析过程需要一些时间，请耐心等待</view>
+        <button class="retry-btn" type="default" size="mini" bindtap="handleReAnalyze">
+          重新分析
+        </button>
+      </view>
+    </block>
+    
+    <!-- 分析中但有部分内容 -->
+    <block wx:if="{{isAnalyzing && mdContent}}">
+      <view class="loading-status">
+        <view class="loading-text">{{loadingTip}}</view>
+        <button class="retry-btn" type="default" size="mini" bindtap="handleReAnalyze">
+          重新分析
+        </button>
       </view>
     </block>
     

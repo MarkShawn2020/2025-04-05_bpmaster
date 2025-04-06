@@ -2,6 +2,7 @@ import { info, error } from '../../utils/logger.js';
 import { chooseFile, formatFileSize, getFileType, isSupportedFileType } from '../../utils/file.js';
 import { uploadFile } from '../../utils/api.js';
 import { toast } from '../../utils/toast.js';
+import { formatCurrentTime } from '../../utils/date.js';
 const app = getApp();
 
 Page({
@@ -70,7 +71,7 @@ Page({
             sizeText: formatFileSize(fileSize),
             type: fileType,
             path: res.path,
-            time: that.formatCurrentTime()
+            time: formatCurrentTime()
           },
           uploadProgress: 0,
           errorMessage: ''
@@ -174,18 +175,18 @@ Page({
   
   // 开始分析
   handleStartAnalysis: function() {
-    if (!this.data.file.id) {
-      this.showToast('文件信息不完整，请重新上传', 'error');
-      return;
-    }
-    
-    info('跳转到分析结果页', {
-      fileId: this.data.file.id
-    });
+    info('开始分析', { fileId: this.data.file.id, fileName: this.data.file.name });
     
     // 跳转到分析结果页
     wx.navigateTo({
-      url: `/pages/analysis-result/analysis-result?fileId=${this.data.file.id}&fileName=${encodeURIComponent(this.data.file.name)}&fileSize=${encodeURIComponent(this.data.file.sizeText)}&fileTime=${encodeURIComponent(this.data.file.time)}&fileType=${this.data.file.type}&fileUrl=${encodeURIComponent(this.data.file.url || '')}`
+      url: `/pages/analysis-result/analysis-result?fileId=${this.data.file.id}&fileName=${encodeURIComponent(this.data.file.name)}&fileSize=${encodeURIComponent(this.data.file.sizeText)}&fileTime=${encodeURIComponent(this.data.file.time)}&fileType=${this.data.file.type}&fileUrl=${encodeURIComponent(this.data.file.url || '')}`,
+      success: () => {
+        info('跳转到分析结果页成功');
+      },
+      fail: (err) => {
+        error('跳转到分析结果页失败', err);
+        this.showToast('跳转失败，请重试', 'error');
+      }
     });
   },
   
@@ -218,18 +219,6 @@ Page({
     wx.navigateTo({
       url: '/pages/history/history'
     });
-  },
-  
-  // 格式化当前时间
-  formatCurrentTime: function() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hour = String(now.getHours()).padStart(2, '0');
-    const minute = String(now.getMinutes()).padStart(2, '0');
-    
-    return `${year}-${month}-${day} ${hour}:${minute}`;
   },
   
   // 显示Toast

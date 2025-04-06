@@ -74,8 +74,9 @@ App({
       });
     }
     
-    // 初始化全局数据
+    // 确保保留全局配置的同时初始化其他必要数据
     this.globalData = {
+      ...this.globalData,
       userInfo: null,
       hasUserInfo: false,
       uploadedFiles: [],

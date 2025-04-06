@@ -65,17 +65,17 @@
 }
 
 /* 链接样式 */
-a {
+.md-a {
   color: #0366d6;
   text-decoration: none;
 }
 
 /* 强调样式 */
-strong {
+.md-strong {
   font-weight: bold;
 }
 
-em {
+.md-em {
   font-style: italic;
 }
 

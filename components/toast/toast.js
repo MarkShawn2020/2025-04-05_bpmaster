@@ -47,6 +47,17 @@ Component({
    * 组件的方法列表
    */
   methods: {
+    // 简单的show方法，方便外部调用
+    show(message, type = 'info') {
+      console.log('Toast show method called:', message, type);
+      this.setData({
+        type,
+        message,
+        show: true
+      });
+      this._autoHide();
+    },
+
     showToast(options) {
       // 清除之前的定时器
       this._clearTimer();

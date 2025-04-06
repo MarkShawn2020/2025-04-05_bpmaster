@@ -37,11 +37,26 @@
   color: var(--text-primary);
   margin-bottom: 8rpx;
   word-break: break-all;
+  font-weight: 500;
+  max-width: 600rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .file-meta {
   font-size: 24rpx;
   color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+}
+
+.meta-separator {
+  margin: 0 8rpx;
+}
+
+.file-size, .file-time {
+  white-space: nowrap;
 }
 
 .analysis-header {
@@ -104,6 +119,25 @@
   color: var(--text-tertiary);
   text-align: center;
   max-width: 600rpx;
+  margin-bottom: 30rpx;
+}
+
+.loading-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10rpx 20rpx;
+  background-color: #f5f7fa;
+  border-radius: 8rpx;
+  margin: 20rpx 0;
+}
+
+.retry-btn {
+  margin-top: 20rpx;
+  background-color: #f5f7fa;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  font-size: 24rpx;
 }
 
 .markdown-container {
