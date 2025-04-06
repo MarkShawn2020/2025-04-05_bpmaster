@@ -1,5 +1,5 @@
 // pages/history/history.js
-import logger from '../../utils/logger';
+import { info, warn, error } from '../../utils/logger';
 import { apiService } from '../../services/api';
 import { toast } from '../../utils/toast';
 
@@ -33,7 +33,7 @@ Page({
       if (!this.data.hasMore || this.data.loading) return;
       
       this.setData({ loading: true });
-      logger.info('加载历史记录', { page: this.data.page, pageSize: this.data.pageSize });
+      info('加载历史记录', { page: this.data.page, pageSize: this.data.pageSize });
       
       // 调用API获取数据
       const res = await apiService.getBPList(this.data.page, this.data.pageSize);
@@ -56,7 +56,7 @@ Page({
         }));
       } else {
         // API返回错误或无数据时，使用模拟数据
-        logger.warn('使用模拟数据', { error: res?.message || '未知错误' });
+        warn('使用模拟数据', { error: res?.message || '未知错误' });
         list = this.getMockData();
         hasMore = list.length === this.data.pageSize;
       }
@@ -68,8 +68,8 @@ Page({
         page: this.data.page + 1
       });
       
-    } catch (error) {
-      logger.error('加载历史记录失败', error);
+    } catch (err) {
+      error('加载历史记录失败', err);
       this.setData({ loading: false });
       toast.error('加载失败，请稍后重试');
     }
@@ -105,7 +105,7 @@ Page({
       return;
     }
     
-    logger.info('查看分析详情', { id, fileName: item.fileName });
+    info('查看分析详情', { id, fileName: item.fileName });
     
     // 显示加载中
     const loading = toast.loading('加载数据中...');
@@ -138,7 +138,7 @@ Page({
             wx.navigateTo({
               url: `/pages/analysis-detail/analysis-detail?id=${id}&fileName=${encodeURIComponent(item.fileName)}`,
               fail: (err) => {
-                logger.error('导航到分析页失败', err);
+                error('导航到分析页失败', err);
                 toast.error('打开分析页失败');
               }
             });
@@ -150,14 +150,14 @@ Page({
       })
       .catch(err => {
         loading.hide();
-        logger.error('获取BP详情失败', err);
+        error('获取BP详情失败', err);
         toast.error('获取数据失败');
       });
   },
   
   // 开始分析BP文件
   startAnalysis(id, fileName) {
-    logger.info('开始分析BP文件', { fileName, id });
+    info('开始分析BP文件', { fileName, id });
     
     // 显示确认对话框
     wx.showModal({
@@ -191,7 +191,7 @@ Page({
                   wx.navigateTo({
                     url: `/pages/analysis-detail/analysis-detail?id=${id}&fileName=${encodeURIComponent(fileName)}`,
                     fail: (err) => {
-                      logger.error('导航到分析页失败', err);
+                      error('导航到分析页失败', err);
                     }
                   });
                 }, 1500);
@@ -202,7 +202,7 @@ Page({
             })
             .catch(err => {
               loading.hide();
-              logger.error('启动分析失败', err);
+              error('启动分析失败', err);
               toast.error('启动分析失败');
             });
         }
@@ -230,7 +230,7 @@ Page({
       return;
     }
     
-    logger.info('预览文件', { fileName: item.fileName, id });
+    info('预览文件', { fileName: item.fileName, id });
     
     // 显示加载提示
     const loading = toast.loading('加载文件中...');
@@ -242,13 +242,13 @@ Page({
           throw new Error('找不到文件的云存储ID');
         }
         
-        logger.info('获取到文件信息', fileInfo);
+        info('获取到文件信息', fileInfo);
         
         // 使用真正的云存储fileID获取临时访问URL
         return apiService.getFileUrl(fileInfo.fileID);
       })
       .then(tempUrl => {
-        logger.info('获取文件临时URL成功', tempUrl);
+        info('获取文件临时URL成功', tempUrl);
         
         // 下载文件到本地
         return new Promise((resolve, reject) => {
@@ -269,10 +269,10 @@ Page({
             fileType: this.getFileType(item.fileName),
             showMenu: true,
             success: () => {
-              logger.info('文件预览成功');
+              info('文件预览成功');
             },
             fail: (err) => {
-              logger.error('文件预览失败', err);
+              error('文件预览失败', err);
               toast.error('预览失败，请稍后再试');
               
               // 处理权限问题
@@ -293,12 +293,12 @@ Page({
             }
           });
         } else {
-          logger.error('下载文件失败', downloadRes);
+          error('下载文件失败', downloadRes);
           toast.error('文件下载失败');
         }
       })
       .catch(err => {
-        logger.error('获取或下载文件失败', err);
+        error('获取或下载文件失败', err);
         toast.error('无法预览文件，请稍后再试');
         
         // 显示更详细的错误提示
@@ -357,7 +357,7 @@ Page({
       success: async (res) => {
         if (res.confirm) {
           try {
-            logger.info('删除分析记录', { id, fileName });
+            info('删除分析记录', { id, fileName });
             
             // 显示加载提示
             const loading = toast.loading('正在删除...');
@@ -379,7 +379,7 @@ Page({
               throw new Error(response?.message || '删除失败');
             }
           } catch (error) {
-            logger.error('删除失败', error);
+            error('删除失败', error);
             toast.error('删除失败，请稍后重试');
           }
         }
@@ -450,7 +450,7 @@ Page({
       success: async (res) => {
         if (res.confirm) {
           try {
-            logger.info('批量删除分析记录', { ids: this.data.selectedItems });
+            info('批量删除分析记录', { ids: this.data.selectedItems });
             
             // 显示加载提示
             const loading = toast.loading('正在删除...');
@@ -464,7 +464,7 @@ Page({
               try {
                 await apiService.deleteBP(id);
               } catch (err) {
-                logger.error(`删除记录 ${id} 失败`, err);
+                error(`删除记录 ${id} 失败`, err);
                 // 继续删除其他记录
               }
             }
@@ -484,7 +484,7 @@ Page({
             
             toast.success('删除成功');
           } catch (error) {
-            logger.error('批量删除失败', error);
+            error('批量删除失败', error);
             toast.error('删除失败，请稍后重试');
           }
         }
