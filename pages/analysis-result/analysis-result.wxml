@@ -2,7 +2,7 @@
 <view class="container">
   <!-- 文件信息卡片 -->
   <view class="analysis-card">
-    <view class="file-info">
+    <view class="file-info" bindtap="handleOpenFile" hover-class="hover">
       <image class="file-icon" src="{{fileType ? '/images/file-icons/file-' + fileType + '.png' : '/images/file-icons/file-unknown.png'}}"></image>
       <view class="file-detail">
         <view class="file-name">{{fileName || '未知文件'}}</view>

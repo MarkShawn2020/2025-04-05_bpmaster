@@ -507,6 +507,129 @@ Page({
     this.showToast('分享功能开发中', 'info');
   },
   
+  // 打开文件
+  handleOpenFile: function() {
+    // 检查是否有文件ID
+    if (!this.data.fileId) {
+      this.showToast('无法打开文件，文件信息不完整', 'error');
+      return;
+    }
+    
+    info('准备打开文件', { fileId: this.data.fileId, fileType: this.data.fileType });
+    wx.showLoading({ title: '准备文件中...' });
+    
+    // 先刷新文件URL，避免使用过期链接
+    // 假设我们有一个从云函数获取最新文件URL的API
+    wx.cloud.callFunction({
+      name: 'getFileUrl',
+      data: {
+        fileId: this.data.fileId
+      },
+      success: res => {
+        if (res.result && res.result.fileUrl) {
+          const fileUrl = res.result.fileUrl;
+          info('获取到新的文件URL', { fileUrl });
+          this.setData({ fileUrl });
+          this.downloadAndOpenFile(fileUrl);
+        } else {
+          wx.hideLoading();
+          error('获取文件URL失败', res);
+          this.showToast('获取文件URL失败', 'error');
+        }
+      },
+      fail: err => {
+        wx.hideLoading();
+        error('调用获取文件URL云函数失败', err);
+        this.showToast('获取文件链接失败', 'error');
+      }
+    });
+  },
+  
+  // 下载并打开文件
+  downloadAndOpenFile: function(fileUrl) {
+    if (!fileUrl) {
+      wx.hideLoading();
+      this.showToast('文件URL不可用', 'error');
+      return;
+    }
+    
+    info('开始下载文件', { fileUrl, fileType: this.data.fileType });
+    
+    // 根据文件类型选择不同的打开方式
+    if (['jpg', 'jpeg', 'png', 'gif'].includes(this.data.fileType)) {
+      // 图片文件使用预览图片功能
+      wx.hideLoading();
+      wx.previewImage({
+        urls: [fileUrl],
+        fail: (err) => {
+          error('预览图片失败', err);
+          this.showToast('预览图片失败: ' + err.errMsg, 'error');
+        }
+      });
+    } else {
+      // 文档和其他类型的文件下载后打开
+      const downloadTask = wx.downloadFile({
+        url: fileUrl,
+        success: (res) => {
+          if (res.statusCode === 200 && res.tempFilePath) {
+            info('文件下载成功', { 
+              tempFilePath: res.tempFilePath, 
+              statusCode: res.statusCode,
+              dataLength: res.dataLength || '未知'
+            });
+            
+            // 检查文件大小确保不是空文件
+            if ((res.dataLength && res.dataLength > 100) || !res.dataLength) {
+              try {
+                wx.openDocument({
+                  filePath: res.tempFilePath,
+                  showMenu: true,
+                  success: () => {
+                    info('打开文档成功');
+                  },
+                  fail: (err) => {
+                    error('打开文档失败', err);
+                    this.showToast('文件类型可能不支持在线查看', 'info');
+                  }
+                });
+              } catch (err) {
+                error('打开文件异常', err);
+                this.showToast('文件类型可能不支持在线查看', 'info');
+              }
+            } else {
+              error('下载的文件内容为空或过小', { dataLength: res.dataLength });
+              this.showToast('文件内容无效或已损坏', 'error');
+            }
+          } else {
+            error('下载文件失败', {
+              statusCode: res.statusCode, 
+              tempFilePath: res.tempFilePath,
+              errMsg: res.errMsg
+            });
+            this.showToast(`下载失败(${res.statusCode})，可能链接已过期`, 'error');
+          }
+        },
+        fail: (err) => {
+          error('下载文件失败', err);
+          this.showToast('下载文件失败: ' + err.errMsg, 'error');
+        },
+        complete: () => {
+          wx.hideLoading();
+        }
+      });
+      
+      // 监听下载进度
+      downloadTask.onProgressUpdate((res) => {
+        if (res.progress > 0) {
+          wx.showLoading({
+            title: `下载中 ${res.progress}%`,
+            mask: true
+          });
+        }
+      });
+    }
+  },
+  
   // 返回上传页
   handleBackToUpload: function() {
     wx.navigateBack();
