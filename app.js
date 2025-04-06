@@ -130,8 +130,8 @@ App({
   },
   
   // 错误处理
-  onError(error) {
-    error('应用程序错误', error);
+  onError(err) {
+    error('应用程序错误', err);
   },
   
   // 页面不存在

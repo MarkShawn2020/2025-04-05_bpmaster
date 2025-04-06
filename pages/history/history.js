@@ -1,5 +1,5 @@
 // pages/history/history.js
-import { logger } from '../../utils/logger';
+import logger from '../../utils/logger';
 import { apiService } from '../../services/api';
 import { toast } from '../../utils/toast';
 

@@ -1,6 +1,7 @@
 import { info, error } from '../../utils/logger.js';
 import { chooseFile, formatFileSize, getFileType, isSupportedFileType } from '../../utils/file.js';
 import { uploadFile } from '../../utils/api.js';
+import { toast } from '../../utils/toast.js';
 const app = getApp();
 
 Page({
@@ -233,15 +234,13 @@ Page({
   
   // 显示Toast
   showToast: function(message, type = 'info') {
-    const toast = this.selectComponent('#toast');
-    if (toast) {
-      toast.show(message, type);
+    // 直接使用导入的toast模块
+    if (type === 'success') {
+      toast.success(message);
+    } else if (type === 'error') {
+      toast.error(message);
     } else {
-      wx.showToast({
-        title: message,
-        icon: type === 'success' ? 'success' : 'none',
-        duration: 2000
-      });
+      toast.info(message);
     }
   },
   

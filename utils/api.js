@@ -43,7 +43,7 @@ function uploadFile(filePath) {
               
               // 调用云函数保存文件信息
               wx.cloud.callFunction({
-                name: 'saveFileInfo',
+                name: 'saveBPFile',
                 data: {
                   fileID: res.fileID,
                   fileUrl: fileInfo.tempFileURL,
