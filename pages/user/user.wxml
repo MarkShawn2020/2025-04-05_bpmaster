@@ -37,7 +37,7 @@
       <block wx:else>
         <view wx:for="{{bpList}}" wx:key="_id" class="bp-item">
           <view class="bp-item-left" bindtap="previewFile" data-file-id="{{item._id}}" data-file-name="{{item.fileName}}">
-            <view class="bp-name">{{item.fileName}}</view>
+            <view class="bp-name">{{item.fileName || '未命名文件'}}</view>
             <view class="bp-time">{{item.uploadTime}}</view>
           </view>
           <view class="bp-action">

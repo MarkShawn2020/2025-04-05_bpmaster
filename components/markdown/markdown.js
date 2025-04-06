@@ -97,6 +97,9 @@ Component({
       // 替换有序列表
       html = html.replace(/^\s*(\d+)\.\s+(.*$)/gm, '<li>$2</li>');
       
+      // 添加表格支持
+      html = this._parseMarkdownTables(html);
+      
       // 替换代码块
       html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
       
@@ -108,6 +111,59 @@ Component({
       
       // 替换换行
       html = html.replace(/\n/g, '<br>');
+      
+      return html;
+    },
+    
+    // 解析Markdown表格
+    _parseMarkdownTables: function(html) {
+      // 查找表格结构
+      const tableRegex = /\|(.+)\|\n\|([-:\s|]+)\|\n((?:\|.+\|\n)+)/g;
+      
+      html = html.replace(tableRegex, function(match, headerRow, separatorRow, bodyRows) {
+        // 解析表头
+        const headers = headerRow.split('|').map(cell => cell.trim()).filter(cell => cell);
+        
+        // 检查分隔符，确定对齐方式
+        const alignments = separatorRow.split('|').map(cell => {
+          cell = cell.trim();
+          if (cell.startsWith(':') && cell.endsWith(':')) return 'center';
+          if (cell.endsWith(':')) return 'right';
+          return 'left';
+        }).filter(align => align);
+        
+        // 解析表格内容行
+        const rows = bodyRows.trim().split('\n').map(row => {
+          const cells = row.split('|').map(cell => cell.trim()).filter(cell => cell);
+          return cells;
+        });
+        
+        // 构建HTML表格
+        let tableHtml = '<table class="md-table">';
+        
+        // 添加表头
+        tableHtml += '<thead><tr>';
+        headers.forEach((header, index) => {
+          const align = alignments[index] || 'left';
+          tableHtml += `<th class="md-th" style="text-align:${align}">${header}</th>`;
+        });
+        tableHtml += '</tr></thead>';
+        
+        // 添加表格内容
+        tableHtml += '<tbody>';
+        rows.forEach(row => {
+          tableHtml += '<tr>';
+          row.forEach((cell, index) => {
+            const align = alignments[index] || 'left';
+            tableHtml += `<td class="md-td" style="text-align:${align}">${cell}</td>`;
+          });
+          tableHtml += '</tr>';
+        });
+        tableHtml += '</tbody>';
+        
+        tableHtml += '</table>';
+        return tableHtml;
+      });
       
       return html;
     },
@@ -123,6 +179,10 @@ Component({
       html = html.replace(/<li>/g, '<li class="md-li">');
       html = html.replace(/<code>/g, '<code class="md-code">');
       html = html.replace(/<pre>/g, '<pre class="md-pre">');
+      html = html.replace(/<table /g, '<table class="md-table" ');
+      html = html.replace(/<th /g, '<th class="md-th" ');
+      html = html.replace(/<td /g, '<td class="md-td" ');
+      html = html.replace(/<tr>/g, '<tr class="md-tr">');
       
       return html;
     }

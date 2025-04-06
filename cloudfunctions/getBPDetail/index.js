@@ -153,19 +153,37 @@ exports.main = async (event, context) => {
     // 整理返回的文件信息
     const result = {
       _id: fileData._id,
-      name: fileData.name,
-      size: fileData.size,
-      type: fileData.type,
+      fileName: fileData.name || fileData.fileName,
+      fileSize: fileData.size || fileData.fileSize,
+      fileType: fileData.type || fileData.fileType,
       fileID: fileData.fileID,
       cloudPath: fileData.cloudPath,
-      uploadDate: fileData.createTime || fileData.uploadDate,
+      uploadDate: fileData.createTime || fileData.uploadDate || fileData.uploadTime,
       analysisResults: fileData.analysisResults || null,
       status: fileData.status || 'uploaded',
       error: fileData.error,
       cozeWorkflowRunId: fileData.cozeWorkflowRunId
+    };
+
+    // 处理文件名显示
+    if (!result.fileName && result.cloudPath) {
+      const pathParts = result.cloudPath.split('/');
+      result.fileName = pathParts[pathParts.length - 1];
     }
     
-    console.log(`文件记录获取成功，文件名: ${result.name}, 状态: ${result.status}`)
+    // 检查并修复分析结果格式，确保与callCozeAPI返回格式兼容
+    if (result.analysisResults) {
+      // 如果已有markdownContent但没有data字段，添加兼容格式
+      if (result.analysisResults.markdownContent && !result.analysisResults.data) {
+        // 构造兼容的data结构
+        result.analysisResults.data = JSON.stringify({
+          data: result.analysisResults.markdownContent,
+          content_type: result.analysisResults.contentType || 'text'
+        });
+      }
+    }
+    
+    console.log(`文件记录获取成功，文件名: ${result.fileName}, 状态: ${result.status}`)
     
     return {
       code: 200,

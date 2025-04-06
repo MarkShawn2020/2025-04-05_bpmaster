@@ -77,4 +77,27 @@ strong {
 
 em {
   font-style: italic;
+}
+
+/* 表格样式 */
+.md-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16rpx 0 24rpx 0;
+  border: 1rpx solid #ddd;
+}
+
+.md-th, .md-td {
+  padding: 12rpx 16rpx;
+  border: 1rpx solid #ddd;
+  word-break: break-word;
+}
+
+.md-th {
+  background-color: #f6f8fa;
+  font-weight: bold;
+}
+
+.md-tr:nth-child(even) {
+  background-color: #f9f9f9;
 } 

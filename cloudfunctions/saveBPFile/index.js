@@ -10,15 +10,21 @@ const BP_COLLECTION = 'bp_files'
  * 保存BP文件信息的云函数
  * @param {Object} event 
  * @param {string} event.fileID 文件云存储ID
- * @param {string} event.name 文件名
- * @param {number} event.size 文件大小
- * @param {string} event.type 文件类型
+ * @param {string} event.fileName 文件名
+ * @param {number} event.fileSize 文件大小
+ * @param {string} event.fileType 文件类型
  * @param {string} event.cloudPath 文件云存储路径
  * @returns {Object} 保存结果
  */
 exports.main = async (event, context) => {
   const { OPENID } = cloud.getWXContext()
-  const { fileID, name, size, type, cloudPath } = event
+  
+  // 支持旧的参数名和新的参数名，确保向后兼容
+  const fileID = event.fileID;
+  const fileName = event.fileName || event.name;
+  const fileSize = event.fileSize || event.size;
+  const fileType = event.fileType || event.type;
+  const cloudPath = event.cloudPath;
 
   if (!fileID) {
     return {
@@ -28,14 +34,17 @@ exports.main = async (event, context) => {
   }
 
   try {
-    console.log(`保存BP文件信息，文件名: ${name}, 用户: ${OPENID}`)
+    console.log(`保存BP文件信息，文件名: ${fileName}, 用户: ${OPENID}`)
     
-    // 准备要保存的文件数据
+    // 准备要保存的文件数据，统一使用新的字段命名
     const fileData = {
       fileID,
-      name,
-      size,
-      type,
+      fileName,         // 使用统一的字段名
+      name: fileName,   // 保留旧字段以兼容现有代码
+      fileSize,         // 使用统一的字段名
+      size: fileSize,   // 保留旧字段以兼容现有代码
+      fileType,         // 使用统一的字段名
+      type: fileType,   // 保留旧字段以兼容现有代码
       cloudPath,
       openid: OPENID,
       uploadDate: new Date(),

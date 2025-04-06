@@ -50,8 +50,23 @@ Page({
       if (bpResponse && bpResponse.code === 200) {
         const { list, pagination } = bpResponse.data;
         
+        // 处理列表数据，确保字段一致性
+        const processedList = list.map(item => ({
+          ...item,
+          // 确保文件名显示正确，兼容不同的命名方式
+          fileName: item.fileName || item.name || '未命名文件', 
+          // 格式化上传时间
+          uploadTime: item.uploadTime ? new Date(item.uploadTime).toLocaleString() : (
+            item.uploadDate ? new Date(item.uploadDate).toLocaleString() : '未知时间'
+          ),
+          // 处理状态字段，兼容不同的状态值
+          status: this._normalizeStatus(item.status)
+        }));
+        
+        logger.info('处理后的文件列表', processedList);
+        
         this.setData({
-          bpList: list,
+          bpList: processedList,
           bpCount: pagination.total
         });
       }
@@ -68,6 +83,26 @@ Page({
       toast.error('数据加载失败');
     } finally {
       this.setData({ loading: false });
+    }
+  },
+  
+  // 标准化状态值，确保与上传页面一致
+  _normalizeStatus(status) {
+    // 将不同的状态值标准化为页面使用的几种状态
+    if (!status) return 'pending'; // 默认为待分析
+    
+    switch(status.toLowerCase()) {
+      case 'analyzed':
+        return 'completed';
+      case 'analyzing':
+        return 'analyzing';
+      case 'uploaded':
+      case 'pending':
+        return 'pending';
+      case 'failed':
+        return 'failed';
+      default:
+        return status;
     }
   },
   
@@ -108,7 +143,7 @@ Page({
             const bpData = res.data;
             
             // 检查是否有分析结果
-            if (!bpData.analysisResults || Object.keys(bpData.analysisResults).length === 0) {
+            if (!bpData.analysisResults || (typeof bpData.analysisResults === 'object' && Object.keys(bpData.analysisResults).length === 0)) {
               // 如果没有分析结果，提示用户并询问是否要开始分析
               wx.showModal({
                 title: '暂无分析结果',
@@ -132,7 +167,7 @@ Page({
             } else {
               // 有分析结果，跳转到分析详情页
               wx.navigateTo({
-                url: `/pages/analysis-detail/analysis-detail?id=${fileId}&fileName=${encodeURIComponent(fileName)}`,
+                url: `/pages/analysis-detail/analysis-detail?id=${fileId}`,
                 fail: (err) => {
                   logger.error('导航到分析页失败', err);
                   wx.showToast({
