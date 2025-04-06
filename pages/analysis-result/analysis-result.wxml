@@ -1,199 +1,81 @@
+<!--pages/analysis-result/analysis-result.wxml-->
 <view class="container">
-  <!-- 加载状态 -->
-  <view class="loading-container" wx:if="{{loading}}">
-    <image class="loading-icon" src="/assets/icons/loading.png" mode="aspectFit"></image>
-    <view class="loading-text">正在获取分析结果...</view>
+  <!-- 文件信息卡片 -->
+  <view class="analysis-card">
+    <view class="file-info">
+      <image class="file-icon" src="{{'/images/file-icons/' + fileType + '.png'}}"></image>
+      <view class="file-detail">
+        <view class="file-name">{{fileName}}</view>
+        <view class="file-meta">{{fileSize}} · {{fileTime}}</view>
+      </view>
+    </view>
+    
+    <!-- 分析状态头部 -->
+    <view class="analysis-header">
+      <view class="analysis-title">AI评估报告</view>
+      <view class="analysis-status">
+        <text class="status-text {{isAnalyzing ? 'status-loading' : (isCompleted ? 'status-success' : '')}}">{{statusText}}</text>
+        <image wx:if="{{isAnalyzing}}" class="status-icon" src="/images/loading.gif"></image>
+        <image wx:if="{{isCompleted}}" class="status-icon" src="/images/check-circle.png"></image>
+      </view>
+    </view>
+    
+    <!-- 分析中状态 -->
+    <block wx:if="{{isAnalyzing && !mdContent}}">
+      <view class="loading-container">
+        <image class="loading-animation" src="/images/ai-thinking.gif"></image>
+        <view class="loading-text">{{loadingTip}}</view>
+        <view class="loading-tips">分析过程需要一些时间，请耐心等待</view>
+      </view>
+    </block>
+    
+    <!-- 错误状态 -->
+    <block wx:if="{{hasError}}">
+      <view class="error-container">
+        <view class="error-title">分析遇到问题</view>
+        <view class="error-message">{{errorMessage || '未知错误，请稍后重试'}}</view>
+        <view class="error-action">
+          <button type="primary" bindtap="handleReAnalyze">重新分析</button>
+        </view>
+      </view>
+    </block>
+    
+    <!-- 目录 (有内容且不为空时显示) -->
+    <block wx:if="{{mdContent && tocItems.length > 0}}">
+      <view class="toc-container">
+        <view class="toc-title">报告目录</view>
+        <view wx:for="{{tocItems}}" wx:key="index" class="toc-item" style="padding-left: {{(item.level - 1) * 40 + 20}}rpx;">
+          {{item.title}}
+        </view>
+      </view>
+    </block>
+    
+    <!-- Markdown内容 -->
+    <block wx:if="{{mdContent}}">
+      <view class="markdown-container {{isCompleted ? 'fade-in' : ''}}">
+        <wemark md="{{mdContent}}" type="wemark"></wemark>
+      </view>
+      
+      <!-- 操作按钮 (分析完成后显示) -->
+      <block wx:if="{{isCompleted}}">
+        <view class="action-bar">
+          <button class="action-btn" type="default" size="mini" bindtap="handleReAnalyze">
+            <image class="btn-icon" src="/images/refresh.png"></image>
+            重新分析
+          </button>
+          <button class="action-btn" type="primary" size="mini" bindtap="handleSaveReport">
+            <image class="btn-icon" src="/images/save.png"></image>
+            保存报告
+          </button>
+          <button class="action-btn" type="default" size="mini" open-type="share">
+            <image class="btn-icon" src="/images/share.png"></image>
+            分享
+          </button>
+        </view>
+      </block>
+    </block>
   </view>
-
-  <!-- 错误状态 -->
-  <view class="error-container" wx:elif="{{error}}">
-    <image class="error-icon" src="/assets/icons/error.png" mode="aspectFit"></image>
-    <view class="error-text">{{error}}</view>
-    <button class="btn-primary" bindtap="handleBackToUpload">返回上传页面</button>
-  </view>
-
-  <!-- 分析结果 -->
-  <block wx:elif="{{analysisResult}}">
-    <!-- 头部信息 -->
-    <view class="header-card">
-      <view class="file-info">
-        <view class="file-name">{{analysisResult.fileName}}</view>
-        <view class="analysis-date">分析时间：{{analysisResult.analysisDate}}</view>
-      </view>
-      <view class="score-container">
-        <view class="score-value">{{analysisResult.overallScore.toFixed(1)}}</view>
-        <view class="score-label">总体评分</view>
-      </view>
-    </view>
-
-    <!-- 标签页导航 -->
-    <view class="tab-nav">
-      <view 
-        class="tab-item {{activeTab === tab.id ? 'active' : ''}}" 
-        wx:for="{{tabs}}" 
-        wx:for-item="tab"
-        wx:key="id"
-        data-id="{{tab.id}}"
-        bindtap="handleTabChange"
-      >
-        {{tab.name}}
-      </view>
-    </view>
-
-    <!-- 内容展示区域 -->
-    <view class="content-card">
-      <!-- 摘要标签页内容 -->
-      <view class="tab-content" wx:if="{{activeTab === 'summary'}}">
-        <view class="markdown-content">
-          <!-- 这里应该用真正的markdown解析组件 -->
-          <rich-text nodes="{{analysisResult.summary}}"></rich-text>
-        </view>
-      </view>
-
-      <!-- 详细分析标签页内容 -->
-      <view class="tab-content" wx:elif="{{activeTab === 'details'}}">
-        <view class="analysis-section">
-          <view class="section-header">
-            <view class="section-title">商业模型</view>
-            <view class="section-score {{analysisResult.detailedAnalysis.businessModel.score >= 85 ? 'excellent' : analysisResult.detailedAnalysis.businessModel.score >= 70 ? 'good' : 'average'}}">
-              {{analysisResult.detailedAnalysis.businessModel.score}}
-            </view>
-          </view>
-          <view class="section-content">
-            <view class="sub-section">
-              <view class="sub-title">强项</view>
-              <view class="sub-content">
-                <rich-text nodes="{{analysisResult.detailedAnalysis.businessModel.strength}}"></rich-text>
-              </view>
-            </view>
-            <view class="sub-section">
-              <view class="sub-title">弱项</view>
-              <view class="sub-content">
-                <rich-text nodes="{{analysisResult.detailedAnalysis.businessModel.weakness}}"></rich-text>
-              </view>
-            </view>
-            <view class="sub-section">
-              <view class="sub-title">建议</view>
-              <view class="sub-content">
-                <rich-text nodes="{{analysisResult.detailedAnalysis.businessModel.recommendations}}"></rich-text>
-              </view>
-            </view>
-          </view>
-        </view>
-
-        <view class="analysis-section">
-          <view class="section-header">
-            <view class="section-title">市场分析</view>
-            <view class="section-score {{analysisResult.detailedAnalysis.market.score >= 85 ? 'excellent' : analysisResult.detailedAnalysis.market.score >= 70 ? 'good' : 'average'}}">
-              {{analysisResult.detailedAnalysis.market.score}}
-            </view>
-          </view>
-          <view class="section-content">
-            <view class="sub-section">
-              <view class="sub-title">强项</view>
-              <view class="sub-content">
-                <rich-text nodes="{{analysisResult.detailedAnalysis.market.strength}}"></rich-text>
-              </view>
-            </view>
-            <view class="sub-section">
-              <view class="sub-title">弱项</view>
-              <view class="sub-content">
-                <rich-text nodes="{{analysisResult.detailedAnalysis.market.weakness}}"></rich-text>
-              </view>
-            </view>
-            <view class="sub-section">
-              <view class="sub-title">建议</view>
-              <view class="sub-content">
-                <rich-text nodes="{{analysisResult.detailedAnalysis.market.recommendations}}"></rich-text>
-              </view>
-            </view>
-          </view>
-        </view>
-
-        <view class="analysis-section">
-          <view class="section-header">
-            <view class="section-title">团队评估</view>
-            <view class="section-score {{analysisResult.detailedAnalysis.team.score >= 85 ? 'excellent' : analysisResult.detailedAnalysis.team.score >= 70 ? 'good' : 'average'}}">
-              {{analysisResult.detailedAnalysis.team.score}}
-            </view>
-          </view>
-          <view class="section-content">
-            <view class="sub-section">
-              <view class="sub-title">强项</view>
-              <view class="sub-content">
-                <rich-text nodes="{{analysisResult.detailedAnalysis.team.strength}}"></rich-text>
-              </view>
-            </view>
-            <view class="sub-section">
-              <view class="sub-title">弱项</view>
-              <view class="sub-content">
-                <rich-text nodes="{{analysisResult.detailedAnalysis.team.weakness}}"></rich-text>
-              </view>
-            </view>
-            <view class="sub-section">
-              <view class="sub-title">建议</view>
-              <view class="sub-content">
-                <rich-text nodes="{{analysisResult.detailedAnalysis.team.recommendations}}"></rich-text>
-              </view>
-            </view>
-          </view>
-        </view>
-
-        <view class="analysis-section">
-          <view class="section-header">
-            <view class="section-title">财务分析</view>
-            <view class="section-score {{analysisResult.detailedAnalysis.financials.score >= 85 ? 'excellent' : analysisResult.detailedAnalysis.financials.score >= 70 ? 'good' : 'average'}}">
-              {{analysisResult.detailedAnalysis.financials.score}}
-            </view>
-          </view>
-          <view class="section-content">
-            <view class="sub-section">
-              <view class="sub-title">强项</view>
-              <view class="sub-content">
-                <rich-text nodes="{{analysisResult.detailedAnalysis.financials.strength}}"></rich-text>
-              </view>
-            </view>
-            <view class="sub-section">
-              <view class="sub-title">弱项</view>
-              <view class="sub-content">
-                <rich-text nodes="{{analysisResult.detailedAnalysis.financials.weakness}}"></rich-text>
-              </view>
-            </view>
-            <view class="sub-section">
-              <view class="sub-title">建议</view>
-              <view class="sub-content">
-                <rich-text nodes="{{analysisResult.detailedAnalysis.financials.recommendations}}"></rich-text>
-              </view>
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <!-- 改进建议标签页内容 -->
-      <view class="tab-content" wx:elif="{{activeTab === 'recommendations'}}">
-        <view class="markdown-content">
-          <rich-text nodes="{{analysisResult.recommendations}}"></rich-text>
-        </view>
-      </view>
-    </view>
-
-    <!-- 底部操作栏 -->
-    <view class="footer-actions">
-      <button class="btn-action" bindtap="handleDownloadReport">
-        <image class="action-icon" src="/assets/icons/download.png" mode="aspectFit"></image>
-        <text>下载报告</text>
-      </button>
-      <button class="btn-action" bindtap="handleShareReport" open-type="share">
-        <image class="action-icon" src="/assets/icons/share.png" mode="aspectFit"></image>
-        <text>分享</text>
-      </button>
-      <button class="btn-action" bindtap="handleBackToUpload">
-        <image class="action-icon" src="/assets/icons/upload.png" mode="aspectFit"></image>
-        <text>再次上传</text>
-      </button>
-    </view>
-  </block>
-
-  <!-- Toast组件 -->
-  <mp-toast id="toast"></mp-toast>
+  
+  <!-- toast组件 -->
+  <toast id="toast"></toast>
 </view> 

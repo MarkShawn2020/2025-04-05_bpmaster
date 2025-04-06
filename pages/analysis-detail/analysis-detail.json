@@ -1,7 +1,0 @@
-{
-  "navigationBarTitleText": "分析报告",
-  "usingComponents": {
-    "toast": "/components/toast/toast",
-    "markdown": "/components/markdown/markdown"
-  }
-} 

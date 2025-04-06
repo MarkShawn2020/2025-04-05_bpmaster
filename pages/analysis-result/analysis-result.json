@@ -1,6 +1,7 @@
 {
-  "navigationBarTitleText": "分析结果",
   "usingComponents": {
-    "mp-toast": "../../components/toast/toast"
-  }
+    "toast": "/components/toast/toast",
+    "wemark": "/components/wemark/wemark"
+  },
+  "navigationBarTitleText": "AI分析结果"
 } 

@@ -1,137 +1,191 @@
 /**
- * 日志工具模块
- * 统一管理日志记录，支持不同级别日志
+ * 日志工具类
+ * 提供统一的日志记录接口
  */
 
-// 日志级别定义
+// 日志级别
 const LogLevel = {
   DEBUG: 0,
   INFO: 1,
   WARN: 2,
-  ERROR: 3,
-  NONE: 100
+  ERROR: 3
 };
 
-// 判断是否为开发环境
-const isDev = wx.getAccountInfoSync().miniProgram.envVersion === 'develop' || 
-              wx.getAccountInfoSync().miniProgram.envVersion === 'trial';
+// 当前日志级别，生产环境可以调高
+let currentLogLevel = LogLevel.DEBUG;
 
-// 当前环境日志级别
-const currentLevel = isDev ? LogLevel.DEBUG : LogLevel.INFO;
-
-// 是否将日志上报到服务器
-const shouldReportToServer = !isDev;
+// 是否将日志发送到远程服务器
+let enableRemoteLogging = false;
+let remoteLogUrl = '';
 
 /**
- * 格式化日志信息
- * @param {string} level 日志级别
+ * 设置日志级别
+ * @param {number} level 日志级别
+ */
+function setLogLevel(level) {
+  if (level >= LogLevel.DEBUG && level <= LogLevel.ERROR) {
+    currentLogLevel = level;
+  }
+}
+
+/**
+ * 配置远程日志
+ * @param {boolean} enable 是否启用
+ * @param {string} url 日志服务器地址
+ */
+function configRemoteLog(enable, url = '') {
+  enableRemoteLogging = enable;
+  if (url) {
+    remoteLogUrl = url;
+  }
+}
+
+/**
+ * 格式化日志内容
+ * @param {string} level 日志级别标签
  * @param {string} message 日志消息
- * @param {any} data 额外数据
- * @returns {string} 格式化后的日志字符串
+ * @param {Object} data 附加数据
+ * @returns {string} 格式化后的日志
  */
 function formatLog(level, message, data) {
-  const time = new Date().toISOString();
-  const formattedData = data !== undefined ? `, ${JSON.stringify(data)}` : '';
-  return `[${time}][${level}] ${message}${formattedData}`;
+  const timestamp = new Date().toISOString();
+  const app = getApp();
+  const context = {
+    timestamp,
+    level,
+    page: getCurrentPageName(),
+    user: app ? (app.globalData.userInfo ? app.globalData.userInfo.openId : 'unknown') : 'unknown',
+    version: app ? app.globalData.version : 'unknown'
+  };
+  
+  let logContent = `[${timestamp}] [${level}] [${context.page}] ${message}`;
+  
+  if (data) {
+    try {
+      if (typeof data === 'object') {
+        logContent += ` ${JSON.stringify(data)}`;
+      } else {
+        logContent += ` ${data}`;
+      }
+    } catch (e) {
+      logContent += ' [数据无法序列化]';
+    }
+  }
+  
+  return {
+    text: logContent,
+    context,
+    message,
+    data
+  };
 }
 
 /**
- * 输出日志
- * @param {string} level 日志级别
- * @param {LogLevel} levelValue 日志级别值
+ * 获取当前页面名称
+ * @returns {string} 页面名称
+ */
+function getCurrentPageName() {
+  const pages = getCurrentPages();
+  if (pages.length === 0) {
+    return 'app';
+  }
+  const currentPage = pages[pages.length - 1];
+  return currentPage.route || 'unknown';
+}
+
+/**
+ * 发送远程日志
+ * @param {Object} logData 日志数据
+ */
+function sendRemoteLog(logData) {
+  if (!enableRemoteLogging || !remoteLogUrl) {
+    return;
+  }
+  
+  wx.request({
+    url: remoteLogUrl,
+    method: 'POST',
+    data: {
+      context: logData.context,
+      message: logData.message,
+      data: logData.data
+    },
+    fail: () => {
+      // 失败时不再重试，避免循环
+    }
+  });
+}
+
+/**
+ * 调试日志
  * @param {string} message 日志消息
- * @param {any} data 额外数据
+ * @param {Object} data 附加数据
  */
-function log(level, levelValue, message, data) {
-  if (levelValue < currentLevel) return;
+function debug(message, data) {
+  if (currentLogLevel > LogLevel.DEBUG) return;
   
-  const logText = formatLog(level, message, data);
+  const logData = formatLog('DEBUG', message, data);
+  console.debug(logData.text);
   
-  switch (level) {
-    case 'DEBUG':
-      console.debug(logText);
-      break;
-    case 'INFO':
-      console.info(logText);
-      break;
-    case 'WARN':
-      console.warn(logText);
-      break;
-    case 'ERROR':
-      console.error(logText);
-      // 错误日志可以考虑上报到服务器
-      if (shouldReportToServer) {
-        reportErrorToServer(message, data);
-      }
-      break;
-    default:
-      console.log(logText);
+  if (enableRemoteLogging) {
+    sendRemoteLog(logData);
   }
 }
 
 /**
- * 上报错误到服务器
- * @param {string} message 错误消息
- * @param {any} data 错误数据
+ * 信息日志
+ * @param {string} message 日志消息
+ * @param {Object} data 附加数据
  */
-function reportErrorToServer(message, data) {
-  // 实际项目中可以通过云函数上报错误
-  // 此处只是示例
-  try {
-    /* 使用云函数上报错误
-    wx.cloud.callFunction({
-      name: 'reportError',
-      data: {
-        message,
-        data,
-        timestamp: Date.now(),
-        platform: 'mini-program',
-        version: '1.0.0'
-      }
-    });
-    */
-  } catch (err) {
-    console.error('上报错误失败', err);
+function info(message, data) {
+  if (currentLogLevel > LogLevel.INFO) return;
+  
+  const logData = formatLog('INFO', message, data);
+  console.info(logData.text);
+  
+  if (enableRemoteLogging) {
+    sendRemoteLog(logData);
   }
 }
 
 /**
- * 日志工具对象
+ * 警告日志
+ * @param {string} message 日志消息
+ * @param {Object} data 附加数据
  */
-export const logger = {
-  /**
-   * 记录调试日志
-   * @param {string} message 日志消息
-   * @param {any} data 额外数据
-   */
-  debug(message, data) {
-    log('DEBUG', LogLevel.DEBUG, message, data);
-  },
+function warn(message, data) {
+  if (currentLogLevel > LogLevel.WARN) return;
   
-  /**
-   * 记录信息日志
-   * @param {string} message 日志消息
-   * @param {any} data 额外数据
-   */
-  info(message, data) {
-    log('INFO', LogLevel.INFO, message, data);
-  },
+  const logData = formatLog('WARN', message, data);
+  console.warn(logData.text);
   
-  /**
-   * 记录警告日志
-   * @param {string} message 日志消息
-   * @param {any} data 额外数据
-   */
-  warn(message, data) {
-    log('WARN', LogLevel.WARN, message, data);
-  },
-  
-  /**
-   * 记录错误日志
-   * @param {string} message 日志消息
-   * @param {any} data 额外数据
-   */
-  error(message, data) {
-    log('ERROR', LogLevel.ERROR, message, data);
+  if (enableRemoteLogging) {
+    sendRemoteLog(logData);
   }
+}
+
+/**
+ * 错误日志
+ * @param {string} message 日志消息
+ * @param {Object} data 附加数据
+ */
+function error(message, data) {
+  if (currentLogLevel > LogLevel.ERROR) return;
+  
+  const logData = formatLog('ERROR', message, data);
+  console.error(logData.text);
+  
+  if (enableRemoteLogging) {
+    sendRemoteLog(logData);
+  }
+}
+
+module.exports = {
+  LogLevel,
+  setLogLevel,
+  configRemoteLog,
+  debug,
+  info,
+  warn,
+  error
 }; 

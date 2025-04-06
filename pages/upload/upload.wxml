@@ -1,114 +1,133 @@
 <view class="container">
+  <!-- 选择文件卡片 -->
   <view class="upload-card">
-    <view class="card-title">上传BP文件</view>
-    <view class="card-subtitle">支持PDF、Word、PPT等格式文件，单个文件最大20MB</view>
+    <view class="card-title">上传商业计划书</view>
+    <view class="card-subtitle">上传你的商业计划书，获取专业AI评估</view>
     
-    <!-- 分析完成状态 - 移到最上面的条件判断 -->
-    <view class="success-area" wx:if="{{showAnalysisResult}}">
-      <image class="success-icon" src="/assets/icons/success.png" mode="aspectFit"></image>
-      <view class="success-text">分析完成！</view>
-      <view class="file-info">
-        <image class="file-icon-sm" src="/assets/icons/file-{{fileList[0].type}}.png" mode="aspectFit"></image>
-        <view class="file-name-sm">{{fileList[0].name}}</view>
-      </view>
-      <button class="btn-primary" bindtap="viewAnalysisResult">查看分析结果</button>
-      <button class="btn-secondary" bindtap="handleReset" style="margin-top: 20rpx;">重新上传</button>
+    <!-- 未选择文件时 -->
+    <view class="upload-area" bindtap="handleChooseFile" wx:if="{{!file.name}}">
+      <image class="upload-icon" src="/images/upload-icon.png"></image>
+      <view class="upload-text">点击选择文件</view>
+      <view class="upload-hint">支持PDF、Word、PPT等格式，文件大小不超过20MB</view>
     </view>
     
-    <!-- 处理中状态 -->
-    <view class="progress-area" wx:elif="{{uploading || analyzing}}">
+    <!-- 已选择文件但未上传时 -->
+    <view class="file-info-area" wx:if="{{file.name && step === 'choose'}}">
+      <view class="file-info">
+        <image class="file-icon" src="{{'/images/file-icons/' + file.type + '.png'}}"></image>
+        <view class="file-detail">
+          <view class="file-name">{{file.name}}</view>
+          <view class="file-meta">{{file.sizeText}} · {{file.time}}</view>
+        </view>
+      </view>
+      <view class="file-actions">
+        <button class="btn-sm" type="default" bindtap="handleChooseFile">重新选择</button>
+        <button class="btn-sm" type="primary" bindtap="handleUploadFile">开始上传</button>
+      </view>
+    </view>
+    
+    <!-- 上传中 -->
+    <view class="progress-area" wx:if="{{step === 'uploading'}}">
       <view class="progress-header">
-        <view class="progress-title">{{uploading ? '正在上传...' : analysisStage}}</view>
-        <view class="progress-percent">{{uploading ? uploadProgressText : analysisProgressText}}%</view>
+        <view class="progress-title">上传中...</view>
+        <view class="progress-percent">{{uploadProgress}}%</view>
       </view>
       <view class="progress-bar-bg">
-        <view class="progress-bar {{analyzing ? 'progress-bar-analysis' : ''}}" style="width: {{uploading ? uploadProgress : analysisProgress}}%;"></view>
+        <view class="progress-bar" style="width: {{uploadProgress}}%;"></view>
       </view>
-      
-      <view class="file-info" wx:if="{{fileList.length}}">
-        <image class="file-icon-sm" src="/assets/icons/file-{{fileList[0].type}}.png" mode="aspectFit"></image>
-        <view class="file-name-sm">{{fileList[0].name}}</view>
-      </view>
-      
-      <view class="analysis-info" wx:if="{{analyzing}}">
-        <view class="analysis-stage">{{analysisStage}}</view>
-        <view class="analysis-hint">分析大约需要1-3分钟，请耐心等待</view>
+      <view class="file-info">
+        <image class="file-icon-sm" src="{{'/images/file-icons/' + file.type + '.png'}}"></image>
+        <view class="file-name-sm">{{file.name}}</view>
       </view>
     </view>
     
-    <!-- 文件已选择状态 -->
-    <view class="file-info-area" wx:elif="{{fileList.length && !uploading && !uploadSuccess}}">
+    <!-- 上传成功 -->
+    <view class="success-area" wx:if="{{step === 'success'}}">
+      <view class="success-header">
+        <image class="success-icon" src="/images/check-circle.png"></image>
+        <view class="success-text">上传成功</view>
+      </view>
       <view class="file-info">
-        <image class="file-icon" src="/assets/icons/file-{{fileList[0].type}}.png" mode="aspectFit"></image>
+        <image class="file-icon-sm" src="{{'/images/file-icons/' + file.type + '.png'}}"></image>
         <view class="file-detail">
-          <view class="file-name">{{fileList[0].name}}</view>
-          <view class="file-meta">{{fileList[0].size}} | {{fileList[0].time}}</view>
+          <view class="file-name">{{file.name}}</view>
+          <view class="file-meta">{{file.sizeText}} · {{file.time}}</view>
         </view>
       </view>
-      
-      <view class="file-actions">
-        <button class="btn-secondary btn-sm" bindtap="handleChooseFile">重新选择</button>
-        <button class="btn-primary btn-sm" bindtap="handleUploadAndAnalyze">上传并分析</button>
+      <view class="analysis-actions">
+        <button class="btn-sm" type="default" bindtap="handleReset">重新上传</button>
+        <button class="analysis-btn" type="primary" bindtap="handleStartAnalysis">
+          <image class="btn-icon" src="/images/ai-icon.png"></image>
+          开始AI分析
+        </button>
       </view>
     </view>
     
-    <!-- 上传成功但未分析状态 -->
-    <view class="file-info-area" wx:elif="{{fileList.length && uploadSuccess && !showAnalysisResult}}">
-      <view class="file-info">
-        <image class="file-icon" src="/assets/icons/file-{{fileList[0].type}}.png" mode="aspectFit"></image>
-        <view class="file-detail">
-          <view class="file-name">{{fileList[0].name}}</view>
-          <view class="file-meta">{{fileList[0].size}} | {{fileList[0].time}}</view>
-        </view>
-      </view>
-      
-      <view class="file-actions">
-        <button class="btn-secondary btn-sm" bindtap="handleReset">重新选择</button>
-        <button class="btn-primary btn-sm" bindtap="handleAnalyzeFile">开始分析</button>
-      </view>
-    </view>
-    
-    <!-- 无文件状态 -->
-    <view class="upload-area" wx:else bindtap="handleChooseFile">
-      <image class="upload-icon" src="/assets/icons/upload-file.png" mode="aspectFit"></image>
-      <view class="upload-text">点击或拖拽文件到此处上传</view>
-      <view class="upload-hint">请确保上传的是您的商业计划书</view>
+    <!-- 上传失败 -->
+    <view class="error-card" wx:if="{{step === 'error'}}">
+      <view class="error-title">上传失败</view>
+      <view class="error-message">{{errorMessage || '文件上传失败，请重试'}}</view>
+      <button type="primary" bindtap="handleReset">重新上传</button>
     </view>
   </view>
   
-  <!-- 错误提示 -->
-  <view class="error-card" wx:if="{{error}}">
-    <view class="error-title">发生错误</view>
-    <view class="error-message">{{error}}</view>
-    <button class="btn-primary" bindtap="handleReset">重新上传</button>
-  </view>
-  
-  <!-- 文件支持说明 -->
+  <!-- 文件格式说明卡片 -->
   <view class="info-card">
     <view class="info-title">支持的文件格式</view>
     <view class="format-list">
       <view class="format-item">
-        <image class="format-icon" src="/assets/icons/file-pdf.png" mode="aspectFit"></image>
+        <image class="format-icon" src="/images/file-icons/pdf.png"></image>
         <view class="format-name">PDF</view>
       </view>
       <view class="format-item">
-        <image class="format-icon" src="/assets/icons/file-doc.png" mode="aspectFit"></image>
+        <image class="format-icon" src="/images/file-icons/doc.png"></image>
         <view class="format-name">Word</view>
       </view>
       <view class="format-item">
-        <image class="format-icon" src="/assets/icons/file-ppt.png" mode="aspectFit"></image>
+        <image class="format-icon" src="/images/file-icons/ppt.png"></image>
         <view class="format-name">PPT</view>
       </view>
       <view class="format-item">
-        <image class="format-icon" src="/assets/icons/file-txt.png" mode="aspectFit"></image>
+        <image class="format-icon" src="/images/file-icons/txt.png"></image>
         <view class="format-name">TXT</view>
       </view>
     </view>
     <view class="format-note">
-      <text class="format-note-text">注：上传文件请确保内容完整、排版清晰，以保证分析质量</text>
+      <view class="format-note-text">上传前请确保您的商业计划书内容完整、真实，以获得最准确的评估结果</view>
     </view>
   </view>
-
-  <!-- Toast组件 -->
-  <mp-toast id="toast"></mp-toast>
+  
+  <!-- AI分析能力卡片 -->
+  <view class="info-card">
+    <view class="info-title">AI分析能力</view>
+    <view class="feature-list">
+      <view class="feature-item-small">
+        <image class="feature-icon-small" src="/images/features/summary.png"></image>
+        <view class="feature-name">项目概述</view>
+      </view>
+      <view class="feature-item-small">
+        <image class="feature-icon-small" src="/images/features/market.png"></image>
+        <view class="feature-name">市场分析</view>
+      </view>
+      <view class="feature-item-small">
+        <image class="feature-icon-small" src="/images/features/team.png"></image>
+        <view class="feature-name">团队评估</view>
+      </view>
+      <view class="feature-item-small">
+        <image class="feature-icon-small" src="/images/features/finance.png"></image>
+        <view class="feature-name">财务评估</view>
+      </view>
+      <view class="feature-item-small">
+        <image class="feature-icon-small" src="/images/features/model.png"></image>
+        <view class="feature-name">商业模式</view>
+      </view>
+      <view class="feature-item-small">
+        <image class="feature-icon-small" src="/images/features/risk.png"></image>
+        <view class="feature-name">风险分析</view>
+      </view>
+    </view>
+  </view>
+  
+  <!-- toast组件 -->
+  <toast id="toast"></toast>
 </view> 

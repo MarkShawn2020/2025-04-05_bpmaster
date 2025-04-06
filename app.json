@@ -1,12 +1,10 @@
 {
   "pages": [
     "pages/index/index",
-    "pages/upload/upload",
     "pages/user/user",
-    "pages/about/about",
-    "pages/analysis-detail/analysis-detail",
-    "pages/history/history",
-    "pages/analysis-result/analysis-result"
+    "pages/upload/upload",
+    "pages/analysis-result/analysis-result",
+    "pages/history/history"
   ],
   "window": {
     "backgroundTextStyle": "light",
@@ -16,33 +14,34 @@
   },
   "tabBar": {
     "color": "#999999",
-    "selectedColor": "#3875FF",
+    "selectedColor": "#3370ff",
     "backgroundColor": "#ffffff",
     "borderStyle": "black",
     "list": [
       {
         "pagePath": "pages/index/index",
         "text": "首页",
-        "iconPath": "assets/icons/home.png",
-        "selectedIconPath": "assets/icons/home-active.png"
+        "iconPath": "assets/tabbar/home.png",
+        "selectedIconPath": "assets/tabbar/home-active.png"
       },
       {
         "pagePath": "pages/upload/upload",
         "text": "上传",
-        "iconPath": "assets/icons/upload.png",
-        "selectedIconPath": "assets/icons/upload-active.png"
+        "iconPath": "assets/tabbar/upload.png",
+        "selectedIconPath": "assets/tabbar/upload-active.png"
       },
       {
         "pagePath": "pages/user/user",
         "text": "我的",
-        "iconPath": "assets/icons/user.png",
-        "selectedIconPath": "assets/icons/user-active.png"
+        "iconPath": "assets/tabbar/user.png",
+        "selectedIconPath": "assets/tabbar/user-active.png"
       }
     ]
   },
+  "style": "v2",
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents",
-  "style": "v2",
+  "cloud": true,
   "usingComponents": {
     "mp-toast": "components/toast/toast"
   },
