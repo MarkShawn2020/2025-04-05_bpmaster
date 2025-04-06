@@ -1,4 +1,4 @@
-import { logger } from '../../utils/logger';
+const logger = require('../../utils/logger');
 
 Page({
   data: {

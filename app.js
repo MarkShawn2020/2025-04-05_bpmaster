@@ -1,5 +1,5 @@
 // app.js
-import { logger } from './utils/logger'
+const logger = require('./utils/logger');
 
 // 初始化云开发
 wx.cloud.init({

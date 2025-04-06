@@ -1,7 +1,7 @@
 {
   "usingComponents": {
     "toast": "/components/toast/toast",
-    "wemark": "/components/wemark/wemark"
+    "markdown": "/components/markdown/markdown"
   },
   "navigationBarTitleText": "AI分析结果"
 } 

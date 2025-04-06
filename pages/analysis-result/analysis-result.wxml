@@ -53,7 +53,7 @@
     <!-- Markdown内容 -->
     <block wx:if="{{mdContent}}">
       <view class="markdown-container {{isCompleted ? 'fade-in' : ''}}">
-        <wemark md="{{mdContent}}" type="wemark"></wemark>
+        <markdown content="{{mdContent}}"></markdown>
       </view>
       
       <!-- 操作按钮 (分析完成后显示) -->
