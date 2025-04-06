@@ -180,7 +180,7 @@ function error(message, data) {
   }
 }
 
-module.exports = {
+export {
   LogLevel,
   setLogLevel,
   configRemoteLog,

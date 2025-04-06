@@ -2,7 +2,7 @@
  * Toast提示工具模块
  * 封装显示各种类型提示的方法
  */
-const logger = require('./logger');
+import { debug, error as logError } from './logger';
 
 const defaultDuration = 1500; // 默认显示时间（毫秒）
 
@@ -14,7 +14,7 @@ const defaultDuration = 1500; // 默认显示时间（毫秒）
  * @returns {Promise} Promise对象
  */
 function showToast(title, icon = 'none', duration = defaultDuration) {
-  logger.debug(`显示Toast: ${title}, 类型: ${icon}`);
+  debug(`显示Toast: ${title}, 类型: ${icon}`);
   
   return new Promise((resolve) => {
     wx.showToast({
@@ -26,7 +26,7 @@ function showToast(title, icon = 'none', duration = defaultDuration) {
         setTimeout(resolve, duration);
       },
       fail: (err) => {
-        logger.error('显示Toast失败', err);
+        logError('显示Toast失败', err);
         resolve();
       }
     });

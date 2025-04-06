@@ -1,7 +1,7 @@
 /**
  * 文件相关工具函数
  */
-const logger = require('./logger.js');
+import { error } from './logger.js';
 
 /**
  * 选择文件
@@ -26,7 +26,7 @@ function chooseFile() {
         }
       },
       fail: (err) => {
-        logger.error('选择文件失败', err);
+        error('选择文件失败', err);
         reject(err);
       }
     });
@@ -99,7 +99,7 @@ function getFileIcon(fileType) {
   return `/images/file-icons/${fileType}.png`;
 }
 
-module.exports = {
+export {
   chooseFile,
   formatFileSize,
   getFileType,

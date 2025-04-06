@@ -1,4 +1,4 @@
-const logger = require('../../utils/logger');
+import { info, error } from '../../utils/logger';
 
 Page({
   data: {
@@ -71,7 +71,7 @@ Page({
   },
 
   onLoad(options) {
-    logger.info('首页加载', options);
+    info('首页加载', options);
     
     // 检查是否需要显示登录面板
     if (options && options.auth === '1') {
@@ -99,7 +99,7 @@ Page({
     wx.cloud.callFunction({
       name: 'getStatistics',
       success: res => {
-        logger.info('获取统计数据成功', res);
+        info('获取统计数据成功', res);
         
         // 如果云函数返回成功
         if (res.result && res.result.code === 0) {
@@ -109,7 +109,7 @@ Page({
           });
         } else {
           // 返回失败，显示错误信息
-          logger.error('获取统计数据失败', res.result);
+          error('获取统计数据失败', res.result);
           this.setData({ loadingStats: false });
           wx.showToast({
             title: '获取统计数据失败',
@@ -119,7 +119,7 @@ Page({
         }
       },
       fail: err => {
-        logger.error('获取统计数据失败', err);
+        error('获取统计数据失败', err);
         this.setData({ loadingStats: false });
         wx.showToast({
           title: '获取统计数据失败',
@@ -156,7 +156,7 @@ Page({
         this.getRecentAnalysisList();
       } else if (isDev) {
         // 在开发环境中自动登录
-        logger.info('开发环境自动登录检查');
+        info('开发环境自动登录检查');
         app.login((success) => {
           if (success) {
             this.setData({
@@ -178,7 +178,7 @@ Page({
         });
       }
     } catch (e) {
-      logger.error('检查登录状态失败', e);
+      error('检查登录状态失败', e);
       this.setData({
         isLoggedIn: false,
         loading: false
@@ -197,7 +197,7 @@ Page({
         limit: 6
       },
       success: res => {
-        logger.info('获取最近分析列表成功', res);
+        info('获取最近分析列表成功', res);
         
         // 如果云函数返回成功
         if (res.result && res.result.code === 0) {
@@ -208,7 +208,7 @@ Page({
           });
         } else {
           // 返回失败，显示错误信息
-          logger.error('获取分析列表失败', res.result);
+          error('获取分析列表失败', res.result);
           this.setData({ 
             recentAnalysisList: [],
             loading: false 
@@ -221,7 +221,7 @@ Page({
         }
       },
       fail: err => {
-        logger.error('获取最近分析列表失败', err);
+        error('获取最近分析列表失败', err);
         this.setData({ 
           recentAnalysisList: [],
           loading: false 
@@ -249,7 +249,7 @@ Page({
     
     // 开发环境自动登录
     if (app.globalData.isDev) {
-      logger.info('开发环境上传页面自动登录');
+      info('开发环境上传页面自动登录');
       app.login((success) => {
         if (success) {
           this.setData({
@@ -328,7 +328,7 @@ Page({
     
     // 开发环境自动登录
     if (app.globalData.isDev) {
-      logger.info('开发环境历史页面自动登录');
+      info('开发环境历史页面自动登录');
       app.login((success) => {
         if (success) {
           this.setData({
@@ -366,7 +366,7 @@ Page({
     const index = e.currentTarget.dataset.index;
     const banner = this.data.bannerList[index];
     
-    logger.info('点击Banner', banner);
+    info('点击Banner', banner);
     
     // 可以根据不同的banner进行不同的操作
     if (index === 0) {
@@ -379,11 +379,11 @@ Page({
     const id = e.currentTarget.dataset.id;
     const app = getApp();
     
-    logger.info('点击功能', id);
+    info('点击功能', id);
     
     // 如果在开发环境中但未登录，先尝试自动登录
     if (app.globalData.isDev && !this.data.isLoggedIn) {
-      logger.info('开发环境功能点击自动登录');
+      info('开发环境功能点击自动登录');
       app.login((success) => {
         if (success) {
           this.setData({

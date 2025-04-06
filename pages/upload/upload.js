@@ -1,6 +1,6 @@
-const logger = require('../../utils/logger.js');
-const fileUtils = require('../../utils/file.js');
-const apiService = require('../../utils/api.js');
+import { info, error } from '../../utils/logger.js';
+import { chooseFile, formatFileSize, getFileType, isSupportedFileType } from '../../utils/file.js';
+import { uploadFile } from '../../utils/api.js';
 const app = getApp();
 
 Page({
@@ -22,22 +22,22 @@ Page({
   },
 
   onLoad: function(options) {
-    logger.info('上传页面加载');
+    info('上传页面加载');
   },
 
   // 选择文件
   handleChooseFile: function() {
     const that = this;
     
-    logger.info('选择文件');
+    info('选择文件');
     
-    fileUtils.chooseFile()
+    chooseFile()
       .then(res => {
-        logger.info('选择文件成功', res);
+        info('选择文件成功', res);
         
         // 检查文件类型
         const fileName = res.name || '未知文件';
-        const fileType = fileUtils.getFileType(fileName);
+        const fileType = getFileType(fileName);
         const fileSize = res.size || 0;
         
         // 检查文件大小（限制20MB）
@@ -51,7 +51,7 @@ Page({
         }
         
         // 检查文件类型（支持 PDF, DOC, DOCX, PPT, PPTX, TXT）
-        if (!fileUtils.isSupportedFileType(fileType)) {
+        if (!isSupportedFileType(fileType)) {
           that.setData({
             step: 'error',
             errorMessage: '不支持的文件格式，请选择PDF、Word、PPT或TXT文件'
@@ -66,7 +66,7 @@ Page({
           file: {
             name: fileName,
             size: fileSize,
-            sizeText: fileUtils.formatFileSize(fileSize),
+            sizeText: formatFileSize(fileSize),
             type: fileType,
             path: res.path,
             time: that.formatCurrentTime()
@@ -76,7 +76,7 @@ Page({
         });
       })
       .catch(err => {
-        logger.error('选择文件失败', err);
+        error('选择文件失败', err);
         // 用户取消选择不显示错误
         if (err.errMsg && err.errMsg.indexOf('cancel') > -1) {
           return;
@@ -102,7 +102,7 @@ Page({
       uploadProgress: 0
     });
     
-    logger.info('开始上传文件', {
+    info('开始上传文件', {
       fileName: this.data.file.name,
       fileSize: this.data.file.size
     });
@@ -111,9 +111,9 @@ Page({
     this.simulateProgress();
     
     // 调用实际上传API
-    apiService.uploadFile(this.data.file.path)
+    uploadFile(this.data.file.path)
       .then(res => {
-        logger.info('文件上传成功', res);
+        info('文件上传成功', res);
         
         // 更新文件id和url
         this.setData({
@@ -127,7 +127,7 @@ Page({
         this.showToast('文件上传成功', 'success');
       })
       .catch(err => {
-        logger.error('文件上传失败', err);
+        error('文件上传失败', err);
         
         this.setData({
           isUploading: false,
@@ -178,7 +178,7 @@ Page({
       return;
     }
     
-    logger.info('跳转到分析结果页', {
+    info('跳转到分析结果页', {
       fileId: this.data.file.id
     });
     

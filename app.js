@@ -1,5 +1,5 @@
 // app.js
-const logger = require('./utils/logger');
+import { info, error, warn } from './utils/logger';
 
 // 初始化云开发
 wx.cloud.init({
@@ -29,9 +29,9 @@ function resetAppState() {
       };
     }
     
-    logger.info('应用状态已重置');
+    info('应用状态已重置');
   } catch (e) {
-    logger.error('重置应用状态失败', e);
+    error('重置应用状态失败', e);
   }
 }
 
@@ -62,7 +62,7 @@ App({
   onLaunch() {
     const that = this;
     
-    logger.info('小程序启动');
+    info('小程序启动');
     
     // 初始化云开发
     if (!wx.cloud) {
@@ -131,12 +131,12 @@ App({
   
   // 错误处理
   onError(error) {
-    logger.error('应用程序错误', error);
+    error('应用程序错误', error);
   },
   
   // 页面不存在
   onPageNotFound(res) {
-    logger.warn('页面不存在', res);
+    warn('页面不存在', res);
     wx.switchTab({
       url: '/pages/index/index'
     });
@@ -152,7 +152,7 @@ App({
       
       // 如果状态不一致，进行修复
       if (hasToken !== hasUserInfo) {
-        logger.warn('应用状态不一致，正在修复', { hasToken, hasUserInfo });
+        warn('应用状态不一致，正在修复', { hasToken, hasUserInfo });
         
         if (hasToken) {
           // 有token但无userInfo，尝试验证token
@@ -160,11 +160,11 @@ App({
         } else {
           // 有userInfo但无token，清除userInfo
           this.globalData.userInfo = null;
-          logger.info('已清除不一致的用户信息');
+          info('已清除不一致的用户信息');
         }
       }
     } catch (e) {
-      logger.error('检查应用状态失败', e);
+      error('检查应用状态失败', e);
     }
   },
 
@@ -179,28 +179,28 @@ App({
       } else {
         // 清除可能存在的无效token
         if (token) {
-          logger.warn('发现无效token格式，正在清除', { tokenLength: token.length });
+          warn('发现无效token格式，正在清除', { tokenLength: token.length });
           wx.removeStorageSync('token');
         }
         
         // 引导用户登录
-        logger.info('用户未登录，token不存在或无效')
+        info('用户未登录，token不存在或无效')
         this.globalData.userInfo = null;
       }
     } catch (e) {
-      logger.error('检查登录状态失败', e)
+      error('检查登录状态失败', e)
       // 出错时重置登录状态
       this.globalData.userInfo = null;
       try {
         wx.removeStorageSync('token');
       } catch (err) {
-        logger.error('清除token失败', err);
+        error('清除token失败', err);
       }
     }
   },
 
   validateToken(token) {
-    logger.info('开始验证token', token.substring(0, 10) + '...')
+    info('开始验证token', token.substring(0, 10) + '...')
     
     // 使用云函数验证token
     wx.cloud.callFunction({
@@ -209,10 +209,10 @@ App({
         token
       },
       success: (res) => {
-        logger.info('验证token返回结果', res.result)
+        info('验证token返回结果', res.result)
         
         if (res.result && res.result.code === 200) {
-          logger.info('Token有效，更新用户信息', res.result.userInfo)
+          info('Token有效，更新用户信息', res.result.userInfo)
           this.globalData.userInfo = res.result.userInfo
           
           // 触发登录成功事件，供页面响应
@@ -221,13 +221,13 @@ App({
             wx.eventCenter.loginSuccess(res.result.userInfo)
           }
         } else {
-          logger.warn('Token无效，需要重新登录', res.result)
+          warn('Token无效，需要重新登录', res.result)
           wx.removeStorageSync('token')
           this.globalData.userInfo = null
         }
       },
       fail: (err) => {
-        logger.error('验证Token失败', err)
+        error('验证Token失败', err)
         wx.removeStorageSync('token')
         this.globalData.userInfo = null
       }
@@ -235,12 +235,12 @@ App({
   },
 
   login(callback) {
-    logger.info('开始登录流程')
+    info('开始登录流程')
     
     wx.login({
       success: (res) => {
         if (res.code) {
-          logger.info('获取微信code成功', res.code)
+          info('获取微信code成功', res.code)
           
           // 使用云函数登录
           wx.cloud.callFunction({
@@ -249,7 +249,7 @@ App({
               code: res.code
             },
             success: (res) => {
-              logger.info('云函数登录返回', res.result)
+              info('云函数登录返回', res.result)
               
               if (res.result && res.result.token) {
                 // 保存token
@@ -258,39 +258,39 @@ App({
                 // 保存openid (确保云函数返回了openid)
                 if (res.result.openid) {
                   this.globalData.openid = res.result.openid;
-                  logger.info('获取openid成功', this.globalData.openid);
+                  info('获取openid成功', this.globalData.openid);
                 }
                 
                 // 更新全局用户信息
                 if (res.result.userInfo) {
                   this.globalData.userInfo = res.result.userInfo
-                  logger.info('用户信息已更新', this.globalData.userInfo)
+                  info('用户信息已更新', this.globalData.userInfo)
                 } else {
-                  logger.warn('云函数返回数据中没有userInfo', res.result)
+                  warn('云函数返回数据中没有userInfo', res.result)
                 }
                 
                 if (callback) callback(true)
               } else {
-                logger.error('登录失败', res.result ? res.result.message : '未知错误')
+                error('登录失败', res.result ? res.result.message : '未知错误')
                 this.globalData.userInfo = null
                 
                 if (callback) callback(false)
               }
             },
             fail: (err) => {
-              logger.error('登录请求失败', err)
+              error('登录请求失败', err)
               this.globalData.userInfo = null
               
               if (callback) callback(false)
             }
           })
         } else {
-          logger.error('获取登录code失败', res.errMsg)
+          error('获取登录code失败', res.errMsg)
           if (callback) callback(false)
         }
       },
       fail: (err) => {
-        logger.error('登录失败', err)
+        error('登录失败', err)
         if (callback) callback(false)
       }
     })
@@ -300,14 +300,14 @@ App({
   resetAppState,
 
   onShow() {
-    logger.info('小程序进入前台');
+    info('小程序进入前台');
     
     // 尝试从本地存储恢复分析流数据
     this._recoverAnalysisStreams();
   },
 
   onHide() {
-    logger.info('App hidden')
+    info('App hidden')
   },
 
   // 恢复分析流数据
@@ -318,7 +318,7 @@ App({
       const streamKeys = keys.filter(key => key.startsWith('analysis_stream_'));
       
       if (streamKeys.length > 0) {
-        logger.info('从本地存储恢复分析流数据', { count: streamKeys.length });
+        info('从本地存储恢复分析流数据', { count: streamKeys.length });
         
         // 恢复每个流数据
         streamKeys.forEach(key => {
@@ -336,12 +336,12 @@ App({
               };
             }
           } catch (e) {
-            logger.error('恢复单个流数据失败', { key, error: e });
+            error('恢复单个流数据失败', { key, error: e });
           }
         });
       }
     } catch (e) {
-      logger.error('恢复分析流数据失败', e);
+      error('恢复分析流数据失败', e);
     }
   },
   
@@ -355,7 +355,7 @@ App({
     // 使用login方法同时获取openid
     this.login((success) => {
       if (success) {
-        logger.info('登录成功，同时获取到了openid');
+        info('登录成功，同时获取到了openid');
       }
     });
   }

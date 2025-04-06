@@ -1,6 +1,6 @@
-const {apiService} = require('../../services/api');
-const logger = require('../../utils/logger');
-const {toast} = require('../../utils/toast');
+import { apiService } from '../../services/api';
+import { info, error } from '../../utils/logger';
+import { toast } from '../../utils/toast';
 
 Page({
   data: {
@@ -13,7 +13,7 @@ Page({
   },
 
   onLoad() {
-    logger.info('用户中心页面加载');
+    info('用户中心页面加载');
     this.loadUserInfo();
   },
 
@@ -28,7 +28,7 @@ Page({
   // 获取用户信息
   loadUserInfo() {
     const userInfo = getApp().globalData.userInfo;
-    logger.info('当前用户信息', userInfo);
+    info('当前用户信息', userInfo);
     
     this.setData({ userInfo }); // 无论是否为null，都要更新UI
     
@@ -67,7 +67,7 @@ Page({
         });
       }
     } catch (error) {
-      logger.error('加载用户数据失败', error);
+      error('加载用户数据失败', error);
       toast.error('数据加载失败');
     } finally {
       this.setData({ loading: false });
@@ -93,7 +93,7 @@ Page({
     const fileId = e.currentTarget.dataset.fileId;
     const fileName = e.currentTarget.dataset.fileName;
     
-    logger.info('查看分析报告', { fileName, fileId });
+    info('查看分析报告', { fileName, fileId });
     
     if (fileId) {
       // 先显示加载中的提示
@@ -137,7 +137,7 @@ Page({
               wx.navigateTo({
                 url: `/pages/analysis-detail/analysis-detail?id=${fileId}&fileName=${encodeURIComponent(fileName)}`,
                 fail: (err) => {
-                  logger.error('导航到分析页失败', err);
+                  error('导航到分析页失败', err);
                   wx.showToast({
                     title: '打开分析页失败',
                     icon: 'error'
@@ -155,7 +155,7 @@ Page({
         })
         .catch(err => {
           wx.hideLoading();
-          logger.error('获取BP详情失败', err);
+          error('获取BP详情失败', err);
           wx.showToast({
             title: '获取数据失败',
             icon: 'error'
@@ -174,7 +174,7 @@ Page({
     const fileId = e.currentTarget.dataset.fileId;
     const fileName = e.currentTarget.dataset.fileName;
     
-    logger.info('预览文件', { fileName, fileId });
+    info('预览文件', { fileName, fileId });
     
     if (fileId) {
       // 显示加载提示
@@ -187,13 +187,13 @@ Page({
             throw new Error('找不到文件的云存储ID');
           }
           
-          logger.info('获取到文件信息', fileInfo);
+          info('获取到文件信息', fileInfo);
           
           // 使用真正的云存储fileID获取临时访问URL
           return apiService.getFileUrl(fileInfo.fileID);
         })
         .then(tempUrl => {
-          logger.info('获取文件临时URL成功', tempUrl);
+          info('获取文件临时URL成功', tempUrl);
           
           // 下载文件到本地
           return new Promise((resolve, reject) => {
@@ -214,10 +214,10 @@ Page({
               fileType: this.getFileType(fileName),
               showMenu: true,
               success: () => {
-                logger.info('文件预览成功');
+                info('文件预览成功');
               },
               fail: (err) => {
-                logger.error('文件预览失败', err);
+                error('文件预览失败', err);
                 toast.error('预览失败，请稍后再试');
                 
                 // 处理权限问题
@@ -238,12 +238,12 @@ Page({
               }
             });
           } else {
-            logger.error('下载文件失败', downloadRes);
+            error('下载文件失败', downloadRes);
             toast.error('文件下载失败');
           }
         })
         .catch(err => {
-          logger.error('获取或下载文件失败', err);
+          error('获取或下载文件失败', err);
           toast.error('无法预览文件，请稍后再试');
           
           // 显示更详细的错误提示
@@ -268,7 +268,7 @@ Page({
     const fileId = e.currentTarget.dataset.fileId;
     const fileName = e.currentTarget.dataset.fileName;
     
-    logger.info('开始分析BP文件', { fileName, fileId });
+    info('开始分析BP文件', { fileName, fileId });
     
     // 显示确认对话框
     wx.showModal({
@@ -303,7 +303,7 @@ Page({
                   wx.navigateTo({
                     url: `/pages/analysis-detail/analysis-detail?id=${fileId}&fileName=${encodeURIComponent(fileName)}`,
                     fail: (err) => {
-                      logger.error('导航到分析页失败', err);
+                      error('导航到分析页失败', err);
                     }
                   });
                 }, 1500);
@@ -317,7 +317,7 @@ Page({
             })
             .catch(err => {
               wx.hideLoading();
-              logger.error('启动分析失败', err);
+              error('启动分析失败', err);
               wx.showToast({
                 title: '启动分析失败',
                 icon: 'error'
@@ -333,7 +333,7 @@ Page({
     const fileId = e.currentTarget.dataset.fileId;
     const fileName = e.currentTarget.dataset.fileName;
     
-    logger.info('重试分析BP文件', { fileName, fileId });
+    info('重试分析BP文件', { fileName, fileId });
     
     // 直接调用开始分析函数
     this.startAnalysis(e);
@@ -366,7 +366,7 @@ Page({
         // 获取最新的用户信息
         const userInfo = getApp().globalData.userInfo;
         
-        logger.info('登录成功，用户信息:', userInfo);
+        info('登录成功，用户信息:', userInfo);
         toast.success('登录成功');
         
         // 更新页面数据并重新加载用户数据
@@ -412,7 +412,7 @@ Page({
         showCancel: false
       });
     } catch (error) {
-      logger.error('退出登录失败', error);
+      error('退出登录失败', error);
       toast.error('退出失败');
     }
   },
@@ -434,7 +434,7 @@ Page({
         }
       });
     } catch (error) {
-      logger.error('清理缓存操作失败', error);
+      error('清理缓存操作失败', error);
       toast.error('操作失败');
     }
   },
@@ -470,7 +470,7 @@ Page({
         }
       });
     } catch (error) {
-      logger.error('清理缓存失败', error);
+      error('清理缓存失败', error);
       toast.error('清理失败');
     }
   },
@@ -506,7 +506,7 @@ Page({
         showCancel: false
       });
     } catch (error) {
-      logger.error('强力清理失败', error);
+      error('强力清理失败', error);
       toast.error('重置失败');
     }
   },
@@ -514,7 +514,7 @@ Page({
   // 联系客服
   handleContact() {
     // 微信小程序会自动处理联系客服按钮
-    logger.info('用户点击联系客服');
+    info('用户点击联系客服');
   },
   
   // 关于我们
@@ -605,7 +605,7 @@ Page({
       wx.reLaunch({
         url: '/pages/index/index',
         success: () => {
-          logger.info('小程序已重启');
+          info('小程序已重启');
         }
       });
     }, 1000);
@@ -619,7 +619,7 @@ Page({
       
       // 如果有分析流，检查状态
       if (streamIds.length > 0) {
-        logger.info('检测到分析流:', streamIds.length);
+        info('检测到分析流:', streamIds.length);
         
         // 遍历所有分析流
         streamIds.forEach(streamId => {

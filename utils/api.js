@@ -2,7 +2,7 @@
  * API服务工具类
  * 提供与云端API交互的方法
  */
-const logger = require('./logger.js');
+import { info, error } from './logger.js';
 const app = getApp();
 
 /**
@@ -17,7 +17,7 @@ function uploadFile(filePath) {
       return;
     }
     
-    logger.info('开始上传文件', { filePath });
+    info('开始上传文件', { filePath });
     
     // 生成云存储路径
     const cloudPath = `bp_files/${Date.now()}_${filePath.split('/').pop()}`;
@@ -27,7 +27,7 @@ function uploadFile(filePath) {
       cloudPath: cloudPath,
       filePath: filePath,
       success: (res) => {
-        logger.info('文件上传成功', { fileID: res.fileID });
+        info('文件上传成功', { fileID: res.fileID });
         
         if (!res.fileID) {
           reject(new Error('上传失败，未获取到文件ID'));
@@ -51,14 +51,14 @@ function uploadFile(filePath) {
                   uploadTime: new Date().getTime()
                 },
                 success: (callRes) => {
-                  logger.info('保存文件信息成功', callRes.result);
+                  info('保存文件信息成功', callRes.result);
                   resolve({
                     fileId: callRes.result.fileId || res.fileID,
                     fileUrl: fileInfo.tempFileURL
                   });
                 },
                 fail: (err) => {
-                  logger.error('保存文件信息失败', err);
+                  error('保存文件信息失败', err);
                   // 即使保存信息失败，也返回上传成功信息
                   resolve({
                     fileId: res.fileID,
@@ -71,13 +71,13 @@ function uploadFile(filePath) {
             }
           },
           fail: (err) => {
-            logger.error('获取文件临时链接失败', err);
+            error('获取文件临时链接失败', err);
             reject(err);
           }
         });
       },
       fail: (err) => {
-        logger.error('文件上传失败', err);
+        error('文件上传失败', err);
         reject(err);
       }
     });
@@ -103,7 +103,7 @@ function callCozeWorkflow(workflowId, inputs) {
       return;
     }
     
-    logger.info('调用Coze工作流', { workflowId });
+    info('调用Coze工作流', { workflowId });
     
     wx.request({
       url: 'https://api.coze.cn/v1/workflow/run',
@@ -118,15 +118,15 @@ function callCozeWorkflow(workflowId, inputs) {
       },
       success: (res) => {
         if (res.statusCode === 200) {
-          logger.info('工作流调用成功', res.data);
+          info('工作流调用成功', res.data);
           resolve(res.data);
         } else {
-          logger.error('工作流调用失败', res);
+          error('工作流调用失败', res);
           reject(new Error(`工作流调用失败: ${res.statusCode}`));
         }
       },
       fail: (err) => {
-        logger.error('工作流调用请求失败', err);
+        error('工作流调用请求失败', err);
         reject(err);
       }
     });
@@ -140,17 +140,17 @@ function callCozeWorkflow(workflowId, inputs) {
  */
 function saveAnalysisHistory(historyItem) {
   return new Promise((resolve, reject) => {
-    logger.info('保存分析历史记录', { fileId: historyItem.fileId });
+    info('保存分析历史记录', { fileId: historyItem.fileId });
     
     wx.cloud.callFunction({
       name: 'saveAnalysisHistory',
       data: historyItem,
       success: (res) => {
-        logger.info('保存历史记录成功', res.result);
+        info('保存历史记录成功', res.result);
         resolve(res.result);
       },
       fail: (err) => {
-        logger.error('保存历史记录失败', err);
+        error('保存历史记录失败', err);
         reject(err);
       }
     });
@@ -165,7 +165,7 @@ function saveAnalysisHistory(historyItem) {
  */
 function getAnalysisHistoryList(limit = 10, offset = 0) {
   return new Promise((resolve, reject) => {
-    logger.info('获取分析历史记录列表', { limit, offset });
+    info('获取分析历史记录列表', { limit, offset });
     
     wx.cloud.callFunction({
       name: 'getAnalysisHistoryList',
@@ -174,11 +174,11 @@ function getAnalysisHistoryList(limit = 10, offset = 0) {
         offset
       },
       success: (res) => {
-        logger.info('获取历史记录列表成功', { count: res.result.list ? res.result.list.length : 0 });
+        info('获取历史记录列表成功', { count: res.result.list ? res.result.list.length : 0 });
         resolve(res.result);
       },
       fail: (err) => {
-        logger.error('获取历史记录列表失败', err);
+        error('获取历史记录列表失败', err);
         reject(err);
       }
     });
@@ -192,7 +192,7 @@ function getAnalysisHistoryList(limit = 10, offset = 0) {
  */
 function getAnalysisHistoryDetail(historyId) {
   return new Promise((resolve, reject) => {
-    logger.info('获取分析历史记录详情', { historyId });
+    info('获取分析历史记录详情', { historyId });
     
     wx.cloud.callFunction({
       name: 'getAnalysisHistoryDetail',
@@ -200,18 +200,18 @@ function getAnalysisHistoryDetail(historyId) {
         historyId
       },
       success: (res) => {
-        logger.info('获取历史记录详情成功');
+        info('获取历史记录详情成功');
         resolve(res.result);
       },
       fail: (err) => {
-        logger.error('获取历史记录详情失败', err);
+        error('获取历史记录详情失败', err);
         reject(err);
       }
     });
   });
 }
 
-module.exports = {
+export {
   uploadFile,
   callCozeWorkflow,
   saveAnalysisHistory,

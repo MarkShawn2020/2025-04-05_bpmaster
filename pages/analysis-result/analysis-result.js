@@ -1,7 +1,7 @@
 const app = getApp();
-const logger = require('../../utils/logger.js');
-const fileUtils = require('../../utils/file.js');
-const apiService = require('../../utils/api.js');
+import { info, error, debug } from '../../utils/logger.js';
+import { getFileType } from '../../utils/file.js';
+import { uploadFile, callCozeWorkflow } from '../../utils/api.js';
 
 Page({
   data: {
@@ -27,7 +27,7 @@ Page({
   },
 
   onLoad: function(options) {
-    logger.info('分析结果页面加载', options);
+    info('分析结果页面加载', options);
     
     if (!options.fileId) {
       this.setData({
@@ -46,7 +46,7 @@ Page({
       fileSize: options.fileSize || '未知大小',
       fileTime: options.fileTime || this.formatCurrentTime(),
       fileUrl: options.fileUrl || '',
-      fileType: options.fileType || fileUtils.getFileType(options.fileName || '')
+      fileType: options.fileType || getFileType(options.fileName || '')
     });
     
     // 生成会话ID
@@ -60,7 +60,7 @@ Page({
   
   // 开始分析
   startAnalysis: function() {
-    logger.info('开始AI分析', { fileId: this.data.fileId });
+    info('开始AI分析', { fileId: this.data.fileId });
     
     // 确保有文件ID
     if (!this.data.fileId) {
@@ -84,7 +84,7 @@ Page({
     const token = app.globalData.config.cozeApiToken;
     
     if (!workflowId || !token) {
-      logger.error('缺少Coze配置', { workflowId, token });
+      error('缺少Coze配置', { workflowId, token });
       this.setData({
         isAnalyzing: false,
         hasError: true,
@@ -110,7 +110,7 @@ Page({
       }
     };
     
-    logger.info('调用Coze工作流', { workflowId, fileId: this.data.fileId });
+    info('调用Coze工作流', { workflowId, fileId: this.data.fileId });
     
     const requestTask = wx.request({
       url: url,
@@ -121,11 +121,11 @@ Page({
       responseType: 'text',
       success: function(res) {
         // 请求成功只表示请求已经发出
-        logger.info('Coze工作流请求成功', res.statusCode);
+        info('Coze工作流请求成功', res.statusCode);
       },
       fail: function(err) {
         // 请求失败
-        logger.error('Coze工作流请求失败', err);
+        error('Coze工作流请求失败', err);
         that.setData({
           isAnalyzing: false,
           hasError: true,
@@ -146,7 +146,7 @@ Page({
         // 处理数据块
         that.processChunk(chunk);
       } catch (err) {
-        logger.error('处理Coze响应块数据失败', err);
+        error('处理Coze响应块数据失败', err);
       }
     });
   },
@@ -168,7 +168,7 @@ Page({
           
           // 特殊情况: [DONE]
           if (jsonStr === '[DONE]') {
-            logger.info('Coze工作流执行完成');
+            info('Coze工作流执行完成');
             this.handleWorkflowComplete();
             continue;
           }
@@ -178,12 +178,12 @@ Page({
             const data = JSON.parse(jsonStr);
             this.handleStreamEvent(data);
           } catch (err) {
-            logger.error('解析JSON数据失败', { jsonStr, error: err });
+            error('解析JSON数据失败', { jsonStr, error: err });
           }
         }
       }
     } catch (err) {
-      logger.error('处理数据块失败', err);
+      error('处理数据块失败', err);
     }
   },
   
@@ -206,7 +206,7 @@ Page({
         this.handleWorkflowComplete();
         break;
       default:
-        logger.info('未知的工作流事件类型', { event: data.event });
+        info('未知的工作流事件类型', { event: data.event });
     }
   },
   
@@ -233,12 +233,12 @@ Page({
     // 提取目录项
     this.extractTocItems(mdContent);
     
-    logger.debug('工作流消息内容更新', { contentLength: content.length });
+    debug('工作流消息内容更新', { contentLength: content.length });
   },
   
   // 处理工作流错误
   handleWorkflowError: function(data) {
-    logger.error('工作流执行错误', data);
+    error('工作流执行错误', data);
     
     this.setData({
       isAnalyzing: false,
@@ -251,13 +251,13 @@ Page({
   
   // 处理工作流元数据
   handleWorkflowMetadata: function(data) {
-    logger.info('工作流元数据', data);
+    info('工作流元数据', data);
     // 可以处理一些元数据，例如估计完成时间等
   },
   
   // 处理工作流完成
   handleWorkflowComplete: function() {
-    logger.info('工作流执行完成');
+    info('工作流执行完成');
     
     this.setData({
       isAnalyzing: false,
@@ -302,7 +302,7 @@ Page({
       savingToHistory: true
     });
     
-    logger.info('保存分析结果到历史记录', {
+    info('保存分析结果到历史记录', {
       fileId: this.data.fileId,
       sessionId: this.data.sessionId
     });
@@ -320,15 +320,15 @@ Page({
     };
     
     // 使用API服务保存历史记录
-    apiService.saveAnalysisHistory(historyItem)
+    uploadFile(historyItem)
       .then(res => {
-        logger.info('历史记录保存成功', res);
+        info('历史记录保存成功', res);
         this.setData({
           savingToHistory: false
         });
       })
       .catch(err => {
-        logger.error('历史记录保存失败', err);
+        error('历史记录保存失败', err);
         this.setData({
           savingToHistory: false
         });
