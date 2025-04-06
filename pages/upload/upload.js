@@ -30,6 +30,45 @@ Page({
       logger.warn('Toast组件未能正确初始化，将使用原生Toast');
     }
   },
+  
+  // 添加onShow生命周期函数
+  onShow() {
+    // 检查是否有文件正在分析中，如果有则更新状态
+    if (this.data.fileList.length > 0 && this.data.fileList[0].status === 'analyzing') {
+      // 获取文件ID
+      const fileId = this.data.fileList[0].fileId;
+      if (!fileId) return;
+      
+      logger.info('页面显示，检查文件分析状态', fileId);
+      
+      // 查询文件分析状态
+      apiService.getBPDetail(fileId).then(res => {
+        if (res && res.code === 200) {
+          const fileData = res.data;
+          
+          // 更新文件状态
+          const file = this.data.fileList[0];
+          const updatedFile = { 
+            ...file, 
+            status: fileData.status || 'completed' // 根据API返回设置状态
+          };
+          
+          this.setData({
+            fileList: [updatedFile],
+            analyzing: false  // 重置analyzing状态
+          });
+          
+          logger.info('更新文件状态成功', updatedFile);
+        }
+      }).catch(err => {
+        logger.error('获取文件状态失败', err);
+        // 出错时也重置analyzing状态，避免永远显示"分析中"
+        this.setData({
+          analyzing: false
+        });
+      });
+    }
+  },
 
   // 选择文件
   async handleChooseFile() {
@@ -198,8 +237,8 @@ Page({
               // 更新文件状态为分析中
               const updatedFile = { ...file, status: 'analyzing' };
               this.setData({
-                fileList: [updatedFile],
-                analyzing: false
+                fileList: [updatedFile]
+                // 修复：不要设置analyzing为false，这会导致状态不一致
               });
               
               // 导航到分析详情页面
