@@ -48,7 +48,7 @@
           disabled="{{fileList.length === 0 || uploadSuccess}}">上传文件</button>
         <button class="primary-btn analyze-btn" bindtap="handleAnalyzeFile"
           disabled="{{!uploadSuccess}}">开始分析</button>
-      </block>
+      </block>z
 
       <!-- 上传中状态 -->
       <view class="progress-area" wx:if="{{uploading}}">

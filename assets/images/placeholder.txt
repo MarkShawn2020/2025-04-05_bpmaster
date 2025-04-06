@@ -3,7 +3,7 @@
 - banner1.png
 - banner2.png
 - banner3.png
-- logo.png
+- logo.jpeg
 - empty.png
 - share.png
 等 

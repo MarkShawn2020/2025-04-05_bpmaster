@@ -64,7 +64,7 @@
       <view class="login-panel-close" bindtap="hideLoginPanel">×</view>
     </view>
     <view class="login-panel-content">
-      <image src="/assets/images/logo.png" class="login-logo" mode="aspectFit"></image>
+      <image src="/assets/images/logo.jpeg" class="login-logo" mode="aspectFit"></image>
       <view class="login-desc">登录后体验BP小诸葛的全部功能</view>
       <button class="login-btn" bindtap="handleLogin" loading="{{loginLoading}}">微信快捷登录</button>
     </view>
