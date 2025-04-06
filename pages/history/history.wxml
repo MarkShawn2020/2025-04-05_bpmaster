@@ -24,10 +24,14 @@
   
   <!-- 记录列表 -->
   <scroll-view class="analysis-list" scroll-y="true" lower-threshold="50" bindscrolltolower="loadMore" enable-back-to-top="true" wx:if="{{analysisList.length > 0}}">
-    <view class="analysis-item {{isSelecting ? 'selecting' : ''}}" wx:for="{{analysisList}}" wx:key="id" data-id="{{item.id}}" bindtap="viewAnalysisDetail">
+    <view class="analysis-item {{isSelecting ? 'selecting' : ''}} {{item.isSelected ? 'item-selected' : ''}}" wx:for="{{analysisList}}" wx:key="id" data-id="{{item.id}}" bindtap="viewAnalysisDetail">
       <!-- 选择框 -->
-      <view class="checkbox {{selectedItems.includes(item.id) ? 'checked' : ''}}" wx:if="{{isSelecting}}">
-        <view class="inner"></view>
+      <view class="checkbox {{item.isSelected || selectedItems.includes(item.id) ? 'checked' : ''}}" 
+        wx:if="{{isSelecting}}" 
+        catch:tap="toggleSelectItem" 
+        data-id="{{item.id}}"
+        style="width: 48rpx; height: 48rpx; border-width: 2rpx;">
+        <view class="inner" style="opacity: {{item.isSelected || selectedItems.includes(item.id) ? 1 : 0}};"></view>
       </view>
       
       <!-- 文件信息 -->

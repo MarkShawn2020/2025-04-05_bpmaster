@@ -52,7 +52,8 @@ Page({
           fileSize: this.formatFileSize(item.fileSize),
           analysisDate: item.uploadTime,
           score: item.score || 0,
-          status: item.status || 'NOT_ANALYZED'
+          status: item.status || 'NOT_ANALYZED',
+          isSelected: this.data.selectedItems.includes(item._id) // 初始化选中状态
         }));
       } else {
         // API返回错误或无数据时，使用模拟数据
@@ -68,8 +69,8 @@ Page({
         page: this.data.page + 1
       });
       
-    } catch (err) {
-      error('加载历史记录失败', err);
+    } catch (error) {
+      error('加载历史记录失败', error);
       this.setData({ loading: false });
       toast.error('加载失败，请稍后重试');
     }
@@ -93,7 +94,16 @@ Page({
   
   viewAnalysisDetail(e) {
     if (this.data.isSelecting) {
-      this.toggleSelectItem(e);
+      // 在选择模式下，直接调用toggleSelectItem
+      // 如果e不是有效事件对象，构造一个简单对象传递ID
+      if (e && e.currentTarget && e.currentTarget.dataset) {
+        this.toggleSelectItem(e);
+      } else {
+        const id = e?.currentTarget?.dataset?.id;
+        if (id) {
+          this.toggleSelectItem({ currentTarget: { dataset: { id } } });
+        }
+      }
       return;
     }
     
@@ -389,23 +399,50 @@ Page({
   
   // 启用选择模式
   enableSelectMode() {
+    // 重置所有项的选中状态
+    const analysisList = this.data.analysisList.map(item => ({
+      ...item,
+      isSelected: false
+    }));
+    
     this.setData({
       isSelecting: true,
-      selectedItems: []
+      selectedItems: [],
+      analysisList
     });
   },
   
   // 取消选择模式
   cancelSelectMode() {
+    // 重置所有项的选中状态
+    const analysisList = this.data.analysisList.map(item => ({
+      ...item,
+      isSelected: false
+    }));
+    
     this.setData({
       isSelecting: false,
-      selectedItems: []
+      selectedItems: [],
+      analysisList
     });
   },
   
   // 切换选择项
   toggleSelectItem(e) {
-    const id = e.currentTarget.dataset.id;
+    // 安全地阻止事件冒泡
+    if (e && e.stopPropagation && typeof e.stopPropagation === 'function') {
+      e.stopPropagation();
+    }
+    
+    const id = e?.currentTarget?.dataset?.id || e?.target?.dataset?.id;
+    
+    if (!id) {
+      warn('无法获取ID，选择操作取消');
+      return;
+    }
+    
+    info('切换选择项', { id, isAlreadySelected: this.data.selectedItems.includes(id) });
+    
     const selectedItems = [...this.data.selectedItems];
     const index = selectedItems.indexOf(id);
     
@@ -415,24 +452,67 @@ Page({
       selectedItems.push(id);
     }
     
+    // 强制更新：先创建新的分析列表，复制所有属性
+    const analysisList = JSON.parse(JSON.stringify(this.data.analysisList));
+    
+    // 找到并更新目标项
+    const itemIndex = analysisList.findIndex(item => item.id === id);
+    if (itemIndex !== -1) {
+      // 直接设置isSelected属性
+      analysisList[itemIndex].isSelected = !analysisList[itemIndex].isSelected;
+      info('切换选中状态', { 
+        id, 
+        isNowSelected: analysisList[itemIndex].isSelected 
+      });
+    }
+    
+    // 使用nextTick确保DOM更新
     this.setData({
-      selectedItems
+      selectedItems,
+      analysisList
+    }, () => {
+      // 在setData回调中检查状态，确保更新完成
+      info('UI更新后的状态', { 
+        selectedItems, 
+        selectedCount: selectedItems.length,
+        selectedItemStates: analysisList.map(item => ({
+          id: item.id,
+          isSelected: item.isSelected
+        }))
+      });
     });
   },
   
   // 切换全选
   toggleSelectAll() {
-    if (this.data.selectedItems.length === this.data.analysisList.length) {
-      // 取消全选
-      this.setData({
-        selectedItems: []
+    const allSelected = this.data.selectedItems.length === this.data.analysisList.length;
+    info('全选操作', { currentlyAllSelected: allSelected });
+    
+    // 创建新的列表和选中项数组
+    const analysisList = JSON.parse(JSON.stringify(this.data.analysisList));
+    let selectedItems = [];
+    
+    // 如果当前全部选中，则全部取消；否则全部选中
+    const newSelectedState = !allSelected;
+    
+    // 更新每个项目的选中状态
+    analysisList.forEach(item => {
+      item.isSelected = newSelectedState;
+      if (newSelectedState) {
+        selectedItems.push(item.id);
+      }
+    });
+    
+    // 使用nextTick确保DOM更新
+    this.setData({
+      selectedItems,
+      analysisList
+    }, () => {
+      info('全选操作完成', { 
+        allSelected: newSelectedState,
+        selectedCount: selectedItems.length 
       });
-    } else {
-      // 全选
-      this.setData({
-        selectedItems: this.data.analysisList.map(item => item.id)
-      });
-    }
+    });
   },
   
   // 删除选中项
