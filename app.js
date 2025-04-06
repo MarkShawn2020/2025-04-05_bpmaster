@@ -47,29 +47,57 @@ App({
     uploadedFiles: [],
     analysisList: [],
     isDev: true, // 开发模式标志
-    analysisStreams: {} // 初始化分析流数据容器
+    analysisStreams: {}, // 初始化分析流数据容器
+    hasUserInfo: false,
+    openid: '',
+    config: {
+      coze: {
+        API_URL: 'https://api.coze.cn/v1/workflow/stream_run',
+        TOKEN: 'pat_qLidHTjFnf7XlU0UwEz2L2OcWl34KsuSU56X9V1dFDAuhNf3atXTOl2gO5G2laVN',
+        WORKFLOW_ID: '7488013332172193801'
+      }
+    }
   },
 
   onLaunch() {
-    logger.info('应用启动');
+    const that = this;
     
-    // 初始化云函数
+    logger.info('小程序启动');
+    
+    // 初始化云开发
     if (!wx.cloud) {
-      logger.error('请使用 2.2.3 或以上的基础库以使用云能力');
+      console.error('基础库版本过低，请升级微信');
     } else {
-      try {
-        wx.cloud.init({
-          env: cloud.DYNAMIC_CURRENT_ENV, // 请更改为你自己的云开发环境ID
-          traceUser: true
-        });
-        logger.info('云函数环境初始化成功');
-      } catch (e) {
-        logger.error('云函数环境初始化失败', e);
-      }
+      wx.cloud.init({
+        env: wx.cloud.DYNAMIC_CURRENT_ENV,
+        traceUser: true,
+      });
     }
     
-    // 检查更新
-    this.checkUpdate();
+    // 初始化全局数据
+    this.globalData = {
+      userInfo: null,
+      hasUserInfo: false,
+      uploadedFiles: [],
+      // 用于存储分析流数据
+      analysisStreams: {}
+    };
+    
+    // 获取设备信息
+    wx.getSystemInfo({
+      success: e => {
+        this.globalData.StatusBar = e.statusBarHeight;
+        let capsule = wx.getMenuButtonBoundingClientRect();
+        this.globalData.Custom = capsule;
+        this.globalData.CustomBar = capsule.bottom + capsule.top - e.statusBarHeight;
+        this.globalData.screenHeight = e.screenHeight;
+        this.globalData.screenWidth = e.screenWidth;
+        this.globalData.windowHeight = e.windowHeight;
+      }
+    });
+    
+    // 获取用户的openid
+    this._getOpenid();
   },
   
   // 检查更新
@@ -266,10 +294,66 @@ App({
   resetAppState,
 
   onShow() {
-    logger.info('App shown')
+    logger.info('小程序进入前台');
+    
+    // 尝试从本地存储恢复分析流数据
+    this._recoverAnalysisStreams();
   },
 
   onHide() {
     logger.info('App hidden')
   },
+
+  // 恢复分析流数据
+  _recoverAnalysisStreams() {
+    try {
+      // 获取所有本地存储的分析流数据
+      const keys = wx.getStorageInfoSync().keys;
+      const streamKeys = keys.filter(key => key.startsWith('analysis_stream_'));
+      
+      if (streamKeys.length > 0) {
+        logger.info('从本地存储恢复分析流数据', { count: streamKeys.length });
+        
+        // 恢复每个流数据
+        streamKeys.forEach(key => {
+          try {
+            const content = wx.getStorageSync(key);
+            const streamId = key.replace('analysis_stream_', '');
+            
+            if (!this.globalData.analysisStreams[streamId] && content) {
+              this.globalData.analysisStreams[streamId] = {
+                content: content,
+                isComplete: true, // 从存储恢复的数据默认完成
+                error: null,
+                fileId: '',
+                recoveredFromStorage: true
+              };
+            }
+          } catch (e) {
+            logger.error('恢复单个流数据失败', { key, error: e });
+          }
+        });
+      }
+    } catch (e) {
+      logger.error('恢复分析流数据失败', e);
+    }
+  },
+  
+  // 获取用户openid
+  async _getOpenid() {
+    try {
+      const result = await wx.cloud.callFunction({
+        name: 'getOpenid'
+      });
+      
+      if (result.result && result.result.openid) {
+        this.globalData.openid = result.result.openid;
+        logger.info('获取openid成功');
+      } else {
+        logger.error('获取openid失败', result);
+      }
+    } catch (error) {
+      logger.error('调用获取openid云函数失败', error);
+    }
+  }
 }) 

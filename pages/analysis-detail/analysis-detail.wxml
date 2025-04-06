@@ -1,147 +1,160 @@
 <view class="container">
-  <!-- 顶部区域 -->
-  <view class="header">
-    <view class="back-btn" bind:tap="navigateBack">
-      <text class="back-icon">←</text>
-      <text>返回</text>
-    </view>
-    <view class="title-area">
-      <view class="title">分析报告</view>
-      <view class="subtitle" wx:if="{{fileInfo}}">{{fileInfo.name}}</view>
-    </view>
-    <view class="actions">
-      <view class="action-btn" bind:tap="handleDownloadReport" wx:if="{{contentLoaded && markdownContent}}">
-        <text class="icon">↓</text>
-        <text>下载</text>
-      </view>
-      <view class="action-btn" bind:tap="handleRefresh" wx:if="{{fileInfo && fileInfo.status === 'analyzing'}}">
-        <text class="icon">↻</text>
-        <text>刷新</text>
-      </view>
-    </view>
-  </view>
-
-  <!-- 加载中 -->
+  <!-- 加载状态 -->
   <view class="loading-container" wx:if="{{loading}}">
     <view class="loading-spinner"></view>
     <view class="loading-text">分析结果加载中...</view>
   </view>
-
-  <!-- 错误提示 -->
+  
+  <!-- 错误状态 -->
   <view class="error-container" wx:elif="{{error}}">
     <view class="error-icon">!</view>
     <view class="error-text">{{error}}</view>
-    <view class="error-action" bind:tap="navigateBack">返回上一页</view>
+    <view class="error-action" bindtap="goBack">返回上一页</view>
   </view>
-
-  <!-- 分析中状态 -->
-  <view class="analyzing-container" wx:elif="{{fileInfo && fileInfo.status === 'analyzing'}}">
-    <view class="analyzing-spinner"></view>
-    <view class="analyzing-text">正在分析中，请稍候...</view>
-    <view class="analyzing-hint">分析时间约1-3分钟，您可以离开此页面稍后再查看</view>
-    <view class="analyzing-action" bind:tap="handleRefresh">刷新状态</view>
-  </view>
-
+  
   <!-- 内容区域 -->
-  <view class="content-container" wx:elif="{{contentLoaded}}">
-    <!-- Markdown内容 -->
-    <view class="markdown-wrapper" wx:if="{{markdownContent}}">
-      <markdown content="{{markdownContent}}" useCustomStyle="{{true}}"></markdown>
-    </view>
-
-    <!-- 无内容提示 -->
-    <view class="empty-container" wx:else>
-      <view class="empty-icon">📃</view>
-      <view class="empty-text">暂无分析结果</view>
-    </view>
-  </view>
-
-  <!-- Toast提示 -->
-  <mp-toast id="toast"></mp-toast>
-
-  <view class="analysis-card" wx:if="{{!loading && !error}}">
-    <!-- 实时分析模式 -->
-    <view class="realtime-analysis" wx:if="{{isRealtime}}">
-
-      
-      <view class="realtime-content">
-        <view style="white-space: pre-wrap; word-break: break-word;">{{streamContent}}</view>
-        
-        <!-- 调试信息 -->
-        <view wx:if="{{!streamContent && streamProgress > 0}}" style="margin-top: 20rpx; padding: 20rpx; background-color: #f8f8f8; border-radius: 8rpx; font-size: 24rpx; color: #666;">
-          <view>数据状态: {{streamStatus || 'unknown'}}</view>
-          <view>已收到数据: {{streamContent ? '是 (' + streamContent.length + '字符)' : '否'}}</view>
-          <view>当前进度: {{streamProgress}}%</view>
-          <view>当前阶段: {{streamStage}}</view>
+  <block wx:else>
+    <!-- 顶部区域 -->
+    <view class="header">
+      <view class="back-btn" bindtap="goBack">
+        <text class="back-icon">←</text>
+        <text>返回</text>
+      </view>
+      <view class="title-area">
+        <view class="title">分析报告</view>
+        <view class="subtitle" wx:if="{{analysisData}}">{{analysisData.fileName}}</view>
+      </view>
+      <view class="actions">
+        <view class="action-btn" bindtap="exportReport">
+          <text class="icon">↓</text>
+          <text>导出</text>
         </view>
       </view>
     </view>
     
-    <!-- 普通分析模式 -->
-    <view class="normal-analysis" wx:else>
-      <view class="file-info">
-        <view class="file-name">{{analysisDetail.fileName}}</view>
-        <view class="file-meta">{{analysisDetail.fileSize}} | {{analysisDetail.uploadTime}}</view>
+    <!-- 选项卡导航 -->
+    <view class="tabs">
+      <view 
+        wx:for="{{tabs}}" 
+        wx:key="id"
+        class="tab {{activeTab === item.id ? 'active' : ''}}"
+        bindtap="switchTab"
+        data-id="{{item.id}}"
+      >
+        {{item.name}}
       </view>
-      
-      <view class="analysis-tabs">
-        <view class="tab {{activeTab === 'summary' ? 'active' : ''}}" bindtap="switchTab" data-tab="summary">概览</view>
-        <view class="tab {{activeTab === 'issues' ? 'active' : ''}}" bindtap="switchTab" data-tab="issues">问题</view>
-        <view class="tab {{activeTab === 'suggestions' ? 'active' : ''}}" bindtap="switchTab" data-tab="suggestions">建议</view>
-      </view>
-      
-      <!-- 内容区域 -->
-      <view class="tab-content">
-        <!-- 概览 -->
-        <view class="summary-tab" wx:if="{{activeTab === 'summary'}}">
-          <view class="overall-score">
-            <view class="score-value">{{analysisDetail.overallScore}}</view>
-            <view class="score-label">总评分</view>
-          </view>
-          
-          <view class="summary-text">{{analysisDetail.summary}}</view>
-          
-          <!-- 添加图表 -->
-        </view>
-        
-        <!-- 问题列表 -->
-        <view class="issues-tab" wx:elif="{{activeTab === 'issues'}}">
-          <view class="issues-list">
-            <view class="empty-tip" wx:if="{{!issuesList || issuesList.length === 0}}">暂无问题数据</view>
-            <view class="issue-item" wx:for="{{issuesList}}" wx:key="id">
-              <view class="issue-header">
-                <view class="issue-type {{item.type}}"></view>
-                <view class="issue-title">{{item.title}}</view>
-              </view>
-              <view class="issue-body">
-                <view class="issue-desc">{{item.description}}</view>
-                <view class="issue-location">位置: {{item.location}}</view>
-                <view class="issue-suggestion" wx:if="{{item.suggestion}}">建议: {{item.suggestion}}</view>
-              </view>
+    </view>
+    
+    <!-- 内容区域 -->
+    <view class="tab-content">
+      <!-- 概览标签 -->
+      <view class="tab-pane" wx:if="{{activeTab === 'overview'}}">
+        <view class="section-container">
+          <view wx:for="{{sections.overview}}" wx:key="index" class="content-section">
+            <view wx:if="{{item.type === 'heading1'}}" class="section-heading-1">{{item.title}}</view>
+            <view wx:elif="{{item.type === 'heading2'}}" class="section-heading-2">{{item.title}}</view>
+            <view wx:elif="{{item.type === 'heading3'}}" class="section-heading-3">{{item.title}}</view>
+            
+            <view class="section-content">
+              <block wx:for="{{item.content}}" wx:for-item="contentItem" wx:for-index="contentIndex" wx:key="contentIndex">
+                <view wx:if="{{contentItem.type === 'paragraph'}}" class="content-paragraph">{{contentItem.text}}</view>
+                <view wx:elif="{{contentItem.type === 'listItem'}}" class="content-list-item">• {{contentItem.text}}</view>
+              </block>
             </view>
           </view>
         </view>
-        
-        <!-- 建议列表 -->
-        <view class="suggestions-tab" wx:elif="{{activeTab === 'suggestions'}}">
-          <view class="suggestions-list">
-            <view class="empty-tip" wx:if="{{!suggestionsList || suggestionsList.length === 0}}">暂无建议数据</view>
-            <view class="suggestion-item" wx:for="{{suggestionsList}}" wx:key="id">
-              <view class="suggestion-header">
-                <view class="suggestion-priority {{item.priority}}"></view>
-                <view class="suggestion-title">{{item.title}}</view>
-              </view>
-              <view class="suggestion-desc">{{item.description}}</view>
+      </view>
+      
+      <!-- 商业分析标签 -->
+      <view class="tab-pane" wx:elif="{{activeTab === 'business'}}">
+        <view class="section-container">
+          <view wx:for="{{sections.business}}" wx:key="index" class="content-section">
+            <view wx:if="{{item.type === 'heading1'}}" class="section-heading-1">{{item.title}}</view>
+            <view wx:elif="{{item.type === 'heading2'}}" class="section-heading-2">{{item.title}}</view>
+            <view wx:elif="{{item.type === 'heading3'}}" class="section-heading-3">{{item.title}}</view>
+            
+            <view class="section-content">
+              <block wx:for="{{item.content}}" wx:for-item="contentItem" wx:for-index="contentIndex" wx:key="contentIndex">
+                <view wx:if="{{contentItem.type === 'paragraph'}}" class="content-paragraph">{{contentItem.text}}</view>
+                <view wx:elif="{{contentItem.type === 'listItem'}}" class="content-list-item">• {{contentItem.text}}</view>
+              </block>
+            </view>
+          </view>
+        </view>
+      </view>
+      
+      <!-- 市场分析标签 -->
+      <view class="tab-pane" wx:elif="{{activeTab === 'market'}}">
+        <view class="section-container">
+          <view wx:for="{{sections.market}}" wx:key="index" class="content-section">
+            <view wx:if="{{item.type === 'heading1'}}" class="section-heading-1">{{item.title}}</view>
+            <view wx:elif="{{item.type === 'heading2'}}" class="section-heading-2">{{item.title}}</view>
+            <view wx:elif="{{item.type === 'heading3'}}" class="section-heading-3">{{item.title}}</view>
+            
+            <view class="section-content">
+              <block wx:for="{{item.content}}" wx:for-item="contentItem" wx:for-index="contentIndex" wx:key="contentIndex">
+                <view wx:if="{{contentItem.type === 'paragraph'}}" class="content-paragraph">{{contentItem.text}}</view>
+                <view wx:elif="{{contentItem.type === 'listItem'}}" class="content-list-item">• {{contentItem.text}}</view>
+              </block>
+            </view>
+          </view>
+        </view>
+      </view>
+      
+      <!-- 团队评估标签 -->
+      <view class="tab-pane" wx:elif="{{activeTab === 'team'}}">
+        <view class="section-container">
+          <view wx:for="{{sections.team}}" wx:key="index" class="content-section">
+            <view wx:if="{{item.type === 'heading1'}}" class="section-heading-1">{{item.title}}</view>
+            <view wx:elif="{{item.type === 'heading2'}}" class="section-heading-2">{{item.title}}</view>
+            <view wx:elif="{{item.type === 'heading3'}}" class="section-heading-3">{{item.title}}</view>
+            
+            <view class="section-content">
+              <block wx:for="{{item.content}}" wx:for-item="contentItem" wx:for-index="contentIndex" wx:key="contentIndex">
+                <view wx:if="{{contentItem.type === 'paragraph'}}" class="content-paragraph">{{contentItem.text}}</view>
+                <view wx:elif="{{contentItem.type === 'listItem'}}" class="content-list-item">• {{contentItem.text}}</view>
+              </block>
+            </view>
+          </view>
+        </view>
+      </view>
+      
+      <!-- 财务分析标签 -->
+      <view class="tab-pane" wx:elif="{{activeTab === 'financial'}}">
+        <view class="section-container">
+          <view wx:for="{{sections.financial}}" wx:key="index" class="content-section">
+            <view wx:if="{{item.type === 'heading1'}}" class="section-heading-1">{{item.title}}</view>
+            <view wx:elif="{{item.type === 'heading2'}}" class="section-heading-2">{{item.title}}</view>
+            <view wx:elif="{{item.type === 'heading3'}}" class="section-heading-3">{{item.title}}</view>
+            
+            <view class="section-content">
+              <block wx:for="{{item.content}}" wx:for-item="contentItem" wx:for-index="contentIndex" wx:key="contentIndex">
+                <view wx:if="{{contentItem.type === 'paragraph'}}" class="content-paragraph">{{contentItem.text}}</view>
+                <view wx:elif="{{contentItem.type === 'listItem'}}" class="content-list-item">• {{contentItem.text}}</view>
+              </block>
             </view>
           </view>
         </view>
       </view>
     </view>
     
-    <!-- 底部操作栏 -->
+    <!-- 流式模式提示 -->
+    <view class="stream-status" wx:if="{{isStreamMode && !loading}}">
+      <view class="stream-status-text" wx:if="{{markdownContent && markdownContent.length > 0}}">
+        实时分析中，内容将自动更新...
+      </view>
+      <view class="stream-status-text" wx:else>
+        正在等待分析结果...
+      </view>
+    </view>
+    
+    <!-- 底部工具栏 -->
     <view class="action-bar">
-      <button class="btn-secondary" bindtap="navigateBack">返回</button>
-      <button class="btn-primary" bindtap="exportReport" wx:if="{{!isRealtime}}">导出报告</button>
+      <button class="btn-secondary" bindtap="goBack">返回</button>
+      <button class="btn-share" open-type="share">分享</button>
     </view>
-  </view>
+  </block>
+  
+  <!-- Toast组件 -->
+  <mp-toast id="toast"></mp-toast>
 </view> 

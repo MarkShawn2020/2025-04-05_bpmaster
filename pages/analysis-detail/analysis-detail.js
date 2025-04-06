@@ -3,704 +3,410 @@ import { apiService } from '../../services/api';
 
 Page({
   data: {
-    analysisId: null,
-    analysisDetail: null,
-    loading: true,
-    activeTab: 'summary', // 'summary', 'issues', 'suggestions'
-    // 雷达图数据
-    radarData: {
-      categories: [
-        { name: '市场分析', max: 100 },
-        { name: '产品定位', max: 100 },
-        { name: '团队能力', max: 100 },
-        { name: '财务预测', max: 100 },
-        { name: '风险评估', max: 100 }
-      ],
-      series: [
-        {
-          name: '评分',
-          data: [0, 0, 0, 0, 0]
-        }
-      ]
-    },
-    // 柱状图数据
-    barData: {
-      categories: ['市场分析', '产品定位', '团队能力', '财务预测', '风险评估'],
-      series: [
-        {
-          name: '得分',
-          data: [0, 0, 0, 0, 0]
-        },
-        {
-          name: '行业平均',
-          data: [0, 0, 0, 0, 0]
-        }
-      ]
-    },
-    // 问题列表
-    issuesList: [],
-    // 建议列表
-    suggestionsList: [],
-    markdownContent: '',
-    sectors: [],
-    contentLoaded: false,
-    error: '',
-    refreshCount: 0,
-    // 实时分析相关数据
-    isRealtime: false,
-    streamId: '',
-    streamContent: '',
-    streamProgress: 0,
-    streamStage: '',
-    streamStatus: '',
-    pollingInterval: null
+    id: '',                 // 文件ID
+    streamId: '',           // 流式分析ID
+    loading: true,          // 加载状态
+    error: '',              // 错误信息
+    isStreamMode: false,    // 是否为流式模式
+    markdownContent: '',    // 原始markdown内容
+    renderedContent: [],    // 渲染后的内容结构
+    sections: {},           // 按类别划分的内容
+    activeTab: 'overview',  // 当前激活的标签
+    tabs: [
+      { id: 'overview', name: '概览' },
+      { id: 'business', name: '商业分析' },
+      { id: 'market', name: '市场分析' },
+      { id: 'team', name: '团队评估' },
+      { id: 'financial', name: '财务分析' }
+    ]
   },
 
+  /**
+   * 生命周期函数--监听页面加载
+   */
   onLoad(options) {
-    logger.info('分析详情页加载', options);
+    const { id, streamId } = options;
     
-    if (options.id) {
-      this.setData({
-        analysisId: options.id,
-        directLoad: options.direct === 'true'
-      });
-      
-      // 检查是否是实时分析模式
-      if (options.mode === 'realtime' && options.streamId) {
-        this.setData({
-          isRealtime: true,
-          streamId: options.streamId
-        });
-        
-        // 开始轮询获取实时分析数据
-        this._startRealtimePolling(options.streamId);
-      } else {
-        // 普通模式 - 获取详情数据
-        this._loadBPDetail(options.id);
-      }
-    } else {
-      this.setData({
-        loading: false,
-        error: '无效的文件ID'
-      });
-      this._showToast('error', '无效的文件ID');
-    }
-  },
-  
-  // 开始轮询获取实时分析数据
-  _startRealtimePolling(streamId) {
-    logger.info('开始实时分析轮询', streamId);
+    logger.info('分析详情页加载', { id, streamId });
     
-    // 显示页面标题
-    wx.setNavigationBarTitle({
-      title: '实时分析中...'
-    });
-    
-    // 取消预先存在的轮询
-    if (this.data.pollingInterval) {
-      clearInterval(this.data.pollingInterval);
-    }
-    
-    // 获取应用全局状态
-    const app = getApp();
-    
-    // 如果分析流已存在，直接获取初始内容
-    if (app.globalData.analysisStreams && app.globalData.analysisStreams[streamId]) {
-      const streamData = app.globalData.analysisStreams[streamId];
-      
-      // 显示初始数据
-      this.setData({
-        loading: false,
-        streamContent: streamData.content || '',
-        streamProgress: streamData.progress || 0,
-        streamStage: streamData.stage || '正在连接分析服务...',
-        streamStatus: streamData.status || 'analyzing',
-        analysisDetail: {
-          fileName: streamData.fileName || '实时分析中...',
-          overallScore: 0,
-          summary: streamData.stage || '正在连接分析服务...',
-          status: streamData.status || 'analyzing'
-        }
-      });
-      
-      logger.info(`初始化轮询，已显示初始内容: ${streamData.content ? streamData.content.substring(0, 20) + '...' : '(无内容)'}`);
-    } else {
-      // 显示加载UI
-      this.setData({
-        loading: false,
-        streamContent: '',
-        streamProgress: 5,
-        streamStage: '正在连接分析服务...',
-        streamStatus: 'analyzing',
-        analysisDetail: {
-          fileName: '实时分析中...',
-          overallScore: 0,
-          summary: '正在连接分析服务...',
-          status: 'analyzing'
-        }
-      });
-    }
-    
-    // 立即获取一次数据
-    this._fetchRealtimeData(streamId);
-    
-    // 设置轮询定时器 - 每200毫秒更新一次
-    const pollingInterval = setInterval(() => {
-      this._fetchRealtimeData(streamId);
-    }, 200);
-    
+    // 初始化页面数据
     this.setData({
-      pollingInterval: pollingInterval
+      id: id || '',
+      streamId: streamId || '',
+      isStreamMode: !!streamId,
+      loading: true
     });
+    
+    // 根据模式选择加载方式
+    if (this.data.isStreamMode && this.data.streamId) {
+      // 流式模式 - 实时监听数据流
+      this._startStreamListener();
+    } else if (this.data.id) {
+      // 普通模式 - 加载已保存的分析结果
+      this._loadAnalysisResult();
+    } else {
+      // 无效参数
+      this.setData({
+        loading: false,
+        error: '无效的分析参数'
+      });
+    }
   },
   
-  // 获取实时分析数据
-  _fetchRealtimeData(streamId) {
+  /**
+   * 开始监听流式数据
+   * 从全局数据中监听并更新流式分析结果
+   */
+  _startStreamListener() {
     const app = getApp();
-    if (!app.globalData.analysisStreams || !app.globalData.analysisStreams[streamId]) {
-      logger.error('分析流数据不存在', streamId);
+    
+    // 确保全局数据结构已初始化
+    if (!app.globalData) {
+      app.globalData = {};
+    }
+    
+    if (!app.globalData.analysisStreams) {
+      app.globalData.analysisStreams = {};
+    }
+    
+    // 获取初始数据
+    const streamData = app.globalData.analysisStreams[this.data.streamId];
+    
+    if (!streamData) {
+      logger.error('未找到流式数据', this.data.streamId);
       this.setData({
-        error: '分析流数据不存在',
-        loading: false
+        loading: false,
+        error: '未找到流式数据'
       });
       return;
     }
     
-    const streamData = app.globalData.analysisStreams[streamId];
-    logger.info(`获取实时数据: ID=${streamId}, 内容长度=${streamData.content ? streamData.content.length : 0}, 进度=${streamData.progress}%, 状态=${streamData.status}`);
-    
-    // 处理markdown内容，确保能正确渲染
-    let processedContent = streamData.content || '';
-    
-    // 尝试将内容转换为HTML格式以便在rich-text中显示
-    try {
-      // 如果内容不为空，进行处理
-      if (processedContent.length > 0) {
-        // 检查是否包含markdown代码块
-        if (processedContent.includes('```')) {
-          // 处理代码块
-          processedContent = processedContent.replace(/```(json|javascript|js|html|css|bash|shell)?([\s\S]*?)```/g, 
-            '<pre style="background-color:#f5f5f5;padding:10px;border-radius:5px;overflow-x:auto;">$2</pre>');
-        }
-        
-        // 处理其他markdown语法
-        // 替换标题
-        processedContent = processedContent.replace(/^#\s+(.*?)$/gm, '<h1 style="font-size:18px;font-weight:bold;margin:15px 0 10px 0;">$1</h1>');
-        processedContent = processedContent.replace(/^##\s+(.*?)$/gm, '<h2 style="font-size:16px;font-weight:bold;margin:15px 0 10px 0;">$1</h2>');
-        processedContent = processedContent.replace(/^###\s+(.*?)$/gm, '<h3 style="font-size:15px;font-weight:bold;margin:12px 0 8px 0;">$1</h3>');
-        
-        // 替换加粗和斜体
-        processedContent = processedContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        processedContent = processedContent.replace(/\*(.*?)\*/g, '<em>$1</em>');
-        
-        // 替换列表
-        processedContent = processedContent.replace(/^-\s+(.*?)$/gm, '<li style="margin-left:20px;margin-bottom:5px;">$1</li>');
-        
-        // 替换换行
-        processedContent = processedContent.replace(/\n/g, '<br/>');
-      }
-    } catch (error) {
-      logger.error('处理Markdown内容失败', error);
-      // 如果处理失败，使用原始内容
-      processedContent = streamData.content || '';
-    }
-    
-    // 更新页面数据
+    // 设置初始内容
     this.setData({
-      streamContent: streamData.content || '',
-      streamProgress: streamData.progress || 0,
-      streamStage: streamData.stage || '正在分析...',
-      streamStatus: streamData.status || 'analyzing',
       loading: false,
-      error: '',
-      analysisDetail: {
-        fileName: streamData.fileName || '实时分析中...',
-        overallScore: 0, 
-        summary: streamData.stage || '正在分析...',
-        status: streamData.status || 'analyzing'
-      },
-      markdownContent: processedContent
+      markdownContent: streamData.content || ''
     });
     
-    // 如果分析完成
-    if (streamData.status === 'completed') {
-      logger.info('实时分析已完成', streamId);
-      
-      // 停止轮询
-      if (this.data.pollingInterval) {
-        clearInterval(this.data.pollingInterval);
-      }
-      
-      // 将文件ID保存下来
-      wx.setStorage({
-        key: 'lastAnalyzedFileId',
-        data: streamData.fileId
-      });
-      
-      // 重新载入完整的分析结果
-      setTimeout(() => {
-        this._loadBPDetail(streamData.fileId);
-      }, 1000);
+    // 渲染初始内容
+    if (streamData.content) {
+      this._renderMarkdown(streamData.content);
     }
     
-    // 如果分析失败
-    if (streamData.status === 'failed') {
-      logger.error('实时分析失败', streamData.error);
+    logger.info('开始流式数据监听', {
+      streamId: this.data.streamId,
+      initialContentLength: streamData.content ? streamData.content.length : 0
+    });
+    
+    // 设置轮询更新
+    this.streamInterval = setInterval(() => {
+      const currentData = app.globalData.analysisStreams[this.data.streamId];
       
-      // 停止轮询
-      if (this.data.pollingInterval) {
-        clearInterval(this.data.pollingInterval);
+      if (!currentData) {
+        logger.warn('流式数据已丢失', this.data.streamId);
+        clearInterval(this.streamInterval);
+        return;
       }
       
-      this.setData({
-        error: streamData.error || '分析失败',
-        analysisDetail: {
-          ...this.data.analysisDetail,
-          status: 'failed',
-          summary: '分析失败: ' + (streamData.error || '未知错误')
-        }
-      });
-    }
+      // 检查内容是否有更新
+      if (currentData.content !== this.data.markdownContent) {
+        logger.debug('流式内容已更新', {
+          streamId: this.data.streamId,
+          newLength: currentData.content.length,
+          oldLength: this.data.markdownContent.length
+        });
+        
+        // 更新内容
+        this.setData({
+          markdownContent: currentData.content
+        });
+        
+        // 渲染更新后的内容
+        this._renderMarkdown(currentData.content);
+      }
+      
+      // 检查是否完成
+      if (currentData.isComplete) {
+        logger.info('流式分析已完成', this.data.streamId);
+        clearInterval(this.streamInterval);
+      }
+      
+      // 检查是否有错误
+      if (currentData.error) {
+        logger.error('流式分析出错', currentData.error);
+        this.setData({
+          error: '分析过程出错: ' + currentData.error
+        });
+        clearInterval(this.streamInterval);
+      }
+    }, 1000); // 每秒更新一次
   },
-
-  async _loadBPDetail(id) {
-    wx.showLoading({
-      title: '加载分析结果',
-    });
-    
-    // 设置标题
-    wx.setNavigationBarTitle({
-      title: '分析结果'
-    });
+  
+  /**
+   * 加载已保存的分析结果
+   */
+  _loadAnalysisResult() {
+    logger.info('加载分析结果', this.data.id);
     
     wx.cloud.callFunction({
-      name: 'getBPDetail',
-      data: { id },
-      config: { timeout: 15000 }, // 15秒超时
+      name: 'getAnalysisDetail',
+      data: { id: this.data.id },
       success: (res) => {
-        logger.info('获取BP详情成功', res);
-        
-        if (res.result && res.result.code === 200) {
-          const data = res.result.data;
+        if (res.result && res.result.code === 200 && res.result.data) {
+          const analysisData = res.result.data;
           
-          // 使用统一的方法设置数据
-          this._setAnalysisData(data);
-        } else {
+          logger.info('获取分析结果成功', {
+            id: this.data.id,
+            hasResult: !!analysisData.result
+          });
+          
           this.setData({
             loading: false,
-            error: res.result?.message || '加载失败'
+            analysisData: analysisData
           });
-          this._showToast('error', '加载分析结果失败');
+          
+          // 如果有markdown内容，渲染它
+          if (analysisData.result && analysisData.result.markdown) {
+            const markdown = analysisData.result.markdown;
+            this.setData({ markdownContent: markdown });
+            this._renderMarkdown(markdown);
+          } else {
+            this.setData({
+              error: '分析结果为空'
+            });
+          }
+        } else {
+          logger.error('获取分析结果失败', res.result);
+          this.setData({
+            loading: false,
+            error: res.result?.message || '获取分析结果失败'
+          });
         }
       },
       fail: (err) => {
-        logger.error('获取BP详情失败', err);
+        logger.error('调用获取分析结果云函数失败', err);
         this.setData({
           loading: false,
-          error: err.message || '网络错误'
+          error: err.errMsg || '获取分析结果失败'
         });
-        this._showToast('error', '网络错误，请重试');
-      },
-      complete: () => {
-        wx.hideLoading();
       }
     });
   },
   
-  onHide() {
-    // 当页面隐藏时，停止轮询
-    if (this.data.pollingInterval) {
-      clearInterval(this.data.pollingInterval);
-    }
-  },
-  
-  onUnload() {
-    // 当页面卸载时，停止轮询
-    if (this.data.pollingInterval) {
-      clearInterval(this.data.pollingInterval);
-    }
-  },
-  
-  // 转换API数据到视图模型
-  transformAPIDataToViewModel(bpData) {
-    // 从API返回的数据结构转换为页面所需的数据结构
-    const analysisResults = bpData.analysisResults || {};
+  /**
+   * 渲染Markdown内容
+   * @param {string} markdown Markdown文本
+   */
+  _renderMarkdown(markdown) {
+    if (!markdown) return;
     
-    // 构建分析详情对象
-    return {
-      id: bpData._id,
-      fileName: bpData.fileName || '未命名文件',
-      fileSize: bpData.fileSize || '未知大小',
-      uploadTime: bpData.createdAt || '未知时间',
-      analysisTime: bpData.analyzedAt || '未知时间',
-      overallScore: analysisResults.overallScore || 0,
-      status: bpData.status || 'unknown',
-      summary: analysisResults.summary || '暂无分析摘要',
+    try {
+      // 解析Markdown
+      const renderedContent = [];
+      const lines = markdown.split('\n');
+      let currentSection = { title: '', content: [], type: 'text' };
       
-      // 转换得分
-      scores: {
-        marketAnalysis: analysisResults.detailedAnalysis?.market?.score || 0,
-        productPositioning: analysisResults.detailedAnalysis?.businessModel?.score || 0,
-        teamCapability: analysisResults.detailedAnalysis?.team?.score || 0,
-        financialForecast: analysisResults.detailedAnalysis?.financials?.score || 0,
-        riskAssessment: Math.round((analysisResults.overallScore || 0) * 0.8) // 如果API中没有风险评估，用总分的80%作为估计
-      },
-      
-      // 从分析结果构建问题列表
-      issues: this.buildIssuesFromAnalysis(analysisResults),
-      
-      // 从分析结果构建建议列表
-      suggestions: this.buildSuggestionsFromAnalysis(analysisResults)
-    };
-  },
-  
-  // 从分析结果构建问题列表
-  buildIssuesFromAnalysis(analysisResults) {
-    const issues = [];
-    const detailedAnalysis = analysisResults.detailedAnalysis || {};
-    
-    // 添加从业务模型中提取的问题
-    if (detailedAnalysis.businessModel?.weakness) {
-      const weaknesses = detailedAnalysis.businessModel.weakness.split('\n').filter(item => item.trim());
-      weaknesses.forEach((weakness, index) => {
-        issues.push({
-          id: `business-${index}`,
-          type: 'major',
-          title: weakness.replace(/^- /, ''),
-          description: weakness.replace(/^- /, ''),
-          location: '商业模型部分',
-          suggestion: detailedAnalysis.businessModel.recommendations || '无建议'
-        });
-      });
-    }
-    
-    // 添加从市场分析中提取的问题
-    if (detailedAnalysis.market?.weakness) {
-      const weaknesses = detailedAnalysis.market.weakness.split('\n').filter(item => item.trim());
-      weaknesses.forEach((weakness, index) => {
-        issues.push({
-          id: `market-${index}`,
-          type: index === 0 ? 'critical' : 'major',
-          title: weakness.replace(/^- /, ''),
-          description: weakness.replace(/^- /, ''),
-          location: '市场分析部分',
-          suggestion: detailedAnalysis.market.recommendations || '无建议'
-        });
-      });
-    }
-    
-    // 添加财务分析中的问题
-    if (detailedAnalysis.financials?.weakness) {
-      const weaknesses = detailedAnalysis.financials.weakness.split('\n').filter(item => item.trim());
-      weaknesses.forEach((weakness, index) => {
-        issues.push({
-          id: `financial-${index}`,
-          type: 'major',
-          title: weakness.replace(/^- /, ''),
-          description: weakness.replace(/^- /, ''),
-          location: '财务预测部分',
-          suggestion: detailedAnalysis.financials.recommendations || '无建议'
-        });
-      });
-    }
-    
-    // 如果没有提取到问题，返回一个默认列表
-    return issues.length > 0 ? issues : [
-      {
-        id: 'default-1',
-        type: 'minor',
-        title: '未发现严重问题',
-        description: '分析未发现严重问题，但建议关注改进建议以进一步优化商业计划书。',
-        location: '整体',
-        suggestion: '参考改进建议部分'
-      }
-    ];
-  },
-  
-  // 从分析结果构建建议列表
-  buildSuggestionsFromAnalysis(analysisResults) {
-    const suggestions = [];
-    
-    // 如果有明确的建议列表
-    if (analysisResults.recommendations) {
-      // 尝试解析Markdown格式的建议
-      const recommendationsText = analysisResults.recommendations;
-      const lines = recommendationsText.split('\n').filter(line => line.trim());
-      
-      // 查找数字编号的建议
-      let currentSuggestion = null;
-      
-      lines.forEach(line => {
-        // 忽略标题行
-        if (line.startsWith('#')) return;
+      // 逐行解析
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
         
-        // 匹配形如"1. **标题**：内容"的模式
-        const match = line.match(/(\d+)\.\s+\*\*([^*]+)\*\*：?(.+)/);
-        if (match) {
-          const id = `s${match[1]}`;
-          const title = match[2].trim();
-          const description = match[3].trim();
+        // 解析各级标题
+        if (line.startsWith('# ')) {
+          // 保存之前的部分
+          if (currentSection.content.length > 0) {
+            renderedContent.push(currentSection);
+          }
           
-          suggestions.push({
-            id,
-            title,
-            description,
-            priority: match[1] <= 2 ? 'high' : (match[1] <= 4 ? 'medium' : 'low')
+          // 创建新的一级标题部分
+          currentSection = {
+            title: line.substring(2),
+            content: [],
+            type: 'heading1'
+          };
+        } 
+        else if (line.startsWith('## ')) {
+          // 保存之前的部分
+          if (currentSection.content.length > 0) {
+            renderedContent.push(currentSection);
+          }
+          
+          // 创建新的二级标题部分
+          currentSection = {
+            title: line.substring(3),
+            content: [],
+            type: 'heading2'
+          };
+        }
+        else if (line.startsWith('### ')) {
+          // 保存之前的部分
+          if (currentSection.content.length > 0) {
+            renderedContent.push(currentSection);
+          }
+          
+          // 创建新的三级标题部分
+          currentSection = {
+            title: line.substring(4),
+            content: [],
+            type: 'heading3'
+          };
+        }
+        // 解析列表项
+        else if (line.startsWith('- ') || line.startsWith('* ')) {
+          currentSection.content.push({
+            text: line.substring(2),
+            type: 'listItem'
           });
         }
+        // 解析普通段落
+        else if (line !== '') {
+          currentSection.content.push({
+            text: line,
+            type: 'paragraph'
+          });
+        }
+      }
+      
+      // 添加最后一个部分
+      if (currentSection.content.length > 0) {
+        renderedContent.push(currentSection);
+      }
+      
+      // 更新渲染结果
+      this.setData({
+        renderedContent: renderedContent
       });
+      
+      // 按内容类型分类
+      this._categorizeContent(renderedContent);
+      
+    } catch (error) {
+      logger.error('渲染Markdown失败', error);
     }
-    
-    // 如果没有提取到建议，从详细分析中构建
-    if (suggestions.length === 0) {
-      const detailedAnalysis = analysisResults.detailedAnalysis || {};
-      
-      // 添加业务模型建议
-      if (detailedAnalysis.businessModel?.recommendations) {
-        suggestions.push({
-          id: 's1',
-          title: '优化商业模型',
-          description: detailedAnalysis.businessModel.recommendations,
-          priority: 'high'
-        });
-      }
-      
-      // 添加市场分析建议
-      if (detailedAnalysis.market?.recommendations) {
-        suggestions.push({
-          id: 's2',
-          title: '强化市场分析',
-          description: detailedAnalysis.market.recommendations,
-          priority: 'high'
-        });
-      }
-      
-      // 添加团队建议
-      if (detailedAnalysis.team?.recommendations) {
-        suggestions.push({
-          id: 's3',
-          title: '增强团队互补性',
-          description: detailedAnalysis.team.recommendations,
-          priority: 'medium'
-        });
-      }
-      
-      // 添加财务建议
-      if (detailedAnalysis.financials?.recommendations) {
-        suggestions.push({
-          id: 's4',
-          title: '完善财务模型',
-          description: detailedAnalysis.financials.recommendations,
-          priority: 'high'
-        });
-      }
-    }
-    
-    // 如果仍然没有建议，返回默认建议
-    return suggestions.length > 0 ? suggestions : [
-      {
-        id: 's1',
-        title: '完善财务模型',
-        description: '建议在财务预测部分增加敏感性分析，展示在不同市场情景下的财务表现。',
-        priority: 'high'
-      },
-      {
-        id: 's2',
-        title: '强化市场验证数据',
-        description: '建议增加初步市场验证的数据，例如用户访谈结果、MVP测试数据等。',
-        priority: 'medium'
-      }
-    ];
   },
   
-  // 切换标签页
+  /**
+   * 将内容按主题分类到不同的标签页
+   * @param {Array} content 已解析的内容
+   */
+  _categorizeContent(content) {
+    // 初始化分类
+    const sections = {
+      overview: [],     // 概览
+      business: [],     // 商业分析
+      market: [],       // 市场分析
+      team: [],         // 团队评估
+      financial: []     // 财务分析
+    };
+    
+    // 用于匹配内容类型的关键词
+    const keywords = {
+      '概述': 'overview',
+      '概览': 'overview',
+      '总览': 'overview',
+      '简介': 'overview',
+      '总结': 'overview',
+      '商业': 'business',
+      '商业模式': 'business',
+      '产品': 'business',
+      '服务': 'business',
+      '模式': 'business',
+      '市场': 'market',
+      '行业': 'market',
+      '竞争': 'market',
+      '用户': 'market',
+      '客户': 'market',
+      '需求': 'market',
+      '团队': 'team',
+      '人员': 'team',
+      '成员': 'team',
+      '管理': 'team',
+      '财务': 'financial',
+      '融资': 'financial',
+      '资金': 'financial',
+      '投资': 'financial',
+      '收入': 'financial',
+      '成本': 'financial'
+    };
+    
+    // 分类内容
+    for (const section of content) {
+      let category = null;
+      
+      // 根据标题匹配分类
+      if (section.title) {
+        for (const [key, value] of Object.entries(keywords)) {
+          if (section.title.includes(key)) {
+            category = value;
+            break;
+          }
+        }
+      }
+      
+      // 未匹配到分类，默认放入概览
+      if (!category) {
+        category = 'overview';
+      }
+      
+      // 添加到对应分类
+      sections[category].push(section);
+    }
+    
+    // 确保每个分类至少有一个空占位
+    for (const key of Object.keys(sections)) {
+      if (sections[key].length === 0) {
+        sections[key] = [{ 
+          title: '暂无数据', 
+          content: [{ text: '该部分暂无分析内容', type: 'paragraph' }],
+          type: 'empty'
+        }];
+      }
+    }
+    
+    // 更新分类结果
+    this.setData({ sections });
+  },
+  
+  /**
+   * 切换标签页
+   */
   switchTab(e) {
-    const tab = e.currentTarget.dataset.tab;
-    this.setData({
-      activeTab: tab
-    });
+    const tabId = e.currentTarget.dataset.id;
+    this.setData({ activeTab: tabId });
   },
   
-  // 分享功能
-  onShareAppMessage() {
-    const { analysisDetail } = this.data;
-    return {
-      title: `BP分析结果：${analysisDetail.fileName}`,
-      path: `/pages/analysis-detail/analysis-detail?id=${this.data.analysisId}`,
-      imageUrl: '/assets/images/share.png'
-    };
-  },
-  
-  // 导出报告
-  exportReport() {
-    wx.showToast({
-      title: '报告导出中',
-      icon: 'loading',
-      duration: 2000
-    });
-    
-    // 此处应调用导出API
-    setTimeout(() => {
-      wx.showToast({
-        title: '导出成功',
-        icon: 'success'
-      });
-    }, 2000);
-  },
-  
-  // 模拟数据
-  getMockAnalysisDetail() {
-    return {
-      id: this.data.analysisId,
-      fileName: '商业计划书V1.0.pdf',
-      fileSize: '2.5MB',
-      uploadTime: '2023-04-05 14:30:22',
-      analysisTime: '2023-04-05 14:32:15',
-      overallScore: 85,
-      status: 'completed',
-      summary: '这份商业计划书整体结构完整，市场分析较为充分，团队背景介绍详实。产品定位清晰，但财务预测部分存在一些不足，风险评估有待加强。总体来说是一份质量较高的商业计划书，具有良好的可执行性。',
-      scores: {
-        marketAnalysis: 88,
-        productPositioning: 82,
-        teamCapability: 90,
-        financialForecast: 76,
-        riskAssessment: 70
-      },
-      issues: [
-        {
-          id: 'i1',
-          type: 'critical',
-          title: '财务预测缺乏详细的成本结构分析',
-          description: '计划书中的财务预测未包含完整的成本结构分析，包括固定成本和可变成本的详细分类，这会导致利润预测不够准确。',
-          location: '第18页',
-          suggestion: '建议增加详细的成本构成分析，包括初期投入、运营成本、人力成本等分项数据。'
-        },
-        {
-          id: 'i2',
-          type: 'major',
-          title: '市场竞争分析不够深入',
-          description: '虽然提及了主要竞争对手，但缺乏针对竞争对手优劣势的详细分析以及差异化战略的阐述。',
-          location: '第7-8页',
-          suggestion: '建议采用SWOT分析法详细分析主要竞争对手，并明确自身的差异化优势。'
-        },
-        {
-          id: 'i3',
-          type: 'minor',
-          title: '风险评估部分过于简略',
-          description: '风险评估仅列举了几项常见风险，但缺少针对行业特定风险的分析和应对措施。',
-          location: '第22页',
-          suggestion: '建议补充行业特定风险因素的分析，并提供详细的风险缓解方案。'
-        }
-      ],
-      suggestions: [
-        {
-          id: 's1',
-          title: '完善财务模型',
-          description: '建议在财务预测部分增加敏感性分析，展示在不同市场情景下的财务表现，使投资人更全面地了解项目财务风险。',
-          priority: 'high'
-        },
-        {
-          id: 's2',
-          title: '强化市场验证数据',
-          description: '建议增加初步市场验证的数据，例如用户访谈结果、MVP测试数据等，以增强计划书的说服力。',
-          priority: 'medium'
-        },
-        {
-          id: 's3',
-          title: '细化执行路径',
-          description: '当前的执行计划较为宏观，建议细化为具体的时间表和里程碑，包括各阶段的关键目标和资源需求。',
-          priority: 'medium'
-        },
-        {
-          id: 's4',
-          title: '增强团队互补性说明',
-          description: '虽然团队背景介绍详实，但可以更清晰地展示团队成员间的互补能力，以及如何协作解决项目面临的挑战。',
-          priority: 'low'
-        }
-      ]
-    };
-  },
-  
-  // 下载报告
-  handleDownloadReport: function() {
-    this._showToast('info', '报告下载功能开发中');
-  },
-  
-  // 返回上一页
-  navigateBack: function() {
+  /**
+   * 返回上一页
+   */
+  goBack() {
     wx.navigateBack();
   },
   
-  // 处理点击分区
-  handleSectorClick: function(e) {
-    const index = e.currentTarget.dataset.index;
-    const sectors = this.data.sectors.map((item, i) => {
-      return {
-        ...item,
-        active: i === index
-      };
+  /**
+   * 导出分析报告
+   */
+  exportReport() {
+    wx.showToast({
+      title: '导出功能开发中',
+      icon: 'none'
     });
-    
-    this.setData({ sectors });
   },
   
-  // 显示提示
-  _showToast(type, message) {
-    const toast = this.selectComponent('#toast');
-    if (toast) {
-      toast[type](message);
-    } else {
-      wx.showToast({
-        title: message,
-        icon: type === 'success' ? 'success' : 'none'
-      });
+  /**
+   * 生命周期函数--监听页面卸载
+   */
+  onUnload() {
+    // 清除定时器
+    if (this.streamInterval) {
+      clearInterval(this.streamInterval);
     }
   },
   
-  // 处理页面刷新
-  handleRefresh: function() {
-    if (!this.data.id) return;
-    
-    this.setData({ loading: true });
-    this._loadBPDetail(this.data.id);
-    
-    // 增加刷新计数
-    this.setData({
-      refreshCount: this.data.refreshCount + 1
-    });
-    
-    // 如果用户刷新超过3次，提示用户
-    if (this.data.refreshCount >= 3) {
-      this._showToast('info', '分析需要1-3分钟，请稍后再试');
-    }
-  },
-  
-  // 将分析结果设置到页面
-  _setAnalysisData: function(fileData) {
-    let markdownContent = '';
-    
-    // 从分析结果中获取Markdown内容
-    if (fileData.analysisResults && fileData.analysisResults.markdownContent) {
-      markdownContent = fileData.analysisResults.markdownContent;
-    }
-    
-    // 设置数据
-    this.setData({
-      fileInfo: {
-        name: fileData.name || '未命名文件',
-        size: fileData.size || '未知大小',
-        uploadDate: fileData.uploadDate ? new Date(fileData.uploadDate).toLocaleString() : '未知时间',
-        type: fileData.type || 'pdf',
-        status: fileData.status || 'uploaded'
-      },
-      markdownContent,
-      contentLoaded: true,
-      loading: false
-    });
-    
-    // 更新页面标题
-    wx.setNavigationBarTitle({
-      title: fileData.name ? `分析报告: ${fileData.name}` : '分析报告'
-    });
+  /**
+   * 用户点击右上角分享
+   */
+  onShareAppMessage() {
+    return {
+      title: '商业计划书智能分析报告',
+      path: `/pages/analysis-detail/analysis-detail?id=${this.data.id}`
+    };
   }
 }); 
