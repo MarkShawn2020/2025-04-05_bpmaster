@@ -7,6 +7,24 @@ Page({
     recentAnalysisList: [],
     totalAnalysisCount: 0,
     loading: true,
+    // 添加统计数据
+    statistics: {
+      totalAnalysis: 0,
+      weeklyAnalysis: 0,
+      averageScore: 0,
+      totalUsers: 0, // 添加用户数统计项
+      highestScore: {
+        score: 0,
+        fileName: ''
+      },
+      industryDistribution: {
+        tech: 35,
+        finance: 25,
+        healthcare: 20,
+        education: 15,
+        other: 5
+      }
+    },
     bannerList: [
       {
         id: 1,
@@ -65,24 +83,58 @@ Page({
     // 获取用户登录状态
     this.checkLoginStatus();
     
-    // 测试空状态显示
-    this.testEmptyState();
+    // 获取统计数据
+    this.getStatisticsData();
+
+    // 不再测试空状态
+    // this.testEmptyState();
   },
   
-  // 临时函数：测试空状态显示
-  testEmptyState() {
-    this.setData({
-      recentAnalysisList: [], // 设置为空数组
-      loading: false         // 确保loading为false
+  // 获取统计数据
+  getStatisticsData() {
+    // 显示加载状态
+    this.setData({ loadingStats: true });
+    
+    // 调用云函数获取真实数据
+    wx.cloud.callFunction({
+      name: 'getStatistics',
+      success: res => {
+        logger.info('获取统计数据成功', res);
+        
+        // 如果云函数返回成功
+        if (res.result && res.result.code === 0) {
+          this.setData({
+            statistics: res.result.data,
+            loadingStats: false
+          });
+        } else {
+          // 返回失败，显示错误信息
+          logger.error('获取统计数据失败', res.result);
+          this.setData({ loadingStats: false });
+          wx.showToast({
+            title: '获取统计数据失败',
+            icon: 'none',
+            duration: 2000
+          });
+        }
+      },
+      fail: err => {
+        logger.error('获取统计数据失败', err);
+        this.setData({ loadingStats: false });
+        wx.showToast({
+          title: '获取统计数据失败',
+          icon: 'none',
+          duration: 2000
+        });
+      }
     });
-    console.log('测试空状态显示');
   },
   
   onShow() {
     // 如果已登录，获取最近分析列表
     if (this.data.isLoggedIn) {
-      // 注释掉这行以测试空状态
-      // this.getRecentAnalysisList();
+      // 获取最近分析列表
+      this.getRecentAnalysisList();
     }
   },
 
@@ -101,8 +153,7 @@ Page({
         });
         
         // 获取最近分析列表
-        // 注释掉这行以测试空状态
-        // this.getRecentAnalysisList();
+        this.getRecentAnalysisList();
       } else if (isDev) {
         // 在开发环境中自动登录
         logger.info('开发环境自动登录检查');
@@ -139,54 +190,49 @@ Page({
   getRecentAnalysisList() {
     this.setData({ loading: true });
     
-    const app = getApp();
-    
-    // 模拟获取数据，实际应调用API
-    setTimeout(() => {
-      // 使用模拟数据，实际开发中应使用api请求
-      this.setData({
-        recentAnalysisList: [
-          {
-            id: '1',
-            fileName: '字节跳动商业计划书.pdf',
-            analysisDate: '2023-09-15 14:30',
-            score: 92.5
-          },
-          {
-            id: '2',
-            fileName: '美团商业计划书.pdf',
-            analysisDate: '2023-09-10 10:15',
-            score: 88.3
-          },
-          {
-            id: '3',
-            fileName: '小红书产品方案.docx',
-            analysisDate: '2023-09-05 16:45',
-            score: 85.7
-          },
-          {
-            id: '4',
-            fileName: '知乎社区运营方案.pptx',
-            analysisDate: '2023-08-28 09:20',
-            score: 79.2
-          },
-          {
-            id: '5',
-            fileName: '阿里巴巴电商发展规划.pdf',
-            analysisDate: '2023-08-22 11:05',
-            score: 90.1
-          },
-          {
-            id: '6',
-            fileName: '滴滴出行商业模式分析.doc',
-            analysisDate: '2023-08-15 13:40',
-            score: 82.6
-          }
-        ],
-        totalAnalysisCount: 6,
-        loading: false
-      });
-    }, 1000);
+    // 调用云函数获取真实数据
+    wx.cloud.callFunction({
+      name: 'getRecentAnalysis',
+      data: {
+        limit: 6
+      },
+      success: res => {
+        logger.info('获取最近分析列表成功', res);
+        
+        // 如果云函数返回成功
+        if (res.result && res.result.code === 0) {
+          this.setData({
+            recentAnalysisList: res.result.data.list,
+            totalAnalysisCount: res.result.data.total,
+            loading: false
+          });
+        } else {
+          // 返回失败，显示错误信息
+          logger.error('获取分析列表失败', res.result);
+          this.setData({ 
+            recentAnalysisList: [],
+            loading: false 
+          });
+          wx.showToast({
+            title: '获取分析列表失败',
+            icon: 'none',
+            duration: 2000
+          });
+        }
+      },
+      fail: err => {
+        logger.error('获取最近分析列表失败', err);
+        this.setData({ 
+          recentAnalysisList: [],
+          loading: false 
+        });
+        wx.showToast({
+          title: '获取分析列表失败',
+          icon: 'none',
+          duration: 2000
+        });
+      }
+    });
   },
 
   // 去上传页面
@@ -257,7 +303,7 @@ Page({
         });
         
         // 获取最近分析列表
-        // this.getRecentAnalysisList(); // 注释掉以测试空状态
+        this.getRecentAnalysisList();
         
         // 显示登录成功提示
         this.selectComponent('#toast').success('登录成功');

@@ -9,6 +9,19 @@
     </block>
   </swiper>
 
+  <!-- 数据统计区域 -->
+  <view class="stats-container">
+    <view class="stats-highlight-card">
+      <view class="stats-highlight-content">
+        <view class="stats-highlight-text">已帮助</view>
+        <view class="stats-highlight-value">{{statistics.totalUsers}}</view>
+        <view class="stats-highlight-text">用户分析了</view>
+        <view class="stats-highlight-value">{{statistics.totalAnalysis}}</view>
+        <view class="stats-highlight-text">份BP文件</view>
+      </view>
+    </view>
+  </view>
+
   <!-- 功能区 - 使用优化后的双列布局 -->
   <view class="feature-grid">
     <view class="feature-item" wx:for="{{featureList}}" wx:key="id" bindtap="onFeatureTap" data-id="{{item.id}}">

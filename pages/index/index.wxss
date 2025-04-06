@@ -27,6 +27,196 @@
   border-bottom-right-radius: 12rpx;
 }
 
+/* 统计卡片样式 */
+.stats-container {
+  margin-bottom: 30rpx;
+  padding: 0 16rpx;
+}
+
+/* 高亮统计卡片样式 */
+.stats-highlight-card {
+  background: linear-gradient(135deg, #3563e9, #0f41ab);
+  border-radius: 12rpx;
+  padding: 30rpx;
+  box-shadow: 0 4rpx 20rpx rgba(53, 99, 233, 0.2);
+}
+
+.stats-highlight-content {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.stats-highlight-text {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 32rpx;
+  margin: 0 10rpx;
+}
+
+.stats-highlight-value {
+  color: #ffffff;
+  font-size: 48rpx;
+  font-weight: 700;
+  margin: 0 10rpx;
+}
+
+/* 添加分隔线样式 */
+.stats-divider {
+  height: 1px;
+  background-color: #f0f0f0;
+  margin: 10rpx 5% 20rpx;
+  width: 90%;
+}
+
+.stats-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20rpx; /* 增加行间距 */
+}
+
+.stats-card {
+  width: 48%;
+  background-color: #fff;
+  border-radius: 12rpx;
+  padding: 24rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #f0f0f0; /* 添加边框 */
+}
+
+.stats-card.highlight {
+  background-color: var(--primary-light);
+  border: 1px solid var(--primary-color);
+}
+
+.stats-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stats-value {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.stats-card.highlight .stats-value {
+  color: var(--primary-color);
+}
+
+.stats-badge {
+  background-color: var(--primary-color);
+  color: #fff;
+  font-size: 22rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 30rpx;
+}
+
+.stats-label {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  margin-top: 8rpx;
+}
+
+.stats-subtitle {
+  font-size: 22rpx;
+  color: var(--text-secondary);
+  margin-top: 12rpx;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 行业分布图表 */
+.industry-card {
+  width: 100% !important;
+}
+
+.industry-chart {
+  margin-top: 16rpx;
+}
+
+.industry-bar {
+  display: flex;
+  height: 24rpx;
+  border-radius: 12rpx;
+  overflow: hidden;
+  margin-bottom: 16rpx;
+}
+
+.industry-segment {
+  height: 100%;
+}
+
+.industry-segment.tech {
+  background-color: #3563e9;
+}
+
+.industry-segment.finance {
+  background-color: #2dca8c;
+}
+
+.industry-segment.healthcare {
+  background-color: #ffb800;
+}
+
+.industry-segment.education {
+  background-color: #f76808;
+}
+
+.industry-segment.other {
+  background-color: #c4c9d2;
+}
+
+.industry-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  margin-right: 16rpx;
+  margin-bottom: 8rpx;
+}
+
+.legend-color {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 4rpx;
+  margin-right: 8rpx;
+}
+
+.legend-color.tech {
+  background-color: #3563e9;
+}
+
+.legend-color.finance {
+  background-color: #2dca8c;
+}
+
+.legend-color.healthcare {
+  background-color: #ffb800;
+}
+
+.legend-color.education {
+  background-color: #f76808;
+}
+
+.legend-color.other {
+  background-color: #c4c9d2;
+}
+
+.legend-text {
+  font-size: 20rpx;
+  color: var(--text-secondary);
+}
+
 /* 功能区样式 - 优化双列布局 */
 .feature-grid {
   display: flex;
