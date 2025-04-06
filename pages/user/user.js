@@ -1,6 +1,6 @@
-import { apiService } from '../../services/api';
-import { logger } from '../../utils/logger';
-import { toast } from '../../utils/toast';
+const {apiService} = require('../../services/api');
+const logger = require('../../utils/logger');
+const {toast} = require('../../utils/toast');
 
 Page({
   data: {

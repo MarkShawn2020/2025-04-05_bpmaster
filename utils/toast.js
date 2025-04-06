@@ -2,7 +2,7 @@
  * Toast提示工具模块
  * 封装显示各种类型提示的方法
  */
-import { logger } from './logger';
+const logger = require('./logger');
 
 const defaultDuration = 1500; // 默认显示时间（毫秒）
 

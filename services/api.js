@@ -2,11 +2,12 @@
  * API服务
  * 封装所有与云开发的交互
  */
-import { logger } from '../utils/logger';
+const logger = require('../utils/logger');
 
-// API服务
-export const apiService = {
-  /**
+module.exports = {
+  // API服务
+  apiService: {
+    /**
    * 登录
    * @param {string} code 微信登录code
    * @returns {Promise} 登录结果
@@ -410,4 +411,5 @@ export const apiService = {
       });
     });
   }
-}; 
+  }
+};
