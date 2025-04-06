@@ -255,6 +255,12 @@ App({
                 // 保存token
                 wx.setStorageSync('token', res.result.token)
                 
+                // 保存openid (确保云函数返回了openid)
+                if (res.result.openid) {
+                  this.globalData.openid = res.result.openid;
+                  logger.info('获取openid成功', this.globalData.openid);
+                }
+                
                 // 更新全局用户信息
                 if (res.result.userInfo) {
                   this.globalData.userInfo = res.result.userInfo
@@ -341,19 +347,16 @@ App({
   
   // 获取用户openid
   async _getOpenid() {
-    try {
-      const result = await wx.cloud.callFunction({
-        name: 'getOpenid'
-      });
-      
-      if (result.result && result.result.openid) {
-        this.globalData.openid = result.result.openid;
-        logger.info('获取openid成功');
-      } else {
-        logger.error('获取openid失败', result);
-      }
-    } catch (error) {
-      logger.error('调用获取openid云函数失败', error);
+    // 如果已经登录并有用户信息，则无需重复获取
+    if (this.globalData.openid) {
+      return;
     }
+    
+    // 使用login方法同时获取openid
+    this.login((success) => {
+      if (success) {
+        logger.info('登录成功，同时获取到了openid');
+      }
+    });
   }
 }) 

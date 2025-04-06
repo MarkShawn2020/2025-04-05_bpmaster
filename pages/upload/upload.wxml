@@ -14,7 +14,7 @@
     <!-- 已选择文件但未上传时 -->
     <view class="file-info-area" wx:if="{{file.name && step === 'choose'}}">
       <view class="file-info">
-        <image class="file-icon" src="{{'/images/file-icons/' + file.type + '.png'}}"></image>
+        <image class="file-icon" src="{{'/images/file-icons/file-' + file.type + '.png'}}"></image>
         <view class="file-detail">
           <view class="file-name">{{file.name}}</view>
           <view class="file-meta">{{file.sizeText}} · {{file.time}}</view>
@@ -36,7 +36,7 @@
         <view class="progress-bar" style="width: {{uploadProgress}}%;"></view>
       </view>
       <view class="file-info">
-        <image class="file-icon-sm" src="{{'/images/file-icons/' + file.type + '.png'}}"></image>
+        <image class="file-icon-sm" src="{{'/images/file-icons/file-' + file.type + '.png'}}"></image>
         <view class="file-name-sm">{{file.name}}</view>
       </view>
     </view>
@@ -48,7 +48,7 @@
         <view class="success-text">上传成功</view>
       </view>
       <view class="file-info">
-        <image class="file-icon-sm" src="{{'/images/file-icons/' + file.type + '.png'}}"></image>
+        <image class="file-icon-sm" src="{{'/images/file-icons/file-' + file.type + '.png'}}"></image>
         <view class="file-detail">
           <view class="file-name">{{file.name}}</view>
           <view class="file-meta">{{file.sizeText}} · {{file.time}}</view>
@@ -76,19 +76,19 @@
     <view class="info-title">支持的文件格式</view>
     <view class="format-list">
       <view class="format-item">
-        <image class="format-icon" src="/images/file-icons/pdf.png"></image>
+        <image class="format-icon" src="/images/file-icons/file-pdf.png"></image>
         <view class="format-name">PDF</view>
       </view>
       <view class="format-item">
-        <image class="format-icon" src="/images/file-icons/doc.png"></image>
+        <image class="format-icon" src="/images/file-icons/file-doc.png"></image>
         <view class="format-name">Word</view>
       </view>
       <view class="format-item">
-        <image class="format-icon" src="/images/file-icons/ppt.png"></image>
+        <image class="format-icon" src="/images/file-icons/file-ppt.png"></image>
         <view class="format-name">PPT</view>
       </view>
       <view class="format-item">
-        <image class="format-icon" src="/images/file-icons/txt.png"></image>
+        <image class="format-icon" src="/images/file-icons/file-txt.png"></image>
         <view class="format-name">TXT</view>
       </view>
     </view>
