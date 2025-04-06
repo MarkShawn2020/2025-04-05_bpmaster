@@ -10,7 +10,6 @@ Page({
     reportCount: 0,
     bpList: [],  // 最近上传的BP
     isDev: getApp().globalData.isDev,
-    isPreviewingFile: false, // 添加标记变量，追踪文件预览状态
   },
 
   onLoad() {
@@ -19,21 +18,6 @@ Page({
   },
 
   onShow() {
-    // 检查是否从文件预览返回
-    if(this.data.isPreviewingFile) {
-      logger.info('从文件预览返回');
-      this.setData({
-        isPreviewingFile: false
-      });
-      // 确保所有toast都被清除
-      setTimeout(() => {
-        toast.hide();
-      }, 100);
-    } else {
-      // 清除可能存在的toast
-      toast.hide();
-    }
-    
     // 每次显示页面时都刷新数据
     this.loadUserInfo();  // 添加这里以确保每次进入页面都重新获取用户信息
   },
@@ -52,22 +36,7 @@ Page({
       // 尝试重新验证登录状态
       getApp().checkLoginStatus();
       this.setData({ loading: false }); // 确保加载状态更新
-      
-      // 如果不是从预览返回，才显示提示
-      if (!this.data.isPreviewingFile) {
-        // 使用modal代替toast
-        wx.showModal({
-          title: '未登录',
-          content: '请先登录以查看您的文件',
-          confirmText: '去登录',
-          cancelText: '稍后再说',
-          success: (res) => {
-            if (res.confirm) {
-              this.handleLogin();
-            }
-          }
-        });
-      }
+      toast.info('请先登录');
     }
   },
   
@@ -124,15 +93,76 @@ Page({
     logger.info('查看分析报告', { fileName, fileId });
     
     if (fileId) {
-      wx.navigateTo({
-        url: `/pages/analysis-detail/analysis-detail?id=${fileId}&fileName=${encodeURIComponent(fileName)}`,
-        fail: (err) => {
-          logger.error('导航到分析页失败', err);
-          toast.error('打开分析页失败');
-        }
+      // 先显示加载中的提示
+      wx.showLoading({
+        title: '加载分析数据...',
+        mask: true
       });
+      
+      // 使用API服务获取BP详情数据，确保获取真实数据
+      apiService.getBPDetail(fileId)
+        .then(res => {
+          wx.hideLoading();
+          
+          if (res && res.code === 200 && res.data) {
+            const bpData = res.data;
+            
+            // 检查是否有分析结果
+            if (!bpData.analysisResults || Object.keys(bpData.analysisResults).length === 0) {
+              // 如果没有分析结果，提示用户并询问是否要开始分析
+              wx.showModal({
+                title: '暂无分析结果',
+                content: '该BP文件尚未进行分析，是否立即开始分析？',
+                confirmText: '开始分析',
+                cancelText: '稍后再说',
+                success: (modalRes) => {
+                  if (modalRes.confirm) {
+                    // 用户选择开始分析
+                    this.startAnalysis({ 
+                      currentTarget: { 
+                        dataset: { 
+                          fileId: fileId, 
+                          fileName: fileName 
+                        } 
+                      }
+                    });
+                  }
+                }
+              });
+            } else {
+              // 有分析结果，跳转到分析详情页
+              wx.navigateTo({
+                url: `/pages/analysis-detail/analysis-detail?id=${fileId}&fileName=${encodeURIComponent(fileName)}`,
+                fail: (err) => {
+                  logger.error('导航到分析页失败', err);
+                  wx.showToast({
+                    title: '打开分析页失败',
+                    icon: 'error'
+                  });
+                }
+              });
+            }
+          } else {
+            // API调用成功但返回错误
+            wx.showToast({
+              title: res?.message || '获取分析数据失败',
+              icon: 'error'
+            });
+          }
+        })
+        .catch(err => {
+          wx.hideLoading();
+          logger.error('获取BP详情失败', err);
+          wx.showToast({
+            title: '获取数据失败',
+            icon: 'error'
+          });
+        });
     } else {
-      toast.info('此文件暂无分析数据');
+      wx.showToast({
+        title: '文件ID无效',
+        icon: 'error'
+      });
     }
   },
   
@@ -144,11 +174,8 @@ Page({
     logger.info('预览文件', { fileName, fileId });
     
     if (fileId) {
-      // 使用微信原生loading，而不是toast
-      wx.showLoading({
-        title: '加载文件中...',
-        mask: true // 添加遮罩防止用户操作
-      });
+      // 显示加载提示
+      toast.loading('加载文件中...');
       
       // 先获取BP文件详细信息，包含实际的云存储fileID
       apiService.getBPFileInfo(fileId)
@@ -175,16 +202,10 @@ Page({
           });
         })
         .then(downloadRes => {
-          // 隐藏loading
-          wx.hideLoading();
+          toast.hide();
           
           if (downloadRes.statusCode === 200) {
             const filePath = downloadRes.tempFilePath;
-            
-            // 设置预览状态标记
-            this.setData({
-              isPreviewingFile: true
-            });
             
             // 使用本地路径预览文件
             wx.openDocument({
@@ -195,19 +216,8 @@ Page({
                 logger.info('文件预览成功');
               },
               fail: (err) => {
-                // 预览失败时重置状态
-                this.setData({
-                  isPreviewingFile: false
-                });
-                
                 logger.error('文件预览失败', err);
-                
-                // 使用原生modal而不是toast
-                wx.showModal({
-                  title: '预览失败',
-                  content: '无法预览文件，请稍后再试',
-                  showCancel: false
-                });
+                toast.error('预览失败，请稍后再试');
                 
                 // 处理权限问题
                 if (err.errMsg && err.errMsg.includes('not permission')) {
@@ -228,88 +238,88 @@ Page({
             });
           } else {
             logger.error('下载文件失败', downloadRes);
-            
-            // 使用原生modal而不是toast
-            wx.showModal({
-              title: '下载失败',
-              content: '文件下载失败，请稍后再试',
-              showCancel: false
-            });
+            toast.error('文件下载失败');
           }
         })
         .catch(err => {
-          // 隐藏loading
-          wx.hideLoading();
-          
+          toast.hide();
           logger.error('获取或下载文件失败', err);
+          toast.error('无法预览文件，请稍后再试');
           
           // 显示更详细的错误提示
-          wx.showModal({
-            title: '文件预览失败',
-            content: '无法获取文件信息或预览权限。原因：' + (err.message || '未知错误'),
-            showCancel: false
-          });
+          setTimeout(() => {
+            wx.showModal({
+              title: '文件预览失败',
+              content: '无法获取文件信息或预览权限。原因：' + (err.message || '未知错误'),
+              showCancel: false
+            });
+          }, 1000);
         });
     } else {
-      wx.showModal({
-        title: '文件错误',
-        content: '文件不存在或已被删除',
-        showCancel: false
-      });
+      toast.info('文件不存在或已被删除');
     }
   },
   
-  // 开始分析文件
+  // 开始分析BP文件
   startAnalysis(e) {
     const fileId = e.currentTarget.dataset.fileId;
     const fileName = e.currentTarget.dataset.fileName;
     
-    logger.info('开始分析文件', { fileName, fileId });
+    logger.info('开始分析BP文件', { fileName, fileId });
     
+    // 显示确认对话框
     wx.showModal({
       title: '开始分析',
-      content: `确定开始分析"${fileName}"吗？`,
+      content: `确定要开始分析"${fileName}"吗？`,
       confirmText: '开始分析',
+      cancelText: '取消',
       success: (res) => {
         if (res.confirm) {
-          toast.loading('准备分析...');
+          // 用户确认开始分析
+          wx.showLoading({
+            title: '启动分析...',
+            mask: true
+          });
           
           // 调用API开始分析
-          apiService.startAnalysis(fileId).then(res => {
-            if (res && res.code === 200) {
-              toast.success('分析任务已提交');
+          apiService.startAnalysis(fileId)
+            .then(res => {
+              wx.hideLoading();
               
-              // 更新当前文件状态为分析中
-              const updatedList = this.data.bpList.map(item => {
-                if (item._id === fileId) {
-                  return { ...item, status: 'analyzing' };
-                }
-                return item;
-              });
-              
-              this.setData({ bpList: updatedList });
-              
-              // 可以选择导航到分析页面查看进度
-              setTimeout(() => {
-                wx.showModal({
-                  title: '分析已开始',
-                  content: '是否前往查看分析进度？',
-                  confirmText: '前往',
-                  cancelText: '留在此页',
-                  success: (modalRes) => {
-                    if (modalRes.confirm) {
-                      this.navigateToAnalysis(e);
-                    }
-                  }
+              if (res && res.code === 200) {
+                // 刷新数据以更新UI状态
+                this.loadUserData();
+                
+                wx.showToast({
+                  title: '分析任务已启动',
+                  icon: 'success'
                 });
-              }, 1000);
-            } else {
-              toast.error(res?.message || '提交分析任务失败');
-            }
-          }).catch(err => {
-            logger.error('开始分析失败', err);
-            toast.error('分析失败，请稍后再试');
-          });
+                
+                // 跳转到分析详情页，让用户查看分析进度
+                setTimeout(() => {
+                  wx.navigateTo({
+                    url: `/pages/analysis-detail/analysis-detail?id=${fileId}&fileName=${encodeURIComponent(fileName)}`,
+                    fail: (err) => {
+                      logger.error('导航到分析页失败', err);
+                    }
+                  });
+                }, 1500);
+              } else {
+                // 分析启动失败
+                wx.showToast({
+                  title: res?.message || '启动分析失败',
+                  icon: 'error'
+                });
+              }
+            })
+            .catch(err => {
+              wx.hideLoading();
+              logger.error('启动分析失败', err);
+              wx.showToast({
+                title: '启动分析失败',
+                icon: 'error'
+              });
+            });
         }
       }
     });
@@ -317,23 +327,13 @@ Page({
   
   // 重试分析
   retryAnalysis(e) {
-    // 实现与startAnalysis基本相同，但提示信息不同
     const fileId = e.currentTarget.dataset.fileId;
     const fileName = e.currentTarget.dataset.fileName;
     
-    logger.info('重试分析文件', { fileName, fileId });
+    logger.info('重试分析BP文件', { fileName, fileId });
     
-    wx.showModal({
-      title: '重试分析',
-      content: `确定重新开始分析"${fileName}"吗？`,
-      confirmText: '确定重试',
-      success: (res) => {
-        if (res.confirm) {
-          // 基本逻辑与startAnalysis相同
-          this.startAnalysis(e);
-        }
-      }
-    });
+    // 直接调用开始分析函数
+    this.startAnalysis(e);
   },
   
   // 获取文件类型
