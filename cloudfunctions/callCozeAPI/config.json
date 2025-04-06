@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "openapi": []
+  },
+  "timeout": 60,
+  "envVariables": {},
+  "vpc": {
+    "enableAccess": false
+  }
+} 

@@ -19,6 +19,7 @@
     "sharp": "^0.32.5"
   },
   "devDependencies": {
+    "@coze/api": "^1.1.1",
     "miniprogram-ci": "^1.9.3"
   }
-} 
+}

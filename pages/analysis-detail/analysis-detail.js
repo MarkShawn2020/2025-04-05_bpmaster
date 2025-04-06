@@ -413,7 +413,7 @@ Page({
   },
   
   // 返回上一页
-  navigateBack: function() {
+  navigateBack() {
     wx.navigateBack();
   },
   
@@ -461,32 +461,68 @@ Page({
     }
   },
   
-  // 将分析结果设置到页面
-  _setAnalysisData: function(fileData) {
-    let markdownContent = '';
-    
-    // 从分析结果中获取Markdown内容
-    if (fileData.analysisResults && fileData.analysisResults.markdownContent) {
-      markdownContent = fileData.analysisResults.markdownContent;
+  // 设置分析数据
+  _setAnalysisData(data) {
+    try {
+      let analysisResults = data.analysisResults;
+      let markdownContent = '';
+      
+      // 检查是否需要解析嵌套的JSON数据
+      if (analysisResults && typeof analysisResults === 'object') {
+        // 检查是否存在data字段且是字符串（可能是嵌套JSON）
+        if (analysisResults.data && typeof analysisResults.data === 'string') {
+          try {
+            // 解析内部JSON字符串
+            const parsedData = JSON.parse(analysisResults.data);
+            
+            if (parsedData.data && typeof parsedData.data === 'string') {
+              // 提取Markdown内容
+              // 尝试匹配```markdown ... ```格式
+              const markdownMatch = parsedData.data.match(/```markdown\s*([\s\S]*?)\s*```/);
+              if (markdownMatch && markdownMatch[1]) {
+                markdownContent = markdownMatch[1];
+              } else {
+                // 如果没有markdown代码块格式，直接使用内容
+                markdownContent = parsedData.data;
+              }
+            }
+          } catch (parseError) {
+            logger.error('解析内部JSON失败', parseError);
+            // 尝试直接使用data字段
+            markdownContent = analysisResults.data;
+          }
+        } else if (analysisResults.content) {
+          // 兼容其他可能的格式
+          markdownContent = analysisResults.content;
+        } else if (analysisResults.summary) {
+          // 如果有summary但没有content
+          markdownContent = analysisResults.summary;
+        }
+      }
+      
+      // 设置到数据中
+      this.setData({
+        analysisDetail: data,
+        fileInfo: {
+          name: data.fileName || '未命名文件',
+          size: data.fileSize || '未知大小',
+          uploadDate: data.uploadDate ? new Date(data.uploadDate).toLocaleString() : '未知时间',
+          status: data.status || 'unknown',
+          type: data.fileType || 'pdf'
+        },
+        markdownContent: markdownContent,
+        contentLoaded: true,
+        loading: false
+      });
+      
+      logger.info('设置分析数据成功', { hasContent: !!markdownContent });
+    } catch (error) {
+      logger.error('设置分析数据失败', error);
+      this.setData({
+        loading: false,
+        error: '解析分析结果失败'
+      });
+      this._showToast('error', '解析分析结果失败');
     }
-    
-    // 设置数据
-    this.setData({
-      fileInfo: {
-        name: fileData.name || '未命名文件',
-        size: fileData.size || '未知大小',
-        uploadDate: fileData.uploadDate ? new Date(fileData.uploadDate).toLocaleString() : '未知时间',
-        type: fileData.type || 'pdf',
-        status: fileData.status || 'uploaded'
-      },
-      markdownContent,
-      contentLoaded: true,
-      loading: false
-    });
-    
-    // 更新页面标题
-    wx.setNavigationBarTitle({
-      title: fileData.name ? `分析报告: ${fileData.name}` : '分析报告'
-    });
   }
 }); 
