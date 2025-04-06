@@ -74,8 +74,8 @@ Page({
         sessionId: 'session_' + new Date().getTime()
       });
       
-      // 开始分析
-      this.startAnalysis();
+      // 检查是否已有报告或正在生成报告
+      this.checkReportStatus();
     } catch (err) {
       error('分析结果页面加载异常', err);
       this.setData({
@@ -113,6 +113,109 @@ Page({
     }
   },
   
+  // 检查报告状态
+  checkReportStatus: function() {
+    info('检查报告状态', { fileId: this.data.fileId });
+    
+    const that = this;
+    // 先从本地缓存中查询
+    const storageKey = 'report_' + this.data.fileId;
+    const reportCacheData = wx.getStorageSync(storageKey) || {};
+    
+    if (reportCacheData.mdContent && reportCacheData.isCompleted) {
+      // 已有完整报告，直接加载
+      info('发现已完成的报告，直接加载', reportCacheData);
+      this.setData({
+        mdContent: reportCacheData.mdContent,
+        tocItems: reportCacheData.tocItems || [],
+        isAnalyzing: false,
+        isCompleted: true,
+        statusText: '分析完成'
+      });
+      
+      // 提取目录项(如果缓存中没有)
+      if (!reportCacheData.tocItems || reportCacheData.tocItems.length === 0) {
+        this.extractTocItems(reportCacheData.mdContent);
+      }
+      
+      return;
+    } else if (reportCacheData.mdContent && !reportCacheData.isCompleted && reportCacheData.timestamp) {
+      // 有部分报告内容，且时间不超过10分钟，视为正在进行
+      const now = new Date().getTime();
+      const timeDiff = now - reportCacheData.timestamp;
+      
+      if (timeDiff < 10 * 60 * 1000) { // 10分钟内
+        info('发现正在生成的报告', reportCacheData);
+        this.setData({
+          mdContent: reportCacheData.mdContent,
+          isAnalyzing: true,
+          statusText: '分析中...',
+          loadingTip: '正在生成分析报告...'
+        });
+        
+        // 提取目录项
+        this.extractTocItems(reportCacheData.mdContent);
+        
+        // 查询服务端状态
+        this.queryReportStatus();
+        return;
+      }
+    }
+    
+    // 没有缓存或缓存已过期，需要调用API查询服务端
+    this.queryReportStatus();
+  },
+  
+  // 从服务端查询报告状态
+  queryReportStatus: function() {
+    info('查询服务端报告状态', { fileId: this.data.fileId });
+    
+    const that = this;
+    // 可以从云函数或API查询当前文件的分析状态
+    wx.showLoading({
+      title: '查询报告状态',
+      mask: true
+    });
+    
+    // 模拟API调用，实际项目中请替换为真实API调用
+    // TODO: 替换为真实API调用
+    setTimeout(function() {
+      wx.hideLoading();
+      
+      // 假设通过API得到的结果中可以判断报告状态
+      const hasReport = false; // 通过API判断是否已有报告
+      const isGenerating = false; // 通过API判断是否正在生成报告
+      
+      if (hasReport) {
+        // 已有报告，API中返回了报告内容
+        info('服务端已有完整报告', { fileId: that.data.fileId });
+        // 加载报告内容并显示
+        that.setData({
+          // mdContent: apiResult.content,
+          isAnalyzing: false,
+          isCompleted: true,
+          statusText: '分析完成'
+        });
+      } else if (isGenerating) {
+        // 正在生成报告
+        info('服务端报告正在生成中', { fileId: that.data.fileId });
+        that.setData({
+          isAnalyzing: true,
+          statusText: '分析中...'
+        });
+        
+        // 可以设置定时器定期检查状态
+        that.checkReportInterval = setInterval(function() {
+          that.queryReportStatus();
+        }, 10000); // 每10秒检查一次
+      } else {
+        // 没有报告，需要开始分析
+        info('没有找到报告，开始新的分析', { fileId: that.data.fileId });
+        that.startAnalysis();
+      }
+    }, 500);
+  },
+  
   // 开始分析
   startAnalysis: function() {
     info('开始AI分析', { fileId: this.data.fileId });
@@ -127,6 +230,24 @@ Page({
       this.showToast('缺少必要的文件信息', 'error');
       return;
     }
+    
+    // 清空之前的结果
+    this.setData({
+      mdContent: '',
+      tocItems: [],
+      isAnalyzing: true,
+      hasError: false,
+      errorMessage: '',
+      statusText: '分析中...',
+      loadingTip: '正在分析您的商业计划书...'
+    });
+    
+    // 保存当前状态到缓存
+    this.saveReportCache({
+      mdContent: '',
+      isCompleted: false,
+      timestamp: new Date().getTime()
+    });
     
     // 调用coze工作流API
     this.callCozeWorkflow();
@@ -369,6 +490,13 @@ Page({
     // 提取目录项
     this.extractTocItems(mdContent);
     
+    // 保存当前状态到缓存
+    this.saveReportCache({
+      mdContent,
+      tocItems: this.data.tocItems,
+      isCompleted: false
+    });
+    
     debug('工作流消息内容更新', { contentLength: content.length });
   },
   
@@ -404,10 +532,23 @@ Page({
       this.workflowTimeout = null;
     }
     
+    // 清除状态检查定时器
+    if (this.checkReportInterval) {
+      clearInterval(this.checkReportInterval);
+      this.checkReportInterval = null;
+    }
+    
     this.setData({
       isAnalyzing: false,
       isCompleted: true,
       statusText: '分析完成'
+    });
+    
+    // 保存完整报告到缓存
+    this.saveReportCache({
+      mdContent: this.data.mdContent,
+      tocItems: this.data.tocItems,
+      isCompleted: true
     });
     
     // 保存到历史记录
@@ -509,124 +650,62 @@ Page({
   
   // 打开文件
   handleOpenFile: function() {
-    // 检查是否有文件ID
-    if (!this.data.fileId) {
-      this.showToast('无法打开文件，文件信息不完整', 'error');
+    info('尝试打开文件', { 
+      fileName: this.data.fileName,
+      fileUrl: this.data.fileUrl 
+    });
+    
+    if (!this.data.fileUrl) {
+      this.showToast('无法打开文件，文件链接不存在', 'error');
       return;
     }
     
-    info('准备打开文件', { fileId: this.data.fileId, fileType: this.data.fileType });
-    wx.showLoading({ title: '准备文件中...' });
+    // 尝试打开文件链接
+    wx.showLoading({ title: '打开文件中...' });
     
-    // 先刷新文件URL，避免使用过期链接
-    // 假设我们有一个从云函数获取最新文件URL的API
-    wx.cloud.callFunction({
-      name: 'getFileUrl',
-      data: {
-        fileId: this.data.fileId
-      },
-      success: res => {
-        if (res.result && res.result.fileUrl) {
-          const fileUrl = res.result.fileUrl;
-          info('获取到新的文件URL', { fileUrl });
-          this.setData({ fileUrl });
-          this.downloadAndOpenFile(fileUrl);
+    wx.downloadFile({
+      url: this.data.fileUrl,
+      success: (res) => {
+        if (res.statusCode === 200) {
+          wx.openDocument({
+            filePath: res.tempFilePath,
+            success: () => {
+              info('文件打开成功');
+            },
+            fail: (err) => {
+              error('文件打开失败', err);
+              this.showToast('文件打开失败', 'error');
+            },
+            complete: () => {
+              wx.hideLoading();
+            }
+          });
         } else {
           wx.hideLoading();
-          error('获取文件URL失败', res);
-          this.showToast('获取文件URL失败', 'error');
+          error('文件下载失败', res);
+          this.showToast('文件下载失败', 'error');
         }
       },
-      fail: err => {
+      fail: (err) => {
         wx.hideLoading();
-        error('调用获取文件URL云函数失败', err);
-        this.showToast('获取文件链接失败', 'error');
+        error('文件下载失败', err);
+        this.showToast('文件下载失败', 'error');
       }
     });
   },
   
-  // 下载并打开文件
-  downloadAndOpenFile: function(fileUrl) {
-    if (!fileUrl) {
-      wx.hideLoading();
-      this.showToast('文件URL不可用', 'error');
-      return;
-    }
-    
-    info('开始下载文件', { fileUrl, fileType: this.data.fileType });
-    
-    // 根据文件类型选择不同的打开方式
-    if (['jpg', 'jpeg', 'png', 'gif'].includes(this.data.fileType)) {
-      // 图片文件使用预览图片功能
-      wx.hideLoading();
-      wx.previewImage({
-        urls: [fileUrl],
-        fail: (err) => {
-          error('预览图片失败', err);
-          this.showToast('预览图片失败: ' + err.errMsg, 'error');
-        }
+  // 保存报告缓存
+  saveReportCache: function(data) {
+    try {
+      const storageKey = 'report_' + this.data.fileId;
+      wx.setStorageSync(storageKey, {
+        ...data,
+        fileId: this.data.fileId,
+        fileName: this.data.fileName,
+        timestamp: new Date().getTime()
       });
-    } else {
-      // 文档和其他类型的文件下载后打开
-      const downloadTask = wx.downloadFile({
-        url: fileUrl,
-        success: (res) => {
-          if (res.statusCode === 200 && res.tempFilePath) {
-            info('文件下载成功', { 
-              tempFilePath: res.tempFilePath, 
-              statusCode: res.statusCode,
-              dataLength: res.dataLength || '未知'
-            });
-            
-            // 检查文件大小确保不是空文件
-            if ((res.dataLength && res.dataLength > 100) || !res.dataLength) {
-              try {
-                wx.openDocument({
-                  filePath: res.tempFilePath,
-                  showMenu: true,
-                  success: () => {
-                    info('打开文档成功');
-                  },
-                  fail: (err) => {
-                    error('打开文档失败', err);
-                    this.showToast('文件类型可能不支持在线查看', 'info');
-                  }
-                });
-              } catch (err) {
-                error('打开文件异常', err);
-                this.showToast('文件类型可能不支持在线查看', 'info');
-              }
-            } else {
-              error('下载的文件内容为空或过小', { dataLength: res.dataLength });
-              this.showToast('文件内容无效或已损坏', 'error');
-            }
-          } else {
-            error('下载文件失败', {
-              statusCode: res.statusCode, 
-              tempFilePath: res.tempFilePath,
-              errMsg: res.errMsg
-            });
-            this.showToast(`下载失败(${res.statusCode})，可能链接已过期`, 'error');
-          }
-        },
-        fail: (err) => {
-          error('下载文件失败', err);
-          this.showToast('下载文件失败: ' + err.errMsg, 'error');
-        },
-        complete: () => {
-          wx.hideLoading();
-        }
-      });
-      
-      // 监听下载进度
-      downloadTask.onProgressUpdate((res) => {
-        if (res.progress > 0) {
-          wx.showLoading({
-            title: `下载中 ${res.progress}%`,
-            mask: true
-          });
-        }
-      });
+    } catch (err) {
+      error('保存报告缓存失败', err);
     }
   },
   
@@ -692,6 +771,12 @@ Page({
     if (this.workflowTimeout) {
       clearTimeout(this.workflowTimeout);
       this.workflowTimeout = null;
+    }
+    
+    // 清除状态检查定时器
+    if (this.checkReportInterval) {
+      clearInterval(this.checkReportInterval);
+      this.checkReportInterval = null;
     }
   }
 }); 

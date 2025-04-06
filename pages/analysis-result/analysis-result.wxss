@@ -144,6 +144,24 @@
   margin-bottom: 30rpx;
 }
 
+.loading-actions {
+  display: flex;
+  justify-content: center;
+  gap: 20rpx;
+  margin-top: 20rpx;
+}
+
+.action-btn.mini {
+  font-size: 24rpx;
+  background-color: #f5f7fa;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  margin: 0;
+  padding: 6rpx 20rpx;
+  height: auto;
+  line-height: 1.8;
+}
+
 .loading-status {
   display: flex;
   align-items: center;
@@ -155,7 +173,7 @@
 }
 
 .retry-btn {
-  margin-top: 20rpx;
+  margin-top: 0;
   background-color: #f5f7fa;
   color: var(--text-secondary);
   border: 1px solid var(--border-color);

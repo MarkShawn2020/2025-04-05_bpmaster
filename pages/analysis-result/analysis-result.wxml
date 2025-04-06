@@ -29,9 +29,14 @@
       <view class="loading-container">
         <view class="loading-text">{{loadingTip}}</view>
         <view class="loading-tips">分析过程需要一些时间，请耐心等待</view>
-        <button class="retry-btn" type="default" size="mini" bindtap="handleReAnalyze">
-          重新分析
-        </button>
+        <view class="loading-actions">
+          <button class="action-btn mini" type="default" size="mini" bindtap="queryReportStatus">
+            <text>刷新状态</text>
+          </button>
+          <button class="retry-btn" type="default" size="mini" bindtap="handleReAnalyze">
+            <text>重新分析</text>
+          </button>
+        </view>
       </view>
     </block>
     
@@ -39,9 +44,14 @@
     <block wx:if="{{isAnalyzing && mdContent}}">
       <view class="loading-status">
         <view class="loading-text">{{loadingTip}}</view>
-        <button class="retry-btn" type="default" size="mini" bindtap="handleReAnalyze">
-          重新分析
-        </button>
+        <view class="loading-actions">
+          <button class="action-btn mini" type="default" size="mini" bindtap="queryReportStatus">
+            <text>刷新状态</text>
+          </button>
+          <button class="retry-btn" type="default" size="mini" bindtap="handleReAnalyze">
+            <text>重新分析</text>
+          </button>
+        </view>
       </view>
     </block>
     
