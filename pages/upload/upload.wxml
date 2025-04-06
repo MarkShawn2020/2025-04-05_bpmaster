@@ -55,9 +55,9 @@
         </view>
       </view>
       <view class="analysis-actions">
-        <button class="btn-sm" type="default" bindtap="handleReset">重新上传</button>
-        <button class="analysis-btn" type="primary" bindtap="handleStartAnalysis">
-          开始分析
+        <button class="btn-secondary" type="default" bindtap="handleReset">重新上传</button>
+        <button class="btn-primary" type="primary" bindtap="handleStartAnalysis">
+          <text>开始分析</text>
         </button>
       </view>
     </view>

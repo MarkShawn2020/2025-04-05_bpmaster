@@ -29,14 +29,6 @@
       <view class="loading-container">
         <view class="loading-text">{{loadingTip}}</view>
         <view class="loading-tips">分析过程需要一些时间，请耐心等待</view>
-        <view class="loading-actions">
-          <button class="action-btn mini" type="default" size="mini" bindtap="queryReportStatus">
-            <text>刷新状态</text>
-          </button>
-          <button class="retry-btn" type="default" size="mini" bindtap="handleReAnalyze">
-            <text>重新分析</text>
-          </button>
-        </view>
       </view>
     </block>
     

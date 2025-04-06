@@ -297,12 +297,9 @@ Page({
     
     const data = {
       workflow_id: workflowId,
-      inputs: {
-        file_id: this.data.fileId,
-        file_name: this.data.fileName,
-        file_type: this.data.fileType,
-        file_url: this.data.fileUrl,
-        user_id: app.globalData.userInfo ? app.globalData.userInfo.openId || app.globalData.userInfo.userId || '' : ''
+      parameters: { 
+        files: [this.data.fileUrl]
+        // todo: add user identification
       }
     };
     
@@ -399,7 +396,8 @@ Page({
         const line = lines[i].trim();
         if (!line) continue;
         
-        info('处理SSE行', { line, lineNumber: i });
+        // info(`处理SSE行[${i}]`);
+        // info(line);
         
         // 解析SSE格式的行
         if (line.startsWith('id: ')) {
