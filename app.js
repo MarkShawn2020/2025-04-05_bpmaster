@@ -58,7 +58,7 @@ App({
     } else {
       try {
         wx.cloud.init({
-          env: 'cloud1-3g1234h59b10cfa8', // 请更改为你自己的云开发环境ID
+          env: cloud.DYNAMIC_CURRENT_ENV, // 请更改为你自己的云开发环境ID
           traceUser: true
         });
         logger.info('云函数环境初始化成功');
