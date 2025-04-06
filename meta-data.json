@@ -24,7 +24,7 @@
       "pages/analysis/analysis",
       "pages/report/report",
       "pages/history/history",
-      "pages/analysis-detail/analysis-detail"
+      "pages/analysis-result/analysis-result"
     ],
     "supportedFileTypes": {
       "PDF": {

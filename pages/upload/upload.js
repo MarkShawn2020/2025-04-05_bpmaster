@@ -113,7 +113,7 @@ Page({
     this.simulateProgress();
     
     // 调用实际上传API
-    uploadFile(this.data.file.path)
+    uploadFile(this.data.file.path, this.data.file.name)
       .then(res => {
         info('文件上传成功', res);
         

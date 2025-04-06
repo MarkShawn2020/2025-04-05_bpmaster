@@ -8,19 +8,24 @@ const app = getApp();
 /**
  * 上传文件到云存储
  * @param {string} filePath 文件临时路径
+ * @param {string} originalFileName 原始文件名，可选
  * @returns {Promise} 上传结果
  */
-function uploadFile(filePath) {
+function uploadFile(filePath, originalFileName) {
   return new Promise((resolve, reject) => {
     if (!filePath) {
       reject(new Error('文件路径不能为空'));
       return;
     }
     
-    info('开始上传文件', { filePath });
+    // 获取最终文件名：优先使用传入的原始文件名，否则从路径提取
+    const pathFileName = filePath.split('/').pop();
+    const fileName = originalFileName || pathFileName;
+    
+    info('开始上传文件', { filePath, originalFileName, fileName });
     
     // 生成云存储路径
-    const cloudPath = `bp_files/${Date.now()}_${filePath.split('/').pop()}`;
+    const cloudPath = `bp_files/${Date.now()}_${pathFileName}`;
     
     // 调用微信云开发API上传文件
     wx.cloud.uploadFile({
@@ -47,7 +52,8 @@ function uploadFile(filePath) {
                 data: {
                   fileID: res.fileID,
                   fileUrl: fileInfo.tempFileURL,
-                  fileName: filePath.split('/').pop(),
+                  fileName: fileName, // 使用原始文件名
+                  originalName: originalFileName || '', // 同时保存原始文件名字段
                   uploadTime: new Date().getTime()
                 },
                 success: (callRes) => {

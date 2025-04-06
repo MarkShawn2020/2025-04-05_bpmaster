@@ -37,8 +37,8 @@
       <block wx:else>
         <view wx:for="{{bpList}}" wx:key="_id" class="bp-item">
           <view class="bp-item-left" bindtap="previewFile" data-file-id="{{item._id}}" data-file-name="{{item.fileName}}">
-            <view class="bp-name">{{item.fileName || '未命名文件'}}</view>
-            <view class="bp-time">{{item.uploadTime}}</view>
+            <view class="bp-name">{{item.displayName || '未命名文件'}}</view>
+            <view class="bp-time">{{item.uploadTime || '未知时间'}}</view>
           </view>
           <view class="bp-action">
 
@@ -48,7 +48,7 @@
               class="action-btn view-btn" 
               catchtap="navigateToAnalysis" 
               data-file-id="{{item._id}}" 
-              data-file-name="{{item.fileName}}">查看报告</button>
+              data-file-name="{{item.fileName}}">查看</button>
             
             <!-- 待分析状态 - 开始分析 -->
             <button 
@@ -56,13 +56,13 @@
               class="action-btn analyze-btn" 
               catchtap="startAnalysis" 
               data-file-id="{{item._id}}" 
-              data-file-name="{{item.fileName}}">开始分析</button>
+              data-file-name="{{item.fileName}}">分析</button>
             
             <!-- 分析中状态 - 显示禁用按钮 -->
             <button 
               wx:elif="{{item.status === 'analyzing'}}" 
               class="action-btn disabled-btn"
-              disabled>分析中...</button>
+              disabled>分析中</button>
             
             <!-- 失败状态 - 重试分析 -->
             <button 
@@ -70,7 +70,7 @@
               class="action-btn retry-btn" 
               catchtap="navigateToAnalysis" 
               data-file-id="{{item._id}}" 
-              data-file-name="{{item.fileName}}">查看报告</button>
+              data-file-name="{{item.fileName}}">查看</button>
           </view>
         </view>
       </block>

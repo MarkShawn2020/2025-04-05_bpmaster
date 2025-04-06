@@ -1,6 +1,7 @@
 import { apiService } from '../../services/api';
 import { info, error } from '../../utils/logger';
 import { toast } from '../../utils/toast';
+import { formatDisplayTime } from '../../utils/date';
 
 Page({
   data: {
@@ -53,8 +54,17 @@ Page({
       if (bpResponse && bpResponse.code === 200) {
         const { list, pagination } = bpResponse.data;
         
+        // 处理文件名和时间格式化
+        const processedList = list.map(item => {
+          return {
+            ...item,
+            displayName: item.fileName,
+            uploadTime: this._formatTime(item.uploadDate)
+          };
+        });
+        
         this.setData({
-          bpList: list,
+          bpList: processedList,
           bpCount: pagination.total
         });
       }
@@ -66,8 +76,8 @@ Page({
           reportCount: reportResponse.data.pagination.total
         });
       }
-    } catch (error) {
-      error('加载用户数据失败', error);
+    } catch (err) {
+      error('加载用户数据失败', err);
       toast.error('数据加载失败');
     } finally {
       this.setData({ loading: false });
@@ -112,14 +122,6 @@ Page({
             
             // 检查是否有分析结果
             if (!bpData.analysisResults || Object.keys(bpData.analysisResults).length === 0) {
-              // 如果没有分析结果，提示用户并询问是否要开始分析
-              wx.showModal({
-                title: '暂无分析结果',
-                content: '该BP文件尚未进行分析，是否立即开始分析？',
-                confirmText: '开始分析',
-                cancelText: '稍后再说',
-                success: (modalRes) => {
-                  if (modalRes.confirm) {
                     // 用户选择开始分析
                     this.startAnalysis({ 
                       currentTarget: { 
@@ -129,13 +131,10 @@ Page({
                         } 
                       }
                     });
-                  }
-                }
-              });
             } else {
               // 有分析结果，跳转到分析详情页
               wx.navigateTo({
-                url: `/pages/analysis-detail/analysis-detail?id=${fileId}&fileName=${encodeURIComponent(fileName)}`,
+                url: `/pages/analysis-result/analysis-result?id=${fileId}&fileName=${encodeURIComponent(fileName)}`,
                 fail: (err) => {
                   error('导航到分析页失败', err);
                   wx.showToast({
@@ -272,9 +271,9 @@ Page({
     
     // 显示确认对话框
     wx.showModal({
-      title: '开始分析',
-      content: `确定要开始分析"${fileName}"吗？`,
-      confirmText: '开始分析',
+      title: '启动分析',
+      content: `确定调用 AI 分析\n"${fileName}"吗？`,
+      confirmText: '确定',
       cancelText: '取消',
       success: (res) => {
         if (res.confirm) {
@@ -301,7 +300,7 @@ Page({
                 // 跳转到分析详情页，让用户查看分析进度
                 setTimeout(() => {
                   wx.navigateTo({
-                    url: `/pages/analysis-detail/analysis-detail?id=${fileId}&fileName=${encodeURIComponent(fileName)}`,
+                    url: `/pages/analysis-result/analysis-result?id=${fileId}&fileName=${encodeURIComponent(fileName)}`,
                     fail: (err) => {
                       error('导航到分析页失败', err);
                     }
@@ -633,5 +632,18 @@ Page({
         });
       }
     }
+  },
+  
+  // 格式化时间显示
+  _formatTime(timestamp) {
+    if (!timestamp) return '';
+    
+    // 如果是毫秒时间戳
+    if (typeof timestamp === 'number' || /^\d+$/.test(timestamp)) {
+      return formatDisplayTime(timestamp);
+    }
+    
+    // 尝试使用日期工具格式化
+    return formatDisplayTime(timestamp);
   },
 }) 

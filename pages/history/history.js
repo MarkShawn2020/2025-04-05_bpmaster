@@ -146,7 +146,7 @@ Page({
           } else {
             // 有分析结果，跳转到分析详情页
             wx.navigateTo({
-              url: `/pages/analysis-detail/analysis-detail?id=${id}&fileName=${encodeURIComponent(item.fileName)}`,
+              url: `/pages/analysis-result/analysis-result?id=${id}&fileName=${encodeURIComponent(item.fileName)}`,
               fail: (err) => {
                 error('导航到分析页失败', err);
                 toast.error('打开分析页失败');
@@ -199,7 +199,7 @@ Page({
                 // 跳转到分析详情页，让用户查看分析进度
                 setTimeout(() => {
                   wx.navigateTo({
-                    url: `/pages/analysis-detail/analysis-detail?id=${id}&fileName=${encodeURIComponent(fileName)}`,
+                    url: `/pages/analysis-result/analysis-result?id=${id}&fileName=${encodeURIComponent(fileName)}`,
                     fail: (err) => {
                       error('导航到分析页失败', err);
                     }

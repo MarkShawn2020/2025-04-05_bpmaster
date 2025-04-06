@@ -57,8 +57,7 @@
       <view class="analysis-actions">
         <button class="btn-sm" type="default" bindtap="handleReset">重新上传</button>
         <button class="analysis-btn" type="primary" bindtap="handleStartAnalysis">
-          <image class="btn-icon" src="/images/ai-icon.png"></image>
-          开始AI分析
+          开始分析
         </button>
       </view>
     </view>
