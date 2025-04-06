@@ -356,32 +356,38 @@ Page({
     try {
       // 显示初始阶段
       this._simulateProgress('analysis');
-      
-      // 启动分析任务
-      const callResult = await wx.cloud.callFunction({
-        name: 'callCozeAPI',
-        data: {
-          url: COZE_CONFIG.API_URL,
-          token: COZE_CONFIG.TOKEN,
-          workflow_id: COZE_CONFIG.WORKFLOW_ID,
-          fileId: this.data.fileId, // 传递文件ID
-          parameters: {
-            input: [this.data.cloudFileURL],
-            useJson: true,
-            outputFormat: "json"
-          }
-        }
-      });
-      
-      logger.info('启动分析任务成功', callResult);
-      
-      if (callResult.result && callResult.result.code === 200 && callResult.result.data && callResult.result.data.taskId) {
-        const taskId = callResult.result.data.taskId;
-        
-        // 开始轮询任务状态
-        this._startPollingTaskStatus(taskId);
+
+      // 根据用户偏好选择直接流式调用或通过云函数调用
+      const useDirectStreamCall = true; // 可以从配置或设置中获取
+
+      if (useDirectStreamCall) {
+        // 直接使用流式调用方式
+        await this._callCozeWorkflowWithStream(this.data.cloudFileURL);
       } else {
-        throw new Error('启动分析任务失败');
+        // 使用原有的云函数轮询方式
+        const callResult = await wx.cloud.callFunction({
+          name: 'callCozeAPI',
+          data: {
+            url: COZE_CONFIG.API_URL,
+            token: COZE_CONFIG.TOKEN,
+            workflow_id: COZE_CONFIG.WORKFLOW_ID,
+            fileId: this.data.fileId,
+            parameters: {
+              input: [this.data.cloudFileURL],
+              useJson: true,
+              outputFormat: "json"
+            }
+          }
+        });
+        
+        logger.info('启动分析任务成功', callResult);
+        
+        if (callResult.result && callResult.result.code === 200 && callResult.result.data && callResult.result.data.taskId) {
+          const taskId = callResult.result.data.taskId;
+          this._startPollingTaskStatus(taskId);
+        } else {
+          throw new Error('启动分析任务失败');
+        }
       }
     } catch (error) {
       // 停止模拟进度
@@ -403,6 +409,287 @@ Page({
       });
       
       this._showToast('error', errorMessage);
+    }
+  },
+
+  // 使用分块传输直接调用Coze API
+  _callCozeWorkflowWithStream(fileUrl) {
+    return new Promise((resolve, reject) => {
+      logger.info('使用分块传输调用Coze API', fileUrl);
+
+      // 确保URL有效
+      if (!fileUrl) {
+        reject(new Error('文件URL无效'));
+        return;
+      }
+
+      // 更新分析阶段
+      this.setData({
+        analysisStage: '连接Coze API...',
+        analysisProgress: 5,
+        analysisProgressText: '5'
+      });
+
+      // 准备请求参数
+      const requestData = {
+        workflow_id: COZE_CONFIG.WORKFLOW_ID,
+        parameters: {
+          input: [fileUrl],
+          useJson: true,
+          outputFormat: "json"
+        }
+      };
+
+      // 收集响应内容
+      let accumulatedContent = '';
+      let isFirstChunk = true;
+      let receivedChunks = 0;
+      
+      // 创建分析阶段数组
+      const stages = [
+        '正在读取文档...',
+        '提取文档结构...',
+        '分析商业模型...',
+        '评估市场潜力...',
+        '分析团队能力...',
+        '核算财务数据...',
+        '综合评分...',
+        '生成分析报告...'
+      ];
+      
+      // 停止模拟进度
+      if (this.analysisProgressInterval) {
+        clearInterval(this.analysisProgressInterval);
+      }
+
+      // 发起请求并获取请求任务对象
+      const requestTask = wx.request({
+        url: COZE_CONFIG.API_URL,
+        method: 'POST',
+        header: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${COZE_CONFIG.TOKEN}`,
+          'Accept': 'text/event-stream' // 指定接受事件流
+        },
+        data: requestData,
+        responseType: 'text', // 使用文本类型接收数据
+        enableChunked: true, // 启用分块接收
+        success: (res) => {
+          logger.info('Coze API请求完成', {
+            statusCode: res.statusCode,
+            hasData: !!res.data
+          });
+          
+          // 请求完成但不一定成功，最终的成功判断基于是否收到了足够的数据块
+        },
+        fail: (err) => {
+          logger.error('Coze API请求失败', err);
+          reject(new Error('API请求失败: ' + (err.errMsg || '未知错误')));
+        },
+        complete: () => {
+          logger.info('Coze API请求结束，共收到数据块:', receivedChunks);
+          
+          // 只有当收到内容时才认为成功
+          if (accumulatedContent.length > 0) {
+            // 保存到分析结果
+            this._saveAnalysisResult(accumulatedContent);
+            resolve(accumulatedContent);
+          } else if (receivedChunks === 0) {
+            reject(new Error('未收到任何响应数据'));
+          }
+        }
+      });
+
+      // 监听分块数据接收
+      requestTask.onChunkReceived((res) => {
+        try {
+          receivedChunks++;
+          
+          // 将ArrayBuffer转换为字符串
+          const chunk = this._arrayBufferToString(res.data);
+          logger.info(`收到第${receivedChunks}块数据，长度: ${chunk.length}，内容：${chunk}`);
+          
+          if (isFirstChunk) {
+            isFirstChunk = false;
+            this.setData({
+              analysisStage: '开始接收分析结果...',
+              analysisProgress: 20,
+              analysisProgressText: '20'
+            });
+          }
+          
+          // 解析事件数据
+          const eventData = this._parseEventStream(chunk);
+          
+          // 处理解析到的事件数据
+          if (eventData && eventData.length > 0) {
+            // 处理每个事件
+            eventData.forEach(event => {
+              if (event.event === 'message' && event.data && event.data.content) {
+                // 累加内容
+                accumulatedContent += event.data.content;
+                
+                // 更新UI显示部分内容
+                this.setData({
+                  cozeResponseContent: accumulatedContent,
+                  analysisProgress: Math.min(20 + receivedChunks * 5, 95),
+                  analysisProgressText: Math.min(20 + receivedChunks * 5, 95).toString(),
+                  analysisStage: stages[Math.min(Math.floor(receivedChunks / 2), stages.length - 1)]
+                });
+              }
+              else if (event.event === 'done') {
+                logger.info('收到完成事件');
+                
+                // 更新UI为完成状态
+                this.setData({
+                  analysisProgress: 100,
+                  analysisProgressText: '100',
+                  analysisStage: '分析完成'
+                });
+                
+                // 保存完整结果
+                this._saveAnalysisResult(accumulatedContent);
+              }
+              else if (event.event === 'error') {
+                logger.error('收到错误事件', event);
+                reject(new Error('API返回错误: ' + (event.data?.message || '未知错误')));
+              }
+            });
+          }
+          
+          // 如果是最后一块数据
+          if (res.isLastChunk) {
+            logger.info('收到最后一块数据');
+            
+            // 如果没有收到done事件，也完成处理
+            if (accumulatedContent.length > 0) {
+              this._saveAnalysisResult(accumulatedContent);
+            }
+          }
+        } catch (error) {
+          logger.error('处理数据块出错:', error);
+        }
+      });
+    });
+  },
+  
+  // 将ArrayBuffer转换为字符串
+  _arrayBufferToString(buffer) {
+    try {
+      return new TextDecoder('utf-8').decode(buffer);
+    } catch (error) {
+      logger.error('转换ArrayBuffer到字符串失败', error);
+      // 备用方案
+      const bytes = new Uint8Array(buffer);
+      let result = '';
+      for (let i = 0; i < bytes.length; i++) {
+        result += String.fromCharCode(bytes[i]);
+      }
+      return result;
+    }
+  },
+  
+  // 解析事件流数据
+  _parseEventStream(text) {
+    if (!text || text.trim() === '') return [];
+    
+    // 分割成行
+    const lines = text.split('\n');
+    const events = [];
+    let currentEvent = null;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      // 空行表示事件结束
+      if (line === '') {
+        if (currentEvent) {
+          events.push(currentEvent);
+          currentEvent = null;
+        }
+        continue;
+      }
+      
+      // 新事件开始
+      if (line.startsWith('event:')) {
+        if (currentEvent) {
+          events.push(currentEvent);
+        }
+        const eventType = line.substring(6).trim();
+        currentEvent = { event: eventType, data: null };
+      }
+      // 数据行
+      else if (line.startsWith('data:') && currentEvent) {
+        const dataStr = line.substring(5).trim();
+        try {
+          currentEvent.data = JSON.parse(dataStr);
+        } catch (e) {
+          currentEvent.data = { content: dataStr };
+        }
+      }
+    }
+    
+    // 处理最后一个事件
+    if (currentEvent) {
+      events.push(currentEvent);
+    }
+    
+    return events;
+  },
+  
+  // 保存分析结果到数据库
+  async _saveAnalysisResult(content) {
+    if (!this.data.fileId || !content) return;
+    
+    try {
+      // 解析内容为JSON或使用原始文本
+      let analysisData = null;
+      
+      try {
+        // 尝试提取JSON内容
+        const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+        if (jsonMatch && jsonMatch[1]) {
+          analysisData = JSON.parse(jsonMatch[1]);
+        } else {
+          // 尝试直接解析整个内容
+          analysisData = JSON.parse(content);
+        }
+      } catch (parseError) {
+        logger.error('解析内容为JSON失败', parseError);
+        // 使用原始文本
+        analysisData = { rawContent: content };
+      }
+      
+      // 调用云函数保存结果
+      const updateResult = await wx.cloud.callFunction({
+        name: 'updateAnalysisResult',
+        data: {
+          fileId: this.data.fileId,
+          analysisResults: analysisData
+        }
+      });
+      
+      logger.info('保存分析结果成功', updateResult);
+      
+      // 更新UI
+      this.setData({
+        analyzing: false,
+        showAnalysisResult: true,
+        analysisResult: analysisData
+      });
+      
+      this._showToast('success', '分析完成');
+    } catch (error) {
+      logger.error('保存分析结果失败', error);
+      
+      // 即使保存失败也显示结果
+      this.setData({
+        analyzing: false,
+        showAnalysisResult: true,
+        analysisResult: { rawContent: content }
+      });
+      
+      this._showToast('info', '分析完成，但保存结果失败');
     }
   },
 
