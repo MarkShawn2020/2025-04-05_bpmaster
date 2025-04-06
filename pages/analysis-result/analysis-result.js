@@ -198,13 +198,19 @@ Page({
       }
     }, 120000); // 2分钟超时
     
+    // 清空之前的结果
+    this.setData({
+      mdContent: '',
+      tocItems: []
+    });
+    
     const requestTask = wx.request({
       url: apiUrl,
       method: 'POST',
       header: headers,
       data: data,
-      enableChunked: true,
-      responseType: 'text',
+      enableChunked: true, // 启用分块接收
+      responseType: 'arraybuffer', // 重要：确保以ArrayBuffer格式接收数据
       success: function(res) {
         // 请求成功只表示请求已经发出
         info('Coze工作流请求成功', res.statusCode);
@@ -236,8 +242,20 @@ Page({
     // 监听分块数据
     requestTask.onChunkReceived(function(res) {
       try {
+        // 记录接收到的原始数据块信息
+        debug('接收数据块', { 
+          chunkSize: res.data.byteLength,
+          isLastChunk: res.isLastChunk || false
+        });
+        
         // 解析ArrayBuffer数据为文本
         const chunk = that.ab2str(res.data);
+        
+        // 如果是最后一个块，记录日志
+        if (res.isLastChunk) {
+          info('接收到最后一个数据块');
+        }
+        
         // 处理数据块
         that.processChunk(chunk);
       } catch (err) {
@@ -248,30 +266,46 @@ Page({
   
   // 处理数据块
   processChunk: function(chunk) {
-    // 尝试解析为JSON
+    // 记录原始接收数据
+    debug('处理数据块', { chunkLength: chunk.length });
+    
     try {
-      // 按行分割
+      // 按行分割，处理SSE格式
       const lines = chunk.split('\n');
+      let currentEvent = {};
       
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
         
-        // 检查是否是SSE的数据行
-        if (line.startsWith('data: ')) {
+        info('处理SSE行', { line, lineNumber: i });
+        
+        // 解析SSE格式的行
+        if (line.startsWith('id: ')) {
+          currentEvent.id = parseInt(line.substring(4));
+        } else if (line.startsWith('event: ')) {
+          currentEvent.event = line.substring(7);
+        } else if (line.startsWith('data: ')) {
           const jsonStr = line.substring(6);
           
-          // 特殊情况: [DONE]
+          // 特殊情况: [DONE]标记，表示流结束
           if (jsonStr === '[DONE]') {
-            info('Coze工作流执行完成');
+            info('收到[DONE]标记，流式传输完成');
             this.handleWorkflowComplete();
             continue;
           }
           
           try {
-            // 解析JSON数据
+            // 尝试解析JSON数据
             const data = JSON.parse(jsonStr);
-            this.handleStreamEvent(data);
+            currentEvent.data = data;
+            
+            // 如果有完整事件（至少包含event和data），处理它
+            if (currentEvent.event) {
+              info('完整事件', currentEvent);
+              this.handleStreamEvent(currentEvent);
+              currentEvent = {}; // 重置为新事件
+            }
           } catch (err) {
             error('解析JSON数据失败', { jsonStr, error: err });
           }
@@ -283,33 +317,40 @@ Page({
   },
   
   // 处理流式事件
-  handleStreamEvent: function(data) {
+  handleStreamEvent: function(eventData) {
     // 检查事件类型
-    if (!data.event) return;
+    if (!eventData || !eventData.event) {
+      error('无效的事件数据', eventData);
+      return;
+    }
     
-    switch (data.event) {
-      case 'workflow.message':
-        this.handleWorkflowMessage(data);
+    debug('处理流式事件', { event: eventData.event, id: eventData.id });
+    
+    switch (eventData.event) {
+      case 'Message':
+        this.handleWorkflowMessage(eventData.data);
         break;
-      case 'workflow.error':
-        this.handleWorkflowError(data);
+      case 'Error':
+        this.handleWorkflowError(eventData.data);
         break;
-      case 'workflow.metadata':
-        this.handleWorkflowMetadata(data);
-        break;
-      case 'workflow.complete':
+      case 'Done':
+        info('收到Done事件，工作流执行完成');
         this.handleWorkflowComplete();
         break;
+      case 'Interrupt':
+        info('工作流被中断', eventData.data);
+        // 这里可以处理工作流中断逻辑
+        break;
       default:
-        info('未知的工作流事件类型', { event: data.event });
+        info('未知的工作流事件类型', { event: eventData.event });
     }
   },
   
   // 处理工作流消息
   handleWorkflowMessage: function(data) {
-    if (!data.data || !data.data.content) return;
+    if (!data || !data.content) return;
     
-    const content = data.data.content;
+    const content = data.content;
     
     // 累加Markdown内容
     const mdContent = this.data.mdContent + content;
@@ -338,7 +379,7 @@ Page({
     this.setData({
       isAnalyzing: false,
       hasError: true,
-      errorMessage: data.data && data.data.message ? data.data.message : '分析过程出现错误'
+      errorMessage: data.message ? data.message : '分析过程出现错误'
     });
     
     this.showToast('分析过程出现错误', 'error');
@@ -478,9 +519,16 @@ Page({
     });
   },
   
-  // 工具方法：ArrayBuffer转字符串
+  // ArrayBuffer转字符串，改进兼容性和处理大数据
   ab2str: function(buf) {
-    return String.fromCharCode.apply(null, new Uint8Array(buf));
+    try {
+      // 使用TextDecoder处理，更现代且高效
+      return new TextDecoder('utf-8').decode(new Uint8Array(buf));
+    } catch (err) {
+      // 兼容性回退方案
+      error('TextDecoder失败，使用回退方案', err);
+      return String.fromCharCode.apply(null, new Uint8Array(buf));
+    }
   },
   
   // 显示Toast
