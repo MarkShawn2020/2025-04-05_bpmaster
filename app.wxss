@@ -1,6 +1,7 @@
 /**app.wxss**/
 page {
   --primary-color: #3563E9;
+  --primary-color-rgb: 53, 99, 233;
   --primary-light: #EEF2FF;
   --success-color: #2DCA8C;
   --warning-color: #FFB800;

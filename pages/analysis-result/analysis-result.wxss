@@ -261,16 +261,56 @@
 
 .action-btn {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   flex: 1;
   margin: 0 10rpx;
+  padding: 20rpx 0;
+  border-radius: 8rpx;
+  background-color: rgba(245, 247, 250, 0.7);
+  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.action-btn::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: transparent;
+  pointer-events: none;
+}
+
+.action-btn.hover::after {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.action-btn.primary {
+  background-color: rgba(53, 99, 233, 0.3);
+  /* color: #fff; */
+}
+
+.action-btn.primary.hover::after {
+  background-color: rgba(0, 0, 0, 0.1);
 }
 
 .btn-icon {
-  width: 36rpx;
-  height: 36rpx;
-  margin-right: 12rpx;
+  width: 48rpx;
+  height: 48rpx;
+  margin-bottom: 12rpx;
+  position: relative;
+  z-index: 1;
+}
+
+.btn-text {
+  font-size: 24rpx;
+  text-align: center;
+  position: relative;
+  z-index: 1;
 }
 
 .toc-container {

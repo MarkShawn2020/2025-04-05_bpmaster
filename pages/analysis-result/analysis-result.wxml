@@ -75,18 +75,18 @@
       <!-- 操作按钮 (分析完成后显示) -->
       <block wx:if="{{isCompleted}}">
         <view class="action-bar">
-          <button class="action-btn" type="default" size="mini" bindtap="handleReAnalyze">
+          <view class="action-btn" hover-class="hover" bindtap="handleReAnalyze">
             <image class="btn-icon" src="/images/refresh.png"></image>
-            重新分析
-          </button>
-          <button class="action-btn" type="primary" size="mini" bindtap="handleSaveReport">
+            <text class="btn-text">重新分析</text>
+          </view>
+          <view class="action-btn primary" hover-class="hover" bindtap="handleSaveReport">
             <image class="btn-icon" src="/images/save.png"></image>
-            保存报告
-          </button>
-          <button class="action-btn" type="default" size="mini" open-type="share">
+            <text class="btn-text">保存报告</text>
+          </view>
+          <view class="action-btn" hover-class="hover" bindtap="handleShareReport">
             <image class="btn-icon" src="/images/share.png"></image>
-            分享
-          </button>
+            <text class="btn-text">分享</text>
+          </view>
         </view>
       </block>
     </block>
