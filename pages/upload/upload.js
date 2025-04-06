@@ -423,22 +423,44 @@ Page({
         return;
       }
 
-      // 更新分析阶段
-      this.setData({
-        analysisStage: '连接Coze API...',
-        analysisProgress: 5,
-        analysisProgressText: '5'
-      });
-
-      // 准备请求参数
-      const requestData = {
-        workflow_id: COZE_CONFIG.WORKFLOW_ID,
-        parameters: {
-          input: [fileUrl],
-          useJson: true,
-          outputFormat: "json"
-        }
+      // 初始化分析任务状态
+      const streamId = `stream_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+      const fileInfo = getApp().globalData.uploadedFiles.find(f => f.fileId === this.data.fileId);
+      
+      logger.info('开始分析任务', { streamId, fileId: this.data.fileId, fileName: fileInfo?.fileName });
+      
+      // 初始化全局分析流数据
+      getApp().globalData.analysisStreams = getApp().globalData.analysisStreams || {};
+      getApp().globalData.analysisStreams[streamId] = {
+        fileId: this.data.fileId,
+        fileName: fileInfo?.fileName || '未知文件',
+        content: '',
+        progress: 5,
+        stage: '连接Coze API...',
+        status: 'analyzing',
+        startTime: new Date(),
+        receivedChunks: 0
       };
+      
+      // 更新UI状态
+      this.setData({
+        analysisProgress: 5,
+        analysisProgressText: '5',
+        analysisStage: '连接Coze API...',
+        showAnalysisResult: true
+      });
+      
+      // 跳转到分析页面，传递流ID
+      wx.navigateTo({
+        url: `/pages/analysis-detail/analysis-detail?mode=realtime&streamId=${streamId}&id=${this.data.fileId}`,
+        success: () => {
+          logger.info('成功导航到实时分析页面', { streamId });
+        },
+        fail: (err) => {
+          logger.error('导航到实时分析页面失败', err);
+          toast.error('打开分析页面失败');
+        }
+      });
 
       // 收集响应内容
       let accumulatedContent = '';
@@ -471,7 +493,14 @@ Page({
           'Authorization': `Bearer ${COZE_CONFIG.TOKEN}`,
           'Accept': 'text/event-stream' // 指定接受事件流
         },
-        data: requestData,
+        data: {
+          workflow_id: COZE_CONFIG.WORKFLOW_ID,
+          parameters: {
+            input: [fileUrl],
+            useJson: true,
+            outputFormat: "json"
+          }
+        },
         responseType: 'text', // 使用文本类型接收数据
         enableChunked: true, // 启用分块接收
         success: (res) => {
@@ -484,6 +513,19 @@ Page({
         },
         fail: (err) => {
           logger.error('Coze API请求失败', err);
+          
+          // 更新全局分析流状态
+          if (getApp().globalData.analysisStreams && this.data.fileId) {
+            const streamId = Object.keys(getApp().globalData.analysisStreams).find(
+              id => getApp().globalData.analysisStreams[id].fileId === this.data.fileId
+            );
+            
+            if (streamId) {
+              getApp().globalData.analysisStreams[streamId].status = 'failed';
+              getApp().globalData.analysisStreams[streamId].error = err.errMsg || '未知错误';
+            }
+          }
+          
           reject(new Error('API请求失败: ' + (err.errMsg || '未知错误')));
         },
         complete: () => {
@@ -493,8 +535,34 @@ Page({
           if (accumulatedContent.length > 0) {
             // 保存到分析结果
             this._saveAnalysisResult(accumulatedContent);
+            
+            // 更新全局分析流状态为完成
+            if (getApp().globalData.analysisStreams && this.data.fileId) {
+              const streamId = Object.keys(getApp().globalData.analysisStreams).find(
+                id => getApp().globalData.analysisStreams[id].fileId === this.data.fileId
+              );
+              
+              if (streamId) {
+                getApp().globalData.analysisStreams[streamId].status = 'completed';
+                getApp().globalData.analysisStreams[streamId].progress = 100;
+                getApp().globalData.analysisStreams[streamId].stage = '分析完成';
+              }
+            }
+            
             resolve(accumulatedContent);
           } else if (receivedChunks === 0) {
+            // 更新全局分析流状态为失败
+            if (getApp().globalData.analysisStreams && this.data.fileId) {
+              const streamId = Object.keys(getApp().globalData.analysisStreams).find(
+                id => getApp().globalData.analysisStreams[id].fileId === this.data.fileId
+              );
+              
+              if (streamId) {
+                getApp().globalData.analysisStreams[streamId].status = 'failed';
+                getApp().globalData.analysisStreams[streamId].error = '未收到任何响应数据';
+              }
+            }
+            
             reject(new Error('未收到任何响应数据'));
           }
         }
@@ -536,6 +604,34 @@ Page({
                   analysisProgressText: Math.min(20 + receivedChunks * 5, 95).toString(),
                   analysisStage: stages[Math.min(Math.floor(receivedChunks / 2), stages.length - 1)]
                 });
+                
+                // 更新全局分析流状态
+                if (getApp().globalData.analysisStreams && this.data.fileId) {
+                  const streamId = Object.keys(getApp().globalData.analysisStreams).find(
+                    id => getApp().globalData.analysisStreams[id].fileId === this.data.fileId
+                  );
+                  
+                  if (streamId) {
+                    const progress = Math.min(20 + receivedChunks * 5, 95);
+                    const stage = stages[Math.min(Math.floor(receivedChunks / 2), stages.length - 1)];
+                    
+                    // 直接更新完整内容，而非增量
+                    getApp().globalData.analysisStreams[streamId].content = accumulatedContent;
+                    getApp().globalData.analysisStreams[streamId].progress = progress;
+                    getApp().globalData.analysisStreams[streamId].stage = stage;
+                    getApp().globalData.analysisStreams[streamId].receivedChunks = receivedChunks;
+                    
+                    // 确保分析流数据会被刷新
+                    logger.info(`更新分析流数据: ID=${streamId}, 内容长度=${accumulatedContent.length}, 进度=${progress}%`);
+                    
+                    // 创建一个新的对象引用，强制触发其他页面的数据刷新
+                    const streams = {};
+                    Object.keys(getApp().globalData.analysisStreams).forEach(key => {
+                      streams[key] = {...getApp().globalData.analysisStreams[key]};
+                    });
+                    getApp().globalData.analysisStreams = streams;
+                  }
+                }
               }
               else if (event.event === 'done') {
                 logger.info('收到完成事件');
@@ -547,11 +643,46 @@ Page({
                   analysisStage: '分析完成'
                 });
                 
-                // 保存完整结果
-                this._saveAnalysisResult(accumulatedContent);
+                // 更新全局分析流状态
+                if (getApp().globalData.analysisStreams && this.data.fileId) {
+                  const streamId = Object.keys(getApp().globalData.analysisStreams).find(
+                    id => getApp().globalData.analysisStreams[id].fileId === this.data.fileId
+                  );
+                  
+                  if (streamId) {
+                    getApp().globalData.analysisStreams[streamId].progress = 100;
+                    getApp().globalData.analysisStreams[streamId].stage = '分析完成';
+                    getApp().globalData.analysisStreams[streamId].status = 'completed';
+                    
+                    // 在完成时确保最终内容已被保存
+                    getApp().globalData.analysisStreams[streamId].content = accumulatedContent;
+                    
+                    // 创建一个新的对象引用，强制触发其他页面的数据刷新
+                    logger.info(`分析完成，最终内容长度: ${accumulatedContent.length}`);
+                    
+                    const streams = {};
+                    Object.keys(getApp().globalData.analysisStreams).forEach(key => {
+                      streams[key] = {...getApp().globalData.analysisStreams[key]};
+                    });
+                    getApp().globalData.analysisStreams = streams;
+                  }
+                }
               }
               else if (event.event === 'error') {
                 logger.error('收到错误事件', event);
+                
+                // 更新全局分析流状态
+                if (getApp().globalData.analysisStreams && this.data.fileId) {
+                  const streamId = Object.keys(getApp().globalData.analysisStreams).find(
+                    id => getApp().globalData.analysisStreams[id].fileId === this.data.fileId
+                  );
+                  
+                  if (streamId) {
+                    getApp().globalData.analysisStreams[streamId].status = 'failed';
+                    getApp().globalData.analysisStreams[streamId].error = event.data?.message || '未知错误';
+                  }
+                }
+                
                 reject(new Error('API返回错误: ' + (event.data?.message || '未知错误')));
               }
             });
@@ -563,6 +694,20 @@ Page({
             
             // 如果没有收到done事件，也完成处理
             if (accumulatedContent.length > 0) {
+              // 更新全局分析流状态
+              if (getApp().globalData.analysisStreams && this.data.fileId) {
+                const streamId = Object.keys(getApp().globalData.analysisStreams).find(
+                  id => getApp().globalData.analysisStreams[id].fileId === this.data.fileId
+                );
+                
+                if (streamId) {
+                  getApp().globalData.analysisStreams[streamId].progress = 100;
+                  getApp().globalData.analysisStreams[streamId].stage = '分析完成';
+                  getApp().globalData.analysisStreams[streamId].status = 'completed';
+                }
+              }
+              
+              // 保存完整结果
               this._saveAnalysisResult(accumulatedContent);
             }
           }

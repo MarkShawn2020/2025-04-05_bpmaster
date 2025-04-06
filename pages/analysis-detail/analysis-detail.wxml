@@ -58,4 +58,90 @@
 
   <!-- Toast提示 -->
   <mp-toast id="toast"></mp-toast>
+
+  <view class="analysis-card" wx:if="{{!loading && !error}}">
+    <!-- 实时分析模式 -->
+    <view class="realtime-analysis" wx:if="{{isRealtime}}">
+
+      
+      <view class="realtime-content">
+        <view style="white-space: pre-wrap; word-break: break-word;">{{streamContent}}</view>
+        
+        <!-- 调试信息 -->
+        <view wx:if="{{!streamContent && streamProgress > 0}}" style="margin-top: 20rpx; padding: 20rpx; background-color: #f8f8f8; border-radius: 8rpx; font-size: 24rpx; color: #666;">
+          <view>数据状态: {{streamStatus || 'unknown'}}</view>
+          <view>已收到数据: {{streamContent ? '是 (' + streamContent.length + '字符)' : '否'}}</view>
+          <view>当前进度: {{streamProgress}}%</view>
+          <view>当前阶段: {{streamStage}}</view>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 普通分析模式 -->
+    <view class="normal-analysis" wx:else>
+      <view class="file-info">
+        <view class="file-name">{{analysisDetail.fileName}}</view>
+        <view class="file-meta">{{analysisDetail.fileSize}} | {{analysisDetail.uploadTime}}</view>
+      </view>
+      
+      <view class="analysis-tabs">
+        <view class="tab {{activeTab === 'summary' ? 'active' : ''}}" bindtap="switchTab" data-tab="summary">概览</view>
+        <view class="tab {{activeTab === 'issues' ? 'active' : ''}}" bindtap="switchTab" data-tab="issues">问题</view>
+        <view class="tab {{activeTab === 'suggestions' ? 'active' : ''}}" bindtap="switchTab" data-tab="suggestions">建议</view>
+      </view>
+      
+      <!-- 内容区域 -->
+      <view class="tab-content">
+        <!-- 概览 -->
+        <view class="summary-tab" wx:if="{{activeTab === 'summary'}}">
+          <view class="overall-score">
+            <view class="score-value">{{analysisDetail.overallScore}}</view>
+            <view class="score-label">总评分</view>
+          </view>
+          
+          <view class="summary-text">{{analysisDetail.summary}}</view>
+          
+          <!-- 添加图表 -->
+        </view>
+        
+        <!-- 问题列表 -->
+        <view class="issues-tab" wx:elif="{{activeTab === 'issues'}}">
+          <view class="issues-list">
+            <view class="empty-tip" wx:if="{{!issuesList || issuesList.length === 0}}">暂无问题数据</view>
+            <view class="issue-item" wx:for="{{issuesList}}" wx:key="id">
+              <view class="issue-header">
+                <view class="issue-type {{item.type}}"></view>
+                <view class="issue-title">{{item.title}}</view>
+              </view>
+              <view class="issue-body">
+                <view class="issue-desc">{{item.description}}</view>
+                <view class="issue-location">位置: {{item.location}}</view>
+                <view class="issue-suggestion" wx:if="{{item.suggestion}}">建议: {{item.suggestion}}</view>
+              </view>
+            </view>
+          </view>
+        </view>
+        
+        <!-- 建议列表 -->
+        <view class="suggestions-tab" wx:elif="{{activeTab === 'suggestions'}}">
+          <view class="suggestions-list">
+            <view class="empty-tip" wx:if="{{!suggestionsList || suggestionsList.length === 0}}">暂无建议数据</view>
+            <view class="suggestion-item" wx:for="{{suggestionsList}}" wx:key="id">
+              <view class="suggestion-header">
+                <view class="suggestion-priority {{item.priority}}"></view>
+                <view class="suggestion-title">{{item.title}}</view>
+              </view>
+              <view class="suggestion-desc">{{item.description}}</view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 底部操作栏 -->
+    <view class="action-bar">
+      <button class="btn-secondary" bindtap="navigateBack">返回</button>
+      <button class="btn-primary" bindtap="exportReport" wx:if="{{!isRealtime}}">导出报告</button>
+    </view>
+  </view>
 </view> 

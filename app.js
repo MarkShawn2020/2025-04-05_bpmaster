@@ -24,7 +24,8 @@ function resetAppState() {
         currentBP: null,
         uploadedFiles: [],
         analysisList: [],
-        isDev: isDev
+        isDev: isDev,
+        analysisStreams: {}
       };
     }
     
@@ -45,8 +46,8 @@ App({
     currentBP: null,
     uploadedFiles: [],
     analysisList: [],
-    isDev: isDev,
-    currentEnv: 'prod'
+    isDev: true, // 开发模式标志
+    analysisStreams: {} // 初始化分析流数据容器
   },
 
   onLaunch() {

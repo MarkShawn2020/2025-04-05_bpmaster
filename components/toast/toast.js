@@ -77,29 +77,51 @@ Component({
       });
     },
     
-    // 信息提示
-    info(message, duration = 2000) {
-      this.showToast({ type: 'info', message, duration });
+    // 显示成功提示
+    success(message) {
+      console.log('Toast success:', message);
+      this.setData({
+        type: 'success',
+        message,
+        show: true
+      });
+      this._autoHide();
     },
     
-    // 成功提示
-    success(message, duration = 2000) {
-      this.showToast({ type: 'success', message, duration });
+    // 显示错误提示
+    error(message) {
+      console.log('Toast error:', message);
+      this.setData({
+        type: 'error',
+        message,
+        show: true
+      });
+      this._autoHide();
     },
     
-    // 错误提示
-    error(message, duration = 2000) {
-      this.showToast({ type: 'error', message, duration });
+    // 显示信息提示
+    info(message) {
+      console.log('Toast info:', message);
+      this.setData({
+        type: 'info',
+        message,
+        show: true
+      });
+      this._autoHide();
     },
     
-    // 警告提示
-    warning(message, duration = 2000) {
-      this.showToast({ type: 'warning', message, duration });
-    },
-    
-    // 加载提示
-    loading(message = '加载中...') {
-      this.showToast({ type: 'loading', message, duration: 0 });
+    // 显示加载提示
+    loading(message) {
+      console.log('Toast loading:', message);
+      this.setData({
+        type: 'loading',
+        message,
+        show: true
+      });
+      // 返回一个对象，便于控制隐藏
+      return {
+        hide: () => this.hide()
+      };
     },
 
     // 清除定时器
@@ -108,6 +130,24 @@ Component({
         clearTimeout(this.data.timer);
         this.data.timer = null;
       }
+    },
+
+    // 自动隐藏
+    _autoHide() {
+      if (this.hideTimeout) {
+        clearTimeout(this.hideTimeout);
+      }
+      this.hideTimeout = setTimeout(() => {
+        this.hide();
+      }, this.data.duration);
+    },
+    
+    // 隐藏提示
+    hide() {
+      console.log('Toast hide');
+      this.setData({
+        show: false
+      });
     }
   },
   

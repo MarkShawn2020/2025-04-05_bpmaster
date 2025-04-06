@@ -45,7 +45,15 @@ Page({
     sectors: [],
     contentLoaded: false,
     error: '',
-    refreshCount: 0
+    refreshCount: 0,
+    // 实时分析相关数据
+    isRealtime: false,
+    streamId: '',
+    streamContent: '',
+    streamProgress: 0,
+    streamStage: '',
+    streamStatus: '',
+    pollingInterval: null
   },
 
   onLoad(options) {
@@ -57,8 +65,19 @@ Page({
         directLoad: options.direct === 'true'
       });
       
-      // 获取详情数据
-      this._loadBPDetail(options.id);
+      // 检查是否是实时分析模式
+      if (options.mode === 'realtime' && options.streamId) {
+        this.setData({
+          isRealtime: true,
+          streamId: options.streamId
+        });
+        
+        // 开始轮询获取实时分析数据
+        this._startRealtimePolling(options.streamId);
+      } else {
+        // 普通模式 - 获取详情数据
+        this._loadBPDetail(options.id);
+      }
     } else {
       this.setData({
         loading: false,
@@ -67,10 +86,191 @@ Page({
       this._showToast('error', '无效的文件ID');
     }
   },
+  
+  // 开始轮询获取实时分析数据
+  _startRealtimePolling(streamId) {
+    logger.info('开始实时分析轮询', streamId);
+    
+    // 显示页面标题
+    wx.setNavigationBarTitle({
+      title: '实时分析中...'
+    });
+    
+    // 取消预先存在的轮询
+    if (this.data.pollingInterval) {
+      clearInterval(this.data.pollingInterval);
+    }
+    
+    // 获取应用全局状态
+    const app = getApp();
+    
+    // 如果分析流已存在，直接获取初始内容
+    if (app.globalData.analysisStreams && app.globalData.analysisStreams[streamId]) {
+      const streamData = app.globalData.analysisStreams[streamId];
+      
+      // 显示初始数据
+      this.setData({
+        loading: false,
+        streamContent: streamData.content || '',
+        streamProgress: streamData.progress || 0,
+        streamStage: streamData.stage || '正在连接分析服务...',
+        streamStatus: streamData.status || 'analyzing',
+        analysisDetail: {
+          fileName: streamData.fileName || '实时分析中...',
+          overallScore: 0,
+          summary: streamData.stage || '正在连接分析服务...',
+          status: streamData.status || 'analyzing'
+        }
+      });
+      
+      logger.info(`初始化轮询，已显示初始内容: ${streamData.content ? streamData.content.substring(0, 20) + '...' : '(无内容)'}`);
+    } else {
+      // 显示加载UI
+      this.setData({
+        loading: false,
+        streamContent: '',
+        streamProgress: 5,
+        streamStage: '正在连接分析服务...',
+        streamStatus: 'analyzing',
+        analysisDetail: {
+          fileName: '实时分析中...',
+          overallScore: 0,
+          summary: '正在连接分析服务...',
+          status: 'analyzing'
+        }
+      });
+    }
+    
+    // 立即获取一次数据
+    this._fetchRealtimeData(streamId);
+    
+    // 设置轮询定时器 - 每200毫秒更新一次
+    const pollingInterval = setInterval(() => {
+      this._fetchRealtimeData(streamId);
+    }, 200);
+    
+    this.setData({
+      pollingInterval: pollingInterval
+    });
+  },
+  
+  // 获取实时分析数据
+  _fetchRealtimeData(streamId) {
+    const app = getApp();
+    if (!app.globalData.analysisStreams || !app.globalData.analysisStreams[streamId]) {
+      logger.error('分析流数据不存在', streamId);
+      this.setData({
+        error: '分析流数据不存在',
+        loading: false
+      });
+      return;
+    }
+    
+    const streamData = app.globalData.analysisStreams[streamId];
+    logger.info(`获取实时数据: ID=${streamId}, 内容长度=${streamData.content ? streamData.content.length : 0}, 进度=${streamData.progress}%, 状态=${streamData.status}`);
+    
+    // 处理markdown内容，确保能正确渲染
+    let processedContent = streamData.content || '';
+    
+    // 尝试将内容转换为HTML格式以便在rich-text中显示
+    try {
+      // 如果内容不为空，进行处理
+      if (processedContent.length > 0) {
+        // 检查是否包含markdown代码块
+        if (processedContent.includes('```')) {
+          // 处理代码块
+          processedContent = processedContent.replace(/```(json|javascript|js|html|css|bash|shell)?([\s\S]*?)```/g, 
+            '<pre style="background-color:#f5f5f5;padding:10px;border-radius:5px;overflow-x:auto;">$2</pre>');
+        }
+        
+        // 处理其他markdown语法
+        // 替换标题
+        processedContent = processedContent.replace(/^#\s+(.*?)$/gm, '<h1 style="font-size:18px;font-weight:bold;margin:15px 0 10px 0;">$1</h1>');
+        processedContent = processedContent.replace(/^##\s+(.*?)$/gm, '<h2 style="font-size:16px;font-weight:bold;margin:15px 0 10px 0;">$1</h2>');
+        processedContent = processedContent.replace(/^###\s+(.*?)$/gm, '<h3 style="font-size:15px;font-weight:bold;margin:12px 0 8px 0;">$1</h3>');
+        
+        // 替换加粗和斜体
+        processedContent = processedContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        processedContent = processedContent.replace(/\*(.*?)\*/g, '<em>$1</em>');
+        
+        // 替换列表
+        processedContent = processedContent.replace(/^-\s+(.*?)$/gm, '<li style="margin-left:20px;margin-bottom:5px;">$1</li>');
+        
+        // 替换换行
+        processedContent = processedContent.replace(/\n/g, '<br/>');
+      }
+    } catch (error) {
+      logger.error('处理Markdown内容失败', error);
+      // 如果处理失败，使用原始内容
+      processedContent = streamData.content || '';
+    }
+    
+    // 更新页面数据
+    this.setData({
+      streamContent: streamData.content || '',
+      streamProgress: streamData.progress || 0,
+      streamStage: streamData.stage || '正在分析...',
+      streamStatus: streamData.status || 'analyzing',
+      loading: false,
+      error: '',
+      analysisDetail: {
+        fileName: streamData.fileName || '实时分析中...',
+        overallScore: 0, 
+        summary: streamData.stage || '正在分析...',
+        status: streamData.status || 'analyzing'
+      },
+      markdownContent: processedContent
+    });
+    
+    // 如果分析完成
+    if (streamData.status === 'completed') {
+      logger.info('实时分析已完成', streamId);
+      
+      // 停止轮询
+      if (this.data.pollingInterval) {
+        clearInterval(this.data.pollingInterval);
+      }
+      
+      // 将文件ID保存下来
+      wx.setStorage({
+        key: 'lastAnalyzedFileId',
+        data: streamData.fileId
+      });
+      
+      // 重新载入完整的分析结果
+      setTimeout(() => {
+        this._loadBPDetail(streamData.fileId);
+      }, 1000);
+    }
+    
+    // 如果分析失败
+    if (streamData.status === 'failed') {
+      logger.error('实时分析失败', streamData.error);
+      
+      // 停止轮询
+      if (this.data.pollingInterval) {
+        clearInterval(this.data.pollingInterval);
+      }
+      
+      this.setData({
+        error: streamData.error || '分析失败',
+        analysisDetail: {
+          ...this.data.analysisDetail,
+          status: 'failed',
+          summary: '分析失败: ' + (streamData.error || '未知错误')
+        }
+      });
+    }
+  },
 
   async _loadBPDetail(id) {
     wx.showLoading({
       title: '加载分析结果',
+    });
+    
+    // 设置标题
+    wx.setNavigationBarTitle({
+      title: '分析结果'
     });
     
     wx.cloud.callFunction({
@@ -105,6 +305,20 @@ Page({
         wx.hideLoading();
       }
     });
+  },
+  
+  onHide() {
+    // 当页面隐藏时，停止轮询
+    if (this.data.pollingInterval) {
+      clearInterval(this.data.pollingInterval);
+    }
+  },
+  
+  onUnload() {
+    // 当页面卸载时，停止轮询
+    if (this.data.pollingInterval) {
+      clearInterval(this.data.pollingInterval);
+    }
   },
   
   // 转换API数据到视图模型
@@ -413,7 +627,7 @@ Page({
   },
   
   // 返回上一页
-  navigateBack() {
+  navigateBack: function() {
     wx.navigateBack();
   },
   
@@ -461,68 +675,32 @@ Page({
     }
   },
   
-  // 设置分析数据
-  _setAnalysisData(data) {
-    try {
-      let analysisResults = data.analysisResults;
-      let markdownContent = '';
-      
-      // 检查是否需要解析嵌套的JSON数据
-      if (analysisResults && typeof analysisResults === 'object') {
-        // 检查是否存在data字段且是字符串（可能是嵌套JSON）
-        if (analysisResults.data && typeof analysisResults.data === 'string') {
-          try {
-            // 解析内部JSON字符串
-            const parsedData = JSON.parse(analysisResults.data);
-            
-            if (parsedData.data && typeof parsedData.data === 'string') {
-              // 提取Markdown内容
-              // 尝试匹配```markdown ... ```格式
-              const markdownMatch = parsedData.data.match(/```markdown\s*([\s\S]*?)\s*```/);
-              if (markdownMatch && markdownMatch[1]) {
-                markdownContent = markdownMatch[1];
-              } else {
-                // 如果没有markdown代码块格式，直接使用内容
-                markdownContent = parsedData.data;
-              }
-            }
-          } catch (parseError) {
-            logger.error('解析内部JSON失败', parseError);
-            // 尝试直接使用data字段
-            markdownContent = analysisResults.data;
-          }
-        } else if (analysisResults.content) {
-          // 兼容其他可能的格式
-          markdownContent = analysisResults.content;
-        } else if (analysisResults.summary) {
-          // 如果有summary但没有content
-          markdownContent = analysisResults.summary;
-        }
-      }
-      
-      // 设置到数据中
-      this.setData({
-        analysisDetail: data,
-        fileInfo: {
-          name: data.fileName || '未命名文件',
-          size: data.fileSize || '未知大小',
-          uploadDate: data.uploadDate ? new Date(data.uploadDate).toLocaleString() : '未知时间',
-          status: data.status || 'unknown',
-          type: data.fileType || 'pdf'
-        },
-        markdownContent: markdownContent,
-        contentLoaded: true,
-        loading: false
-      });
-      
-      logger.info('设置分析数据成功', { hasContent: !!markdownContent });
-    } catch (error) {
-      logger.error('设置分析数据失败', error);
-      this.setData({
-        loading: false,
-        error: '解析分析结果失败'
-      });
-      this._showToast('error', '解析分析结果失败');
+  // 将分析结果设置到页面
+  _setAnalysisData: function(fileData) {
+    let markdownContent = '';
+    
+    // 从分析结果中获取Markdown内容
+    if (fileData.analysisResults && fileData.analysisResults.markdownContent) {
+      markdownContent = fileData.analysisResults.markdownContent;
     }
+    
+    // 设置数据
+    this.setData({
+      fileInfo: {
+        name: fileData.name || '未命名文件',
+        size: fileData.size || '未知大小',
+        uploadDate: fileData.uploadDate ? new Date(fileData.uploadDate).toLocaleString() : '未知时间',
+        type: fileData.type || 'pdf',
+        status: fileData.status || 'uploaded'
+      },
+      markdownContent,
+      contentLoaded: true,
+      loading: false
+    });
+    
+    // 更新页面标题
+    wx.setNavigationBarTitle({
+      title: fileData.name ? `分析报告: ${fileData.name}` : '分析报告'
+    });
   }
 }); 
