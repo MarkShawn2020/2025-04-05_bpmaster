@@ -19,7 +19,10 @@ Page({
     showAnalysisResult: false, // 是否展示分析结果
     previewLoading: false, // 预览加载状态
     error: '',
-    fileId: null
+    fileId: null,
+    analysisTaskId: null,
+    pollingFailCount: 0,
+    statusPollingTimeout: null
   },
 
   onLoad(options) {
@@ -332,55 +335,149 @@ Page({
         throw new Error('获取文件URL失败');
       }
       
-      // 调用云函数进行分析
-      const result = await wx.cloud.callFunction({
+      // 显示加载提示
+      wx.showLoading({
+        title: '提交分析任务...',
+        mask: true
+      });
+      
+      // 第一步：启动分析任务但不等待结果（异步模式）
+      const startResult = await wx.cloud.callFunction({
         name: 'analyzeBPWithCoze',
         data: {
           fileURL,
           useJson: false,
           outputFormat: 'markdown',
-          fileId: this.data.fileId
+          fileId: this.data.fileId,
+          startOnly: true
         }
       });
       
-      logger.info('BP分析完成', result);
-
-      // 停止模拟进度
-      clearInterval(this.analysisProgressInterval);
-
-      if (result.result && result.result.code === 200) {
-        this.setData({
-          analyzing: false,
-          analysisProgress: 100,
-          analysisStage: '分析完成',
-          showAnalysisResult: true,
-          analysisResult: {
-            markdownContent: result.result.data.content,
-            contentType: result.result.data.contentType
-          }
-        });
-
-        this._showToast('success', '分析完成');
+      // 隐藏启动任务的加载提示
+      wx.hideLoading();
+      
+      if (startResult.result && startResult.result.code === 200) {
+        logger.info('BP分析任务已提交', startResult.result);
         
-        // 跳转到分析详情页
-        setTimeout(() => {
-          wx.navigateTo({
-            url: `/pages/analysis-detail/analysis-detail?id=${this.data.fileId}&direct=true`
-          });
-        }, 1500);
+        // 设置分析状态为进行中，并开始轮询
+        this.setData({
+          analysisTaskId: startResult.result.data.taskId,
+          analysisStage: '分析进行中',
+          analysisProgress: 30
+        });
+        
+        // 提示用户
+        this._showToast('success', '分析任务已提交，正在处理中');
+        
+        // 开始轮询任务状态
+        this._pollAnalysisStatus();
       } else {
-        throw new Error(result.result?.message || '分析失败');
+        throw new Error(startResult.result?.message || '提交分析任务失败');
       }
     } catch (error) {
       // 停止模拟进度
       clearInterval(this.analysisProgressInterval);
+      
+      // 隐藏可能存在的加载提示
+      wx.hideLoading();
 
-      logger.error('文件分析失败', error);
+      logger.error('提交分析任务失败', error);
       this.setData({
         analyzing: false,
-        error: error.message || '分析失败，请重试'
+        error: error.message || '提交分析任务失败，请重试'
       });
-      this._showToast('error', error.message || '分析失败，请重试');
+      this._showToast('error', error.message || '提交分析任务失败，请重试');
+    }
+  },
+
+  // 轮询分析状态
+  async _pollAnalysisStatus() {
+    if (!this.data.fileId || !this.data.analyzing) {
+      return;
+    }
+    
+    // 避免重复设置轮询
+    if (this.statusPollingTimeout) {
+      clearTimeout(this.statusPollingTimeout);
+    }
+    
+    try {
+      // 查询分析状态
+      const statusRes = await wx.cloud.callFunction({
+        name: 'getBPDetail',
+        data: { id: this.data.fileId }
+      });
+      
+      if (statusRes.result && statusRes.result.code === 200) {
+        const fileData = statusRes.result.data;
+        
+        // 检查分析状态
+        if (fileData.status === 'analyzed' && fileData.analysisResults) {
+          // 分析已完成
+          logger.info('BP分析已完成', fileData);
+          
+          // 停止模拟进度和轮询
+          clearInterval(this.analysisProgressInterval);
+          
+          this.setData({
+            analyzing: false,
+            analysisProgress: 100,
+            analysisStage: '分析完成',
+            showAnalysisResult: true,
+            analysisResult: fileData.analysisResults
+          });
+          
+          this._showToast('success', '分析完成');
+          
+          // 跳转到分析详情页
+          setTimeout(() => {
+            wx.navigateTo({
+              url: `/pages/analysis-detail/analysis-detail?id=${this.data.fileId}&direct=true`
+            });
+          }, 1500);
+          
+          return;
+        } else if (fileData.status === 'failed') {
+          // 分析失败
+          throw new Error(fileData.error || '分析失败');
+        } else {
+          // 分析仍在进行中，继续轮询
+          let progress = this.data.analysisProgress;
+          if (progress < 90) {
+            progress += 3; // 每次增加一点进度
+          }
+          
+          this.setData({
+            analysisProgress: progress
+          });
+          
+          // 设置下一次轮询
+          this.statusPollingTimeout = setTimeout(() => {
+            this._pollAnalysisStatus();
+          }, 5000); // 5秒轮询一次
+        }
+      } else {
+        throw new Error(statusRes.result?.message || '查询分析状态失败');
+      }
+    } catch (error) {
+      logger.error('轮询分析状态失败', error);
+      
+      // 如果连续失败超过3次，则停止轮询
+      this.pollingFailCount = (this.pollingFailCount || 0) + 1;
+      
+      if (this.pollingFailCount >= 3) {
+        clearInterval(this.analysisProgressInterval);
+        this.setData({
+          analyzing: false,
+          error: '查询分析状态失败，请稍后在「历史记录」中查看结果'
+        });
+        this._showToast('error', '查询分析状态失败');
+      } else {
+        // 继续轮询
+        this.statusPollingTimeout = setTimeout(() => {
+          this._pollAnalysisStatus();
+        }, 8000); // 失败后延长轮询间隔
+      }
     }
   },
 
@@ -521,6 +618,20 @@ Page({
         title: message,
         icon: type === 'success' ? 'success' : 'none'
       });
+    }
+  },
+
+  // 组件销毁时清理
+  onUnload() {
+    // 清除所有定时器
+    if (this.uploadProgressInterval) {
+      clearInterval(this.uploadProgressInterval);
+    }
+    if (this.analysisProgressInterval) {
+      clearInterval(this.analysisProgressInterval);
+    }
+    if (this.statusPollingTimeout) {
+      clearTimeout(this.statusPollingTimeout);
     }
   }
 }) 

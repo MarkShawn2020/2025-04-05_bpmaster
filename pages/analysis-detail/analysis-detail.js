@@ -68,84 +68,63 @@ Page({
   },
 
   async _loadBPDetail(id) {
-    try {
-      this.setData({ loading: true });
-      logger.info('加载分析详情', { id });
-
-      // 使用真实API获取分析数据
-      const response = await apiService.getBPDetail(id);
-      
-      let analysisDetail;
-      if (response && response.code === 200 && response.data) {
-        // 转换API返回的数据为页面所需的格式
-        const bpData = response.data;
+    wx.showLoading({
+      title: '加载分析结果',
+    });
+    
+    wx.cloud.callFunction({
+      name: 'getBPDetail',
+      data: { id },
+      success: (res) => {
+        logger.info('获取BP详情成功', res);
         
-        if (!bpData.analysisResults) {
-          throw new Error('此文件尚未进行分析或分析尚未完成');
+        if (res.result && res.result.code === 200) {
+          const data = res.result.data;
+          
+          let markdownContent = '';
+          
+          // 从分析结果中获取Markdown内容
+          if (data.analysisResults && data.analysisResults.markdownContent) {
+            markdownContent = data.analysisResults.markdownContent;
+          }
+          
+          // 设置数据
+          this.setData({
+            fileInfo: {
+              name: data.name || '未命名文件',
+              size: data.size || '未知大小',
+              uploadDate: data.uploadDate ? new Date(data.uploadDate).toLocaleString() : '未知时间',
+              type: data.type || 'pdf'
+            },
+            markdownContent,
+            contentLoaded: true,
+            loading: false
+          });
+          
+          // 更新页面标题
+          wx.setNavigationBarTitle({
+            title: data.name ? `分析报告: ${data.name}` : '分析报告'
+          });
+        } else {
+          this.setData({
+            loading: false,
+            error: res.result?.message || '加载失败'
+          });
+          this._showToast('error', '加载分析结果失败');
         }
-        
-        analysisDetail = this.transformAPIDataToViewModel(bpData);
-      } else {
-        // 如果API调用失败或无数据，使用模拟数据（仅开发环境使用）
-        logger.warn('API返回无效，使用模拟数据', response);
-        analysisDetail = this.getMockAnalysisDetail();
+      },
+      fail: (err) => {
+        logger.error('获取BP详情失败', err);
+        this.setData({
+          loading: false,
+          error: err.message || '网络错误'
+        });
+        this._showToast('error', '网络错误，请重试');
+      },
+      complete: () => {
+        wx.hideLoading();
       }
-      
-      // 更新雷达图数据
-      const radarData = {
-        ...this.data.radarData,
-        series: [
-          {
-            name: '评分',
-            data: [
-              analysisDetail.scores.marketAnalysis,
-              analysisDetail.scores.productPositioning,
-              analysisDetail.scores.teamCapability,
-              analysisDetail.scores.financialForecast,
-              analysisDetail.scores.riskAssessment
-            ]
-          }
-        ]
-      };
-      
-      // 更新柱状图数据
-      const barData = {
-        ...this.data.barData,
-        series: [
-          {
-            name: '得分',
-            data: [
-              analysisDetail.scores.marketAnalysis,
-              analysisDetail.scores.productPositioning,
-              analysisDetail.scores.teamCapability,
-              analysisDetail.scores.financialForecast,
-              analysisDetail.scores.riskAssessment
-            ]
-          },
-          {
-            name: '行业平均',
-            data: [75, 68, 82, 70, 65]
-          }
-        ]
-      };
-      
-      this.setData({
-        analysisDetail,
-        radarData,
-        barData,
-        issuesList: analysisDetail.issues,
-        suggestionsList: analysisDetail.suggestions,
-        loading: false
-      });
-      
-    } catch (error) {
-      logger.error('加载分析详情失败', error);
-      wx.showToast({
-        title: '加载失败',
-        icon: 'error'
-      });
-      this.setData({ loading: false });
-    }
+    });
   },
   
   // 转换API数据到视图模型

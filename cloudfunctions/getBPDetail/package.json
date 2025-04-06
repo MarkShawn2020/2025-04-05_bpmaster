@@ -1,7 +1,7 @@
 {
   "name": "getBPDetail",
   "version": "1.0.0",
-  "description": "获取BP文件详情的云函数",
+  "description": "获取BP文件详情和分析结果",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@coze/api": "^1.1.0",
     "wx-server-sdk": "~2.6.3"
   }
 } 
