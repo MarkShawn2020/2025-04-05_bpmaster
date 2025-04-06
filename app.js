@@ -45,46 +45,74 @@ App({
     currentBP: null,
     uploadedFiles: [],
     analysisList: [],
-    isDev: isDev
+    isDev: isDev,
+    currentEnv: 'prod'
   },
 
   onLaunch() {
-    logger.info('App launched')
+    logger.info('应用启动');
     
-    // 处理异常情况：如果应用状态不一致，尝试进行修复
-    this.checkAndFixAppState();
+    // 初始化云函数
+    if (!wx.cloud) {
+      logger.error('请使用 2.2.3 或以上的基础库以使用云能力');
+    } else {
+      try {
+        wx.cloud.init({
+          env: 'cloud1-3g1234h59b10cfa8', // 请更改为你自己的云开发环境ID
+          traceUser: true
+        });
+        logger.info('云函数环境初始化成功');
+      } catch (e) {
+        logger.error('云函数环境初始化失败', e);
+      }
+    }
     
     // 检查更新
+    this.checkUpdate();
+  },
+  
+  // 检查更新
+  checkUpdate() {
     if (wx.canIUse('getUpdateManager')) {
-      const updateManager = wx.getUpdateManager()
-      updateManager.onCheckForUpdate(function (res) {
+      const updateManager = wx.getUpdateManager();
+      updateManager.onCheckForUpdate(function(res) {
         if (res.hasUpdate) {
-          logger.info('有新版本')
-          updateManager.onUpdateReady(function () {
+          updateManager.onUpdateReady(function() {
             wx.showModal({
               title: '更新提示',
               content: '新版本已经准备好，是否重启应用？',
-              success: function (res) {
+              success: function(res) {
                 if (res.confirm) {
-                  updateManager.applyUpdate()
+                  updateManager.applyUpdate();
                 }
               }
-            })
-          })
-          updateManager.onUpdateFailed(function () {
+            });
+          });
+          
+          updateManager.onUpdateFailed(function() {
             wx.showModal({
-              title: '更新提示',
-              content: '新版本下载失败，请检查网络后重试'
-            })
-          })
+              title: '已经有新版本',
+              content: '新版本已经上线，请删除当前小程序，重新搜索打开'
+            });
+          });
         }
-      })
+      });
     }
-    
-    // 获取用户登录状态
-    this.checkLoginStatus()
   },
   
+  // 错误处理
+  onError(error) {
+    logger.error('应用程序错误', error);
+  },
+  
+  // 页面不存在
+  onPageNotFound(res) {
+    logger.warn('页面不存在', res);
+    wx.switchTab({
+      url: '/pages/index/index'
+    });
+  },
+
   // 检查并修复应用状态
   checkAndFixAppState() {
     try {
@@ -243,8 +271,4 @@ App({
   onHide() {
     logger.info('App hidden')
   },
-
-  onError(err) {
-    logger.error('App error:', err)
-  }
 }) 

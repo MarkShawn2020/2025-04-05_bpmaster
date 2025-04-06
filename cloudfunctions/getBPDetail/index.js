@@ -3,72 +3,68 @@ const cloud = require('wx-server-sdk')
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV }) // 使用当前云环境
 
+const db = cloud.database()
+const _ = db.command
+const BP_COLLECTION = 'bp_files'
+
 /**
  * 获取BP文件详情的云函数
  * 根据ID获取BP文件的详细信息及分析结果
  */
 exports.main = async (event, context) => {
-  console.log('获取BP文件详情云函数被调用', event)
-  
+  const { OPENID } = cloud.getWXContext()
   const { id } = event
-  
+
   if (!id) {
     return {
       code: 400,
-      message: 'ID不能为空'
+      message: '文件ID不能为空'
     }
   }
-  
-  const wxContext = cloud.getWXContext()
-  const { OPENID } = wxContext
-  
+
   try {
-    const db = cloud.database()
-    const bpCollection = db.collection('bp_files')
+    console.log(`查询BP文件，文件ID: ${id}, 用户: ${OPENID}`)
     
-    // 查询文件详情
-    const fileInfo = await bpCollection.doc(id).get()
+    // 从数据库获取文件记录
+    const fileRecord = await db.collection(BP_COLLECTION)
+      .doc(id)
+      .get()
     
-    if (!fileInfo.data) {
+    if (!fileRecord || !fileRecord.data) {
       return {
         code: 404,
         message: '文件不存在'
       }
     }
     
-    // 检查文件所有者
-    if (fileInfo.data.openid !== OPENID) {
-      return {
-        code: 403,
-        message: '无权限查看此文件'
-      }
+    const fileData = fileRecord.data
+    
+    // 整理返回的文件信息
+    const result = {
+      _id: fileData._id,
+      name: fileData.name,
+      size: fileData.size,
+      type: fileData.type,
+      fileID: fileData.fileID,
+      cloudPath: fileData.cloudPath,
+      uploadDate: fileData.createTime || fileData.uploadDate,
+      analysisResults: fileData.analysisResults || null,
+      status: fileData.status || 'uploaded'
     }
     
-    // 获取临时文件URL（有效期一小时）
-    let tempFileURL = null
-    try {
-      const result = await cloud.getTempFileURL({
-        fileList: [fileInfo.data.fileID]
-      })
-      tempFileURL = result.fileList[0].tempFileURL
-    } catch (err) {
-      console.error('获取临时文件URL失败', err)
-    }
+    console.log(`文件记录获取成功，文件名: ${result.name}`)
     
-    // 返回文件详情
     return {
       code: 200,
       message: '获取成功',
-      data: {
-        ...fileInfo.data,
-        tempFileURL
-      }
+      data: result
     }
   } catch (err) {
     console.error('获取BP文件详情失败', err)
     return {
       code: 500,
-      message: '获取失败: ' + err.message
+      message: '查询文件失败',
+      error: err
     }
   }
 } 

@@ -4,65 +4,67 @@ const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV }) // 使用当前云环境
 
 const db = cloud.database()
-const bpFilesCollection = db.collection('bp_files')
+const BP_COLLECTION = 'bp_files'
 
 /**
  * 保存BP文件信息的云函数
  * @param {Object} event 
  * @param {string} event.fileID 文件云存储ID
- * @param {string} event.fileName 文件名
- * @param {number} event.fileSize 文件大小
- * @param {string} event.fileType 文件类型
+ * @param {string} event.name 文件名
+ * @param {number} event.size 文件大小
+ * @param {string} event.type 文件类型
+ * @param {string} event.cloudPath 文件云存储路径
  * @returns {Object} 保存结果
  */
 exports.main = async (event, context) => {
-  const { fileID, fileName, fileSize, fileType } = event
   const { OPENID } = cloud.getWXContext()
-  
-  console.log('保存BP文件信息', {
-    fileID,
-    fileName,
-    fileSize,
-    fileType,
-    openid: OPENID
-  })
-  
-  if (!fileID || !fileName) {
+  const { fileID, name, size, type, cloudPath } = event
+
+  if (!fileID) {
     return {
       code: 400,
-      message: '缺少必要参数'
+      message: '文件ID不能为空'
     }
   }
-  
+
   try {
-    // 记录文件信息到数据库
-    const result = await bpFilesCollection.add({
-      data: {
-        fileID,
-        fileName,
-        fileSize: fileSize || 0,
-        fileType: fileType || fileName.split('.').pop().toLowerCase(),
-        uploadTime: db.serverDate(),
-        openid: OPENID,
-        status: 'pending',
-        isAnalyzed: false,
-        analysisResults: {},
-        createTime: db.serverDate()
-      }
+    console.log(`保存BP文件信息，文件名: ${name}, 用户: ${OPENID}`)
+    
+    // 准备要保存的文件数据
+    const fileData = {
+      fileID,
+      name,
+      size,
+      type,
+      cloudPath,
+      openid: OPENID,
+      uploadDate: new Date(),
+      status: 'uploaded',
+      _updateTime: db.serverDate()
+    }
+    
+    // 保存到数据库
+    const result = await db.collection(BP_COLLECTION).add({
+      data: fileData
     })
     
-    console.log('文件信息保存成功', result)
+    if (!result._id) {
+      throw new Error('保存文件信息失败')
+    }
+    
+    console.log(`文件信息保存成功，文件ID: ${result._id}`)
     
     return {
       code: 200,
       message: '保存成功',
       fileId: result._id
     }
-  } catch (error) {
-    console.error('保存BP文件信息失败', error)
+  } catch (err) {
+    console.error('保存BP文件信息失败', err)
     return {
       code: 500,
-      message: `保存失败: ${error.message || error}`
+      message: '保存失败',
+      error: err
     }
   }
 } 

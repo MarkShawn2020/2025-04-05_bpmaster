@@ -1,5 +1,7 @@
 {
-  "usingComponents": {},
-  "navigationBarTitleText": "分析结果详情",
-  "backgroundColor": "#f5f7fa"
+  "navigationBarTitleText": "分析报告",
+  "usingComponents": {
+    "toast": "/components/toast/toast",
+    "markdown": "/components/markdown/markdown"
+  }
 } 

@@ -40,37 +40,40 @@ Page({
     // 问题列表
     issuesList: [],
     // 建议列表
-    suggestionsList: []
+    suggestionsList: [],
+    markdownContent: '',
+    sectors: [],
+    contentLoaded: false,
+    error: ''
   },
 
   onLoad(options) {
-    const { id } = options;
+    logger.info('分析详情页加载', options);
     
-    if (!id) {
-      wx.showToast({
-        title: '参数错误',
-        icon: 'error'
+    if (options.id) {
+      this.setData({
+        analysisId: options.id,
+        directLoad: options.direct === 'true'
       });
-      setTimeout(() => {
-        wx.navigateBack();
-      }, 1500);
-      return;
+      
+      // 获取详情数据
+      this._loadBPDetail(options.id);
+    } else {
+      this.setData({
+        loading: false,
+        error: '无效的文件ID'
+      });
+      this._showToast('error', '无效的文件ID');
     }
-
-    this.setData({
-      analysisId: id
-    });
-
-    this.loadAnalysisDetail();
   },
 
-  async loadAnalysisDetail() {
+  async _loadBPDetail(id) {
     try {
       this.setData({ loading: true });
-      logger.info('加载分析详情', { id: this.data.analysisId });
+      logger.info('加载分析详情', { id });
 
       // 使用真实API获取分析数据
-      const response = await apiService.getBPDetail(this.data.analysisId);
+      const response = await apiService.getBPDetail(id);
       
       let analysisDetail;
       if (response && response.code === 200 && response.data) {
@@ -443,5 +446,41 @@ Page({
         }
       ]
     };
+  },
+  
+  // 下载报告
+  handleDownloadReport: function() {
+    this._showToast('info', '报告下载功能开发中');
+  },
+  
+  // 返回上一页
+  navigateBack: function() {
+    wx.navigateBack();
+  },
+  
+  // 处理点击分区
+  handleSectorClick: function(e) {
+    const index = e.currentTarget.dataset.index;
+    const sectors = this.data.sectors.map((item, i) => {
+      return {
+        ...item,
+        active: i === index
+      };
+    });
+    
+    this.setData({ sectors });
+  },
+  
+  // 显示提示
+  _showToast(type, message) {
+    const toast = this.selectComponent('#toast');
+    if (toast) {
+      toast[type](message);
+    } else {
+      wx.showToast({
+        title: message,
+        icon: type === 'success' ? 'success' : 'none'
+      });
+    }
   }
 }); 
