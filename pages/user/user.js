@@ -175,7 +175,7 @@ Page({
     
     if (fileId) {
       // 显示加载提示
-      toast.loading('加载文件中...');
+      const loading = toast.loading('加载文件中...');
       
       // 先获取BP文件详细信息，包含实际的云存储fileID
       apiService.getBPFileInfo(fileId)
@@ -202,8 +202,6 @@ Page({
           });
         })
         .then(downloadRes => {
-          toast.hide();
-          
           if (downloadRes.statusCode === 200) {
             const filePath = downloadRes.tempFilePath;
             
@@ -242,21 +240,23 @@ Page({
           }
         })
         .catch(err => {
-          toast.hide();
           logger.error('获取或下载文件失败', err);
           toast.error('无法预览文件，请稍后再试');
           
           // 显示更详细的错误提示
           setTimeout(() => {
             wx.showModal({
-              title: '文件预览失败',
-              content: '无法获取文件信息或预览权限。原因：' + (err.message || '未知错误'),
+              title: '预览失败',
+              content: '无法预览文件，可能是网络问题或文件格式不支持。',
               showCancel: false
             });
-          }, 1000);
+          }, 500);
+        })
+        .finally(() => {
+          loading.hide();
         });
     } else {
-      toast.info('文件不存在或已被删除');
+      toast.error('文件信息有误');
     }
   },
   
