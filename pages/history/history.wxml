@@ -61,11 +61,23 @@
           </block>
         </view>
         
-        <!-- 删除按钮 -->
-        <view class="delete-icon" wx:if="{{!isSelecting}}" catchtap="deleteAnalysis" data-id="{{item.id}}">
-          <view class="icon-inner">
-            <view class="line line1"></view>
-            <view class="line line2"></view>
+        <!-- 操作按钮 -->
+        <view class="action-buttons" wx:if="{{!isSelecting}}">
+          <!-- 预览按钮 -->
+          <view class="preview-icon" catchtap="previewFile" data-id="{{item.id}}">
+            <view class="icon-inner preview">
+              <view class="p-line p-line1"></view>
+              <view class="p-line p-line2"></view>
+              <view class="p-line p-line3"></view>
+            </view>
+          </view>
+          
+          <!-- 删除按钮 -->
+          <view class="delete-icon" catchtap="deleteAnalysis" data-id="{{item.id}}">
+            <view class="icon-inner">
+              <view class="line line1"></view>
+              <view class="line line2"></view>
+            </view>
           </view>
         </view>
       </view>
@@ -97,6 +109,3 @@
     <view class="loading-text">加载中...</view>
   </view>
 </view>
-
-<!-- 使用toast组件 -->
-<mp-toast id="toast"></mp-toast>

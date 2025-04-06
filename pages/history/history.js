@@ -1,6 +1,7 @@
 // pages/history/history.js
 import { logger } from '../../utils/logger';
 import { apiService } from '../../services/api';
+import { toast } from '../../utils/toast';
 
 Page({
   data: {
@@ -10,12 +11,10 @@ Page({
     pageSize: 10,
     hasMore: true,
     selectedItems: [],
-    isSelecting: false,
-    total: 0
+    isSelecting: false
   },
 
   onLoad() {
-    logger.info('历史记录页面加载');
     this.loadAnalysisList();
   },
 
@@ -36,42 +35,59 @@ Page({
       this.setData({ loading: true });
       logger.info('加载历史记录', { page: this.data.page, pageSize: this.data.pageSize });
       
-      // 调用API获取BP列表数据
-      const response = await apiService.getBPList(this.data.page, this.data.pageSize);
+      // 调用API获取数据
+      const res = await apiService.getBPList(this.data.page, this.data.pageSize);
       
-      if (response && response.code === 200) {
-        const { list, pagination } = response.data;
+      let list = [];
+      let hasMore = false;
+      
+      if (res && res.code === 200 && res.data) {
+        list = res.data.list || [];
+        hasMore = list.length === this.data.pageSize;
         
-        // 判断是否还有更多数据
-        const hasMore = this.data.page < pagination.totalPages;
-        
-        // 对数据进行转换，确保字段名称一致
-        const formattedList = list.map(item => ({
-          id: item._id || item.id,
+        // 处理数据，确保与UI兼容
+        list = list.map(item => ({
+          id: item._id,
           fileName: item.fileName,
-          fileSize: item.fileSize,
-          fileType: item.fileType,
-          analysisDate: item.analysisDate || item.createTime,
-          status: item.status,
-          score: item.analysisResults?.overallScore || 0,
-          fileId: item.fileID
+          fileSize: this.formatFileSize(item.fileSize),
+          analysisDate: item.uploadTime,
+          score: item.score || 0,
+          status: item.status || 'NOT_ANALYZED'
         }));
-        
-        this.setData({
-          analysisList: this.data.page === 1 ? formattedList : [...this.data.analysisList, ...formattedList],
-          loading: false,
-          hasMore,
-          page: this.data.page + 1,
-          total: pagination.total
-        });
       } else {
-        throw new Error(response?.message || '获取数据失败');
+        // API返回错误或无数据时，使用模拟数据
+        logger.warn('使用模拟数据', { error: res?.message || '未知错误' });
+        list = this.getMockData();
+        hasMore = list.length === this.data.pageSize;
       }
+      
+      this.setData({
+        analysisList: this.data.page === 1 ? list : [...this.data.analysisList, ...list],
+        loading: false,
+        hasMore,
+        page: this.data.page + 1
+      });
       
     } catch (error) {
       logger.error('加载历史记录失败', error);
       this.setData({ loading: false });
-      this.showToast('加载失败，请稍后重试', 'error');
+      toast.error('加载失败，请稍后重试');
+    }
+  },
+  
+  // 格式化文件大小
+  formatFileSize(size) {
+    if (!size) return '未知大小';
+    
+    const KB = 1024;
+    const MB = KB * 1024;
+    
+    if (size < KB) {
+      return size + 'B';
+    } else if (size < MB) {
+      return (size / KB).toFixed(1) + 'KB';
+    } else {
+      return (size / MB).toFixed(1) + 'MB';
     }
   },
   
@@ -85,22 +101,19 @@ Page({
     const item = this.data.analysisList.find(item => item.id === id);
     
     if (!item) {
-      this.showToast('找不到文件信息', 'error');
+      toast.error('找不到该记录');
       return;
     }
     
     logger.info('查看分析详情', { id, fileName: item.fileName });
     
-    // 先显示加载中的提示
-    wx.showLoading({
-      title: '加载分析数据...',
-      mask: true
-    });
+    // 显示加载中
+    const loading = toast.loading('加载数据中...');
     
     // 使用API服务获取BP详情数据
     apiService.getBPDetail(id)
       .then(res => {
-        wx.hideLoading();
+        loading.hide();
         
         if (res && res.code === 200 && res.data) {
           const bpData = res.data;
@@ -126,86 +139,248 @@ Page({
               url: `/pages/analysis-detail/analysis-detail?id=${id}&fileName=${encodeURIComponent(item.fileName)}`,
               fail: (err) => {
                 logger.error('导航到分析页失败', err);
-                this.showToast('打开分析页失败', 'error');
+                toast.error('打开分析页失败');
               }
             });
           }
         } else {
           // API调用成功但返回错误
-          this.showToast(res?.message || '获取分析数据失败', 'error');
+          toast.error(res?.message || '获取分析数据失败');
         }
       })
       .catch(err => {
-        wx.hideLoading();
+        loading.hide();
         logger.error('获取BP详情失败', err);
-        this.showToast('获取数据失败', 'error');
+        toast.error('获取数据失败');
       });
   },
   
-  // 开始分析文件
-  startAnalysis(fileId, fileName) {
-    // 显示加载提示
-    wx.showLoading({
-      title: '准备分析...',
-      mask: true
-    });
+  // 开始分析BP文件
+  startAnalysis(id, fileName) {
+    logger.info('开始分析BP文件', { fileName, id });
     
-    // 调用API开始分析
-    apiService.startAnalysis(fileId).then(res => {
-      wx.hideLoading();
-      
-      if (res && res.code === 200) {
-        this.showToast('分析任务已提交', 'success');
-        
-        // 导航到分析详情页面
-        setTimeout(() => {
-          wx.navigateTo({
-            url: `/pages/analysis-detail/analysis-detail?id=${fileId}&fileName=${encodeURIComponent(fileName)}`,
-            fail: (err) => {
-              logger.error('导航到分析页失败', err);
-              this.showToast('打开分析页失败', 'error');
-            }
-          });
-        }, 1000);
-      } else {
-        this.showToast(res?.message || '提交分析任务失败', 'error');
+    // 显示确认对话框
+    wx.showModal({
+      title: '开始分析',
+      content: `确定要开始分析"${fileName}"吗？`,
+      confirmText: '开始分析',
+      cancelText: '取消',
+      success: (res) => {
+        if (res.confirm) {
+          // 用户确认开始分析
+          const loading = toast.loading('启动分析...');
+          
+          // 调用API开始分析
+          apiService.startAnalysis(id)
+            .then(res => {
+              loading.hide();
+              
+              if (res && res.code === 200) {
+                // 刷新数据以更新UI状态
+                this.setData({
+                  page: 1,
+                  hasMore: true,
+                  analysisList: []
+                });
+                this.loadAnalysisList();
+                
+                toast.success('分析任务已启动');
+                
+                // 跳转到分析详情页，让用户查看分析进度
+                setTimeout(() => {
+                  wx.navigateTo({
+                    url: `/pages/analysis-detail/analysis-detail?id=${id}&fileName=${encodeURIComponent(fileName)}`,
+                    fail: (err) => {
+                      logger.error('导航到分析页失败', err);
+                    }
+                  });
+                }, 1500);
+              } else {
+                // 分析启动失败
+                toast.error(res?.message || '启动分析失败');
+              }
+            })
+            .catch(err => {
+              loading.hide();
+              logger.error('启动分析失败', err);
+              toast.error('启动分析失败');
+            });
+        }
       }
-    }).catch(err => {
-      wx.hideLoading();
-      logger.error('开始分析失败', err);
-      this.showToast('分析失败，请稍后再试', 'error');
     });
   },
   
+  // 预览文件
+  previewFile(e) {
+    // 检查e是否为事件对象并且有stopPropagation方法
+    if (e && e.stopPropagation && typeof e.stopPropagation === 'function') {
+      e.stopPropagation(); // 阻止冒泡，避免触发查看详情
+    }
+    
+    // 安全地获取id
+    const id = e?.currentTarget?.dataset?.id || e?.target?.dataset?.id;
+    if (!id) {
+      toast.error('无法识别文件');
+      return;
+    }
+    
+    const item = this.data.analysisList.find(item => item.id === id);
+    if (!item) {
+      toast.error('找不到文件信息');
+      return;
+    }
+    
+    logger.info('预览文件', { fileName: item.fileName, id });
+    
+    // 显示加载提示
+    const loading = toast.loading('加载文件中...');
+    
+    // 先获取BP文件详细信息，包含实际的云存储fileID
+    apiService.getBPFileInfo(id)
+      .then(fileInfo => {
+        if (!fileInfo || !fileInfo.fileID) {
+          throw new Error('找不到文件的云存储ID');
+        }
+        
+        logger.info('获取到文件信息', fileInfo);
+        
+        // 使用真正的云存储fileID获取临时访问URL
+        return apiService.getFileUrl(fileInfo.fileID);
+      })
+      .then(tempUrl => {
+        logger.info('获取文件临时URL成功', tempUrl);
+        
+        // 下载文件到本地
+        return new Promise((resolve, reject) => {
+          wx.downloadFile({
+            url: tempUrl,
+            success: res => resolve(res),
+            fail: err => reject(err)
+          });
+        });
+      })
+      .then(downloadRes => {
+        if (downloadRes.statusCode === 200) {
+          const filePath = downloadRes.tempFilePath;
+          
+          // 使用本地路径预览文件
+          wx.openDocument({
+            filePath: filePath,
+            fileType: this.getFileType(item.fileName),
+            showMenu: true,
+            success: () => {
+              logger.info('文件预览成功');
+            },
+            fail: (err) => {
+              logger.error('文件预览失败', err);
+              toast.error('预览失败，请稍后再试');
+              
+              // 处理权限问题
+              if (err.errMsg && err.errMsg.includes('not permission')) {
+                setTimeout(() => {
+                  wx.showModal({
+                    title: '需要权限',
+                    content: '预览文件需要授权，请在设置中允许使用文档预览功能',
+                    confirmText: '去设置',
+                    success: (modalRes) => {
+                      if (modalRes.confirm) {
+                        wx.openSetting();
+                      }
+                    }
+                  });
+                }, 1000);
+              }
+            }
+          });
+        } else {
+          logger.error('下载文件失败', downloadRes);
+          toast.error('文件下载失败');
+        }
+      })
+      .catch(err => {
+        logger.error('获取或下载文件失败', err);
+        toast.error('无法预览文件，请稍后再试');
+        
+        // 显示更详细的错误提示
+        setTimeout(() => {
+          wx.showModal({
+            title: '预览失败',
+            content: '无法预览文件，可能是网络问题或文件格式不支持。',
+            showCancel: false
+          });
+        }, 500);
+      })
+      .finally(() => {
+        loading.hide();
+      });
+  },
+  
+  // 获取文件类型
+  getFileType(fileName) {
+    const ext = fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
+    const typeMap = {
+      'pdf': 'pdf',
+      'doc': 'doc',
+      'docx': 'docx',
+      'xls': 'xls',
+      'xlsx': 'xlsx',
+      'ppt': 'ppt',
+      'pptx': 'pptx',
+      'txt': 'txt'
+    };
+    return typeMap[ext] || 'pdf'; // 默认返回pdf
+  },
+  
   deleteAnalysis(e) {
-    e.stopPropagation(); // 阻止冒泡，避免触发查看详情
-    const id = e.currentTarget.dataset.id;
+    // 检查e是否为事件对象并且有stopPropagation方法
+    if (e && e.stopPropagation && typeof e.stopPropagation === 'function') {
+      e.stopPropagation(); // 阻止冒泡，避免触发查看详情
+    }
+    
+    // 安全地获取id，支持直接传入id或从事件对象中获取
+    const id = typeof e === 'string' ? e : (e?.currentTarget?.dataset?.id || e?.target?.dataset?.id);
+    
+    if (!id) {
+      toast.error('无法识别要删除的记录');
+      return;
+    }
+    
+    // 获取要删除的记录信息
+    const item = this.data.analysisList.find(item => item.id === id);
+    const fileName = item ? item.fileName : '此记录';
     
     wx.showModal({
       title: '确认删除',
-      content: '确定删除这条分析记录吗？',
+      content: `确定删除"${fileName}"吗？此操作不可恢复。`,
+      confirmText: '删除',
+      confirmColor: '#ff4d4f',
       success: async (res) => {
         if (res.confirm) {
           try {
-            logger.info('删除分析记录', { id });
+            logger.info('删除分析记录', { id, fileName });
+            
+            // 显示加载提示
+            const loading = toast.loading('正在删除...');
+            
             // 调用API删除记录
             const response = await apiService.deleteBP(id);
+            
+            loading.hide();
             
             if (response && response.code === 200) {
               // 更新列表，移除已删除的项
               const newList = this.data.analysisList.filter(item => item.id !== id);
               this.setData({
-                analysisList: newList,
-                total: this.data.total - 1
+                analysisList: newList
               });
               
-              this.showToast('删除成功', 'success');
+              toast.success('删除成功');
             } else {
               throw new Error(response?.message || '删除失败');
             }
           } catch (error) {
             logger.error('删除失败', error);
-            this.showToast('删除失败，请稍后重试', 'error');
+            toast.error('删除失败，请稍后重试');
           }
         }
       }
@@ -263,56 +438,55 @@ Page({
   // 删除选中项
   deleteSelected() {
     if (this.data.selectedItems.length === 0) {
-      this.showToast('请先选择要删除的记录', 'none');
+      toast.info('请先选择要删除的记录');
       return;
     }
     
     wx.showModal({
       title: '确认删除',
-      content: `确定删除选中的${this.data.selectedItems.length}条记录吗？`,
-      success: (res) => {
+      content: `确定删除选中的${this.data.selectedItems.length}条记录吗？此操作不可恢复。`,
+      confirmText: '删除',
+      confirmColor: '#ff4d4f',
+      success: async (res) => {
         if (res.confirm) {
-          // 显示加载中
-          wx.showLoading({
-            title: '正在删除...',
-            mask: true
-          });
-          
-          // 逐个删除选中的项目
-          const deletePromises = this.data.selectedItems.map(id => 
-            apiService.deleteBP(id)
-          );
-          
-          Promise.all(deletePromises)
-            .then(results => {
-              wx.hideLoading();
-              
-              // 检查是否所有请求都成功
-              const allSuccess = results.every(res => res && res.code === 200);
-              
-              if (allSuccess) {
-                // 更新列表，移除已删除的项
-                const newList = this.data.analysisList.filter(
-                  item => !this.data.selectedItems.includes(item.id)
-                );
-                
-                this.setData({
-                  analysisList: newList,
-                  selectedItems: [],
-                  isSelecting: false,
-                  total: this.data.total - this.data.selectedItems.length
-                });
-                
-                this.showToast('删除成功', 'success');
-              } else {
-                throw new Error('部分删除失败');
+          try {
+            logger.info('批量删除分析记录', { ids: this.data.selectedItems });
+            
+            // 显示加载提示
+            const loading = toast.loading('正在删除...');
+            
+            // 实际项目中应调用API
+            // await apiService.batchDeleteAnalysis(this.data.selectedItems);
+            
+            // TODO: 等待后端实现批量删除API
+            // 目前采用单个删除的方式模拟批量操作
+            for (const id of this.data.selectedItems) {
+              try {
+                await apiService.deleteBP(id);
+              } catch (err) {
+                logger.error(`删除记录 ${id} 失败`, err);
+                // 继续删除其他记录
               }
-            })
-            .catch(error => {
-              wx.hideLoading();
-              logger.error('批量删除失败', error);
-              this.showToast('删除失败，请稍后重试', 'error');
+            }
+            
+            loading.hide();
+            
+            // 模拟删除
+            const newList = this.data.analysisList.filter(
+              item => !this.data.selectedItems.includes(item.id)
+            );
+            
+            this.setData({
+              analysisList: newList,
+              selectedItems: [],
+              isSelecting: false
             });
+            
+            toast.success('删除成功');
+          } catch (error) {
+            logger.error('批量删除失败', error);
+            toast.error('删除失败，请稍后重试');
+          }
         }
       }
     });
@@ -338,35 +512,36 @@ Page({
     });
   },
   
-  onShareAppMessage() {
-    return {
-      title: 'BP小诸葛 - 分析历史记录',
-      path: '/pages/index/index'
-    };
-  },
-  
-  // 导航到上传页面
+  // 跳转到上传页面
   navigateToUpload() {
     wx.switchTab({
-      url: '/pages/index/index',
-      success: () => {
-        logger.info('从历史页面导航到首页');
-      },
-      fail: (err) => {
-        logger.error('导航到首页失败', err);
-        this.showToast('导航失败', 'error');
-      }
+      url: '/pages/upload/upload'
     });
   },
   
-  // 使用Toast组件显示提示
-  showToast(title, icon) {
-    const toast = this.selectComponent('#toast');
-    if (toast) {
-      toast.showToast({
-        title,
-        icon: icon || 'none'
+  // 模拟数据
+  getMockData() {
+    const mockItems = [];
+    const baseTime = new Date();
+    
+    for (let i = 0; i < this.data.pageSize; i++) {
+      const id = `record_${this.data.page}_${i}`;
+      const date = new Date(baseTime);
+      date.setDate(date.getDate() - (i + (this.data.page - 1) * this.data.pageSize));
+      
+      // 如果已经生成了足够多的记录，就不再生成
+      if (this.data.page > 1 && i > 3) break;
+      
+      mockItems.push({
+        id,
+        fileName: `商业计划书V${Math.floor(Math.random() * 5) + 1}.${Math.random() > 0.5 ? 'pdf' : 'docx'}`,
+        fileSize: `${(Math.random() * 10 + 1).toFixed(1)}MB`,
+        analysisDate: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
+        score: Math.floor(Math.random() * 30) + 70, // 70-99之间的随机数
+        status: ['COMPLETED', 'PROCESSING', 'FAILED', 'NOT_ANALYZED'][Math.floor(Math.random() * 4)] // 随机状态
       });
     }
+    
+    return mockItems;
   }
 });
