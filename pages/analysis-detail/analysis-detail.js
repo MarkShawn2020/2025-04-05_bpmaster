@@ -44,7 +44,8 @@ Page({
     markdownContent: '',
     sectors: [],
     contentLoaded: false,
-    error: ''
+    error: '',
+    refreshCount: 0
   },
 
   onLoad(options) {
@@ -75,36 +76,15 @@ Page({
     wx.cloud.callFunction({
       name: 'getBPDetail',
       data: { id },
+      config: { timeout: 15000 }, // 15秒超时
       success: (res) => {
         logger.info('获取BP详情成功', res);
         
         if (res.result && res.result.code === 200) {
           const data = res.result.data;
           
-          let markdownContent = '';
-          
-          // 从分析结果中获取Markdown内容
-          if (data.analysisResults && data.analysisResults.markdownContent) {
-            markdownContent = data.analysisResults.markdownContent;
-          }
-          
-          // 设置数据
-          this.setData({
-            fileInfo: {
-              name: data.name || '未命名文件',
-              size: data.size || '未知大小',
-              uploadDate: data.uploadDate ? new Date(data.uploadDate).toLocaleString() : '未知时间',
-              type: data.type || 'pdf'
-            },
-            markdownContent,
-            contentLoaded: true,
-            loading: false
-          });
-          
-          // 更新页面标题
-          wx.setNavigationBarTitle({
-            title: data.name ? `分析报告: ${data.name}` : '分析报告'
-          });
+          // 使用统一的方法设置数据
+          this._setAnalysisData(data);
         } else {
           this.setData({
             loading: false,
@@ -461,5 +441,52 @@ Page({
         icon: type === 'success' ? 'success' : 'none'
       });
     }
+  },
+  
+  // 处理页面刷新
+  handleRefresh: function() {
+    if (!this.data.id) return;
+    
+    this.setData({ loading: true });
+    this._loadBPDetail(this.data.id);
+    
+    // 增加刷新计数
+    this.setData({
+      refreshCount: this.data.refreshCount + 1
+    });
+    
+    // 如果用户刷新超过3次，提示用户
+    if (this.data.refreshCount >= 3) {
+      this._showToast('info', '分析需要1-3分钟，请稍后再试');
+    }
+  },
+  
+  // 将分析结果设置到页面
+  _setAnalysisData: function(fileData) {
+    let markdownContent = '';
+    
+    // 从分析结果中获取Markdown内容
+    if (fileData.analysisResults && fileData.analysisResults.markdownContent) {
+      markdownContent = fileData.analysisResults.markdownContent;
+    }
+    
+    // 设置数据
+    this.setData({
+      fileInfo: {
+        name: fileData.name || '未命名文件',
+        size: fileData.size || '未知大小',
+        uploadDate: fileData.uploadDate ? new Date(fileData.uploadDate).toLocaleString() : '未知时间',
+        type: fileData.type || 'pdf',
+        status: fileData.status || 'uploaded'
+      },
+      markdownContent,
+      contentLoaded: true,
+      loading: false
+    });
+    
+    // 更新页面标题
+    wx.setNavigationBarTitle({
+      title: fileData.name ? `分析报告: ${fileData.name}` : '分析报告'
+    });
   }
 }); 

@@ -10,9 +10,13 @@
       <view class="subtitle" wx:if="{{fileInfo}}">{{fileInfo.name}}</view>
     </view>
     <view class="actions">
-      <view class="action-btn" bind:tap="handleDownloadReport">
+      <view class="action-btn" bind:tap="handleDownloadReport" wx:if="{{contentLoaded && markdownContent}}">
         <text class="icon">↓</text>
         <text>下载</text>
+      </view>
+      <view class="action-btn" bind:tap="handleRefresh" wx:if="{{fileInfo && fileInfo.status === 'analyzing'}}">
+        <text class="icon">↻</text>
+        <text>刷新</text>
       </view>
     </view>
   </view>
@@ -30,6 +34,14 @@
     <view class="error-action" bind:tap="navigateBack">返回上一页</view>
   </view>
 
+  <!-- 分析中状态 -->
+  <view class="analyzing-container" wx:elif="{{fileInfo && fileInfo.status === 'analyzing'}}">
+    <view class="analyzing-spinner"></view>
+    <view class="analyzing-text">正在分析中，请稍候...</view>
+    <view class="analyzing-hint">分析时间约1-3分钟，您可以离开此页面稍后再查看</view>
+    <view class="analyzing-action" bind:tap="handleRefresh">刷新状态</view>
+  </view>
+
   <!-- 内容区域 -->
   <view class="content-container" wx:elif="{{contentLoaded}}">
     <!-- Markdown内容 -->
@@ -45,5 +57,5 @@
   </view>
 
   <!-- Toast提示 -->
-  <toast id="toast"></toast>
+  <mp-toast id="toast"></mp-toast>
 </view> 

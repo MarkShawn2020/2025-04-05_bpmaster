@@ -317,7 +317,8 @@ Page({
         
         const fileInfoRes = await wx.cloud.callFunction({
           name: 'getBPFileInfo',
-          data: { fileId }
+          data: { fileId },
+          config: { timeout: 600 * 1000 } // 600秒超时
         });
         
         if (fileInfoRes.result && fileInfoRes.result.code === 200 && fileInfoRes.result.data.fileID) {
@@ -341,38 +342,79 @@ Page({
         mask: true
       });
       
-      // 第一步：启动分析任务但不等待结果（异步模式）
-      const startResult = await wx.cloud.callFunction({
-        name: 'analyzeBPWithCoze',
-        data: {
-          fileURL,
-          useJson: false,
-          outputFormat: 'markdown',
-          fileId: this.data.fileId,
-          startOnly: true
-        }
-      });
+      // 使用直接操作数据库的方式更新状态为"分析中"
+      // 这样即使云函数返回超时错误，文件状态也已设置为分析中
+      try {
+        const db = wx.cloud.database();
+        await db.collection('bp_files').doc(this.data.fileId).update({
+          data: {
+            status: 'analyzing',
+            analysisStartTime: db.serverDate()
+          }
+        });
+        logger.info('文件状态已更新为分析中');
+      } catch (dbErr) {
+        logger.warn('更新文件状态失败，但将继续提交分析任务', dbErr);
+      }
       
-      // 隐藏启动任务的加载提示
-      wx.hideLoading();
-      
-      if (startResult.result && startResult.result.code === 200) {
-        logger.info('BP分析任务已提交', startResult.result);
-        
-        // 设置分析状态为进行中，并开始轮询
-        this.setData({
-          analysisTaskId: startResult.result.data.taskId,
-          analysisStage: '分析进行中',
-          analysisProgress: 30
+      // 尝试使用较长的超时时间提交分析任务
+      try {
+        const startResult = await wx.cloud.callFunction({
+          name: 'analyzeBPWithCoze',
+          data: {
+            fileURL,
+            useJson: false,
+            outputFormat: 'markdown',
+            fileId: this.data.fileId,
+            startOnly: true
+          },
+          config: { timeout: 30000 } // 30秒超时
         });
         
-        // 提示用户
-        this._showToast('success', '分析任务已提交，正在处理中');
+        // 隐藏启动任务的加载提示
+        wx.hideLoading();
         
-        // 开始轮询任务状态
-        this._pollAnalysisStatus();
-      } else {
-        throw new Error(startResult.result?.message || '提交分析任务失败');
+        if (startResult.result && startResult.result.code === 200) {
+          logger.info('BP分析任务已提交', startResult.result);
+          
+          // 设置分析状态为进行中，并开始轮询
+          this.setData({
+            analysisTaskId: startResult.result.data.taskId,
+            analysisStage: '分析进行中',
+            analysisProgress: 30
+          });
+          
+          // 提示用户
+          this._showToast('success', '分析任务已提交，正在处理中');
+          
+          // 开始轮询任务状态
+          this._pollAnalysisStatus();
+        } else {
+          throw new Error(startResult.result?.message || '提交分析任务失败');
+        }
+      } catch (callError) {
+        // 如果是超时错误，但文件状态已更新为分析中，则继续处理
+        if (callError.errMsg && callError.errMsg.includes('timed out')) {
+          logger.warn('提交分析任务超时，但任务可能已在后台开始处理', callError);
+          
+          // 隐藏加载提示
+          wx.hideLoading();
+          
+          // 设置分析状态为进行中，并开始轮询
+          this.setData({
+            analysisStage: '分析进行中',
+            analysisProgress: 30
+          });
+          
+          // 提示用户
+          this._showToast('info', '任务已提交，服务器正在后台处理');
+          
+          // 开始轮询任务状态
+          this._pollAnalysisStatus();
+        } else {
+          // 其他错误则正常抛出
+          throw callError;
+        }
       }
     } catch (error) {
       // 停止模拟进度
@@ -405,7 +447,8 @@ Page({
       // 查询分析状态
       const statusRes = await wx.cloud.callFunction({
         name: 'getBPDetail',
-        data: { id: this.data.fileId }
+        data: { id: this.data.fileId },
+        config: { timeout: 10000 } // 10秒超时
       });
       
       if (statusRes.result && statusRes.result.code === 200) {
@@ -444,7 +487,7 @@ Page({
           // 分析仍在进行中，继续轮询
           let progress = this.data.analysisProgress;
           if (progress < 90) {
-            progress += 3; // 每次增加一点进度
+            progress += 2; // 每次增加一点进度，但速度减慢
           }
           
           this.setData({
@@ -454,7 +497,7 @@ Page({
           // 设置下一次轮询
           this.statusPollingTimeout = setTimeout(() => {
             this._pollAnalysisStatus();
-          }, 5000); // 5秒轮询一次
+          }, 8000); // 8秒轮询一次，减少API调用频率
         }
       } else {
         throw new Error(statusRes.result?.message || '查询分析状态失败');
@@ -473,10 +516,10 @@ Page({
         });
         this._showToast('error', '查询分析状态失败');
       } else {
-        // 继续轮询
+        // 继续轮询，但增加间隔
         this.statusPollingTimeout = setTimeout(() => {
           this._pollAnalysisStatus();
-        }, 8000); // 失败后延长轮询间隔
+        }, 12000); // 失败后延长轮询间隔到12秒
       }
     }
   },
