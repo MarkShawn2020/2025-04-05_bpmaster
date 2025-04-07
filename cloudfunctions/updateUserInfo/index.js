@@ -14,13 +14,13 @@ exports.main = async (event, context) => {
   
   // 获取用户openid
   const { OPENID } = wxContext
-  const { nickName, avatarUrl } = event
+  const { nickname, avatarUrl } = event
   
   console.log('当前用户OPENID:', OPENID)
-  console.log('要更新的信息:', { nickName, avatarUrl })
+  console.log('要更新的信息:', { nickname, avatarUrl })
   
   // 参数验证
-  if (!nickName && !avatarUrl) {
+  if (!nickname && !avatarUrl) {
     return {
       code: 400,
       message: '未提供需要更新的信息'
@@ -29,7 +29,7 @@ exports.main = async (event, context) => {
   
   // 构建更新数据
   const updateData = {}
-  if (nickName) updateData.nickname = nickName
+  if (nickname) updateData.nickname = nickname
   if (avatarUrl) updateData.avatarUrl = avatarUrl
   
   // 更新用户信息

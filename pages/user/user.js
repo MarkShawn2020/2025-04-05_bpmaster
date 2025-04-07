@@ -666,23 +666,16 @@ Page({
 
   // 昵称输入框失去焦点
   onNicknameBlur: function(e) {
-    
-    const nickName = e.detail.value;
-    info('用户输入昵称', e.detail, { nickName });
-    
-    if (!nickName) {
-      wx.showToast({
-        title: '请输入昵称',
-        icon: 'none'
-      });
-      return;
-    }
-    
-    const userInfo = this.data.userInfo || {};
-    userInfo.nickName = nickName;
-    
-    this.setData({ userInfo });
-    this.saveUserInfo();
+      const nickname = e.detail.value;
+      info('用户输入昵称', e.detail, { nickname });
+      
+      if (!nickname) return;
+      
+      const userInfo = this.data.userInfo || {};
+      userInfo.nickname = nickname;
+      
+      this.setData({ userInfo });
+      this.saveUserInfo();
   },
 
   // 保存用户信息
@@ -718,7 +711,7 @@ Page({
     wx.cloud.callFunction({
       name: 'updateUserInfo',
       data: {
-        nickName: userInfo.nickName,
+        nickname: userInfo.nickname,
         avatarUrl: userInfo.avatarUrl
       },
       success: (res) => {

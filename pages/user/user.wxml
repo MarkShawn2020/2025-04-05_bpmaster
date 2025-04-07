@@ -7,7 +7,7 @@
           <image class="avatar" src="{{userInfo.avatarUrl || defaultAvatarUrl}}"></image>
         </button>
         <view class="user-detail">
-          <input type="nickname" class="nickname-input" placeholder="请输入昵称" bindblur="onNicknameBlur" value="{{userInfo.nickName}}"/>
+          <input type="nickname" class="nickname-input" placeholder="请输入昵称" bindblur="onNicknameBlur" value="{{userInfo.nickname}}"/>
           <view class="user-id">ID: {{userInfo.openid || '未登录'}}</view>
         </view>
       </block>
