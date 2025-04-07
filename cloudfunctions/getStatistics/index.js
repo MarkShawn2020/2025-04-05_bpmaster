@@ -19,15 +19,19 @@ exports.main = async (event, context) => {
     const userCountResult = await db.collection('users').count();
     const totalUsers = userCountResult.total;
     
+    // 获取文件总数
+    const fileCountResult = await db.collection('bp_files').count();
+    const fileCount = fileCountResult.total;
+    
     // 获取分析总次数
-    const analysisCountResult = await db.collection('bp_analysis').count();
+    const analysisCountResult = await db.collection('analysis_tasks').count();
     const totalAnalysis = analysisCountResult.total;
     
     // 获取本周分析次数
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     
-    const weeklyAnalysisResult = await db.collection('bp_analysis')
+    const weeklyAnalysisResult = await db.collection('analysis_tasks')
       .where({
         createdAt: _.gte(oneWeekAgo)
       })
@@ -35,7 +39,7 @@ exports.main = async (event, context) => {
     const weeklyAnalysis = weeklyAnalysisResult.total;
     
     // 获取平均分
-    const avgScoreResult = await db.collection('bp_analysis')
+    const avgScoreResult = await db.collection('analysis_tasks')
       .aggregate()
       .group({
         _id: null,
@@ -49,7 +53,7 @@ exports.main = async (event, context) => {
     }
     
     // 获取最高分
-    const highestScoreResult = await db.collection('bp_analysis')
+    const highestScoreResult = await db.collection('analysis_tasks')
       .orderBy('score', 'desc')
       .limit(1)
       .get();
@@ -67,7 +71,7 @@ exports.main = async (event, context) => {
     }
     
     // 获取行业分布
-    const industryResult = await db.collection('bp_analysis')
+    const industryResult = await db.collection('analysis_tasks')
       .aggregate()
       .group({
         _id: '$industry',
@@ -126,6 +130,7 @@ exports.main = async (event, context) => {
       data: {
         totalUsers,
         totalAnalysis,
+        fileCount,          // 新增文件数统计
         weeklyAnalysis,
         averageScore,
         highestScore,
