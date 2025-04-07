@@ -291,7 +291,8 @@ Page({
     info('调用Coze工作流', { workflowId, fileId: this.data.fileId });
     
     const headers = {
-      'Content-Type': 'application/json',
+      // ref: [wx.request POST传递中文时显示乱码处理方法_wx.request传值乱码的问题-CSDN博客](https://blog.csdn.net/weixin_45807026/article/details/124175930)
+      'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8',
       'Authorization': `Bearer ${token}`
     };
     
@@ -382,12 +383,112 @@ Page({
     });
   },
   
+  // ArrayBuffer转字符串，确保中文不乱码
+  ab2str: function(buf) {
+    try {
+      // 使用TextDecoder指定UTF-8编码，确保中文正确解码
+      const decoder = new TextDecoder('utf-8');
+      const text = decoder.decode(new Uint8Array(buf));
+      
+      // 检查内容，记录是否包含中文(用于调试)
+      const hasChinese = /[\u4e00-\u9fa5]/.test(text);
+      const preview = text.length > 20 ? text.substring(0, 20) + '...' : text;
+      
+      info('解码ArrayBuffer结果', {
+        byteLength: buf.byteLength,
+        textLength: text.length,
+        hasChinese: hasChinese,
+        preview: preview
+      });
+      
+      return text;
+    } catch (err) {
+      error('TextDecoder解码失败', err);
+      
+      // 兼容性方案1：手动解码UTF-8
+      try {
+        const bytes = new Uint8Array(buf);
+        let result = '';
+        let i = 0;
+        while (i < bytes.length) {
+          if (bytes[i] < 128) {
+            // ASCII字符，直接添加
+            result += String.fromCharCode(bytes[i]);
+            i++;
+          } else if (bytes[i] >= 192 && bytes[i] < 224) {
+            // 2字节UTF-8
+            const code = ((bytes[i] & 0x1f) << 6) | (bytes[i+1] & 0x3f);
+            result += String.fromCharCode(code);
+            i += 2;
+          } else if (bytes[i] >= 224 && bytes[i] < 240) {
+            // 3字节UTF-8
+            const code = ((bytes[i] & 0x0f) << 12) | 
+                         ((bytes[i+1] & 0x3f) << 6) | 
+                         (bytes[i+2] & 0x3f);
+            result += String.fromCharCode(code);
+            i += 3;
+          } else if (bytes[i] >= 240) {
+            // 4字节UTF-8，需要拆成两个UTF-16字符
+            const codePoint = ((bytes[i] & 0x07) << 18) | 
+                             ((bytes[i+1] & 0x3f) << 12) | 
+                             ((bytes[i+2] & 0x3f) << 6) | 
+                             (bytes[i+3] & 0x3f);
+            
+            // 从代码点计算UTF-16代理对
+            const highSurrogate = Math.floor((codePoint - 0x10000) / 0x400) + 0xD800;
+            const lowSurrogate = ((codePoint - 0x10000) % 0x400) + 0xDC00;
+            
+            result += String.fromCharCode(highSurrogate, lowSurrogate);
+            i += 4;
+          } else {
+            // 无效字节，跳过
+            i++;
+          }
+        }
+        
+        info('手动UTF-8解码成功');
+        return result;
+      } catch (decodeErr) {
+        error('手动UTF-8解码失败', decodeErr);
+        
+        // 最后的兜底方案：逐字节转换，可能会乱码
+        try {
+          const bytes = new Uint8Array(buf);
+          let result = '';
+          for (let i = 0; i < bytes.length; i++) {
+            result += String.fromCharCode(bytes[i]);
+          }
+          
+          // 尝试使用encodeURIComponent和decodeURIComponent修复UTF-8编码
+          try {
+            const fixed = decodeURIComponent(escape(result));
+            info('URI编码修复成功');
+            return fixed;
+          } catch (e) {
+            info('URI编码修复失败，返回原始结果');
+            return result;
+          }
+        } catch (finalErr) {
+          error('所有解码方法都失败', finalErr);
+          return ''; // 返回空字符串避免报错
+        }
+      }
+    }
+  },
+  
   // 处理数据块
   processChunk: function(chunk) {
     // 记录原始接收数据
     debug('处理数据块', { chunkLength: chunk.length });
     
     try {
+      // 先检查是否为纯文本[DONE]标记，一些服务端会单独发送这个
+      if (chunk.trim() === '[DONE]') {
+        info('收到独立[DONE]标记，流式传输完成');
+        this.handleWorkflowComplete();
+        return;
+      }
+      
       // 按行分割，处理SSE格式
       const lines = chunk.split('\n');
       let currentEvent = {};
@@ -396,8 +497,8 @@ Page({
         const line = lines[i].trim();
         if (!line) continue;
         
-        // info(`处理SSE行[${i}]`);
-        // info(line);
+        // 记录接收的行数据
+        // debug(`处理SSE行[${i}]`, { line });
         
         // 解析SSE格式的行
         if (line.startsWith('id: ')) {
@@ -421,7 +522,7 @@ Page({
             
             // 如果有完整事件（至少包含event和data），处理它
             if (currentEvent.event) {
-              info('完整事件', currentEvent);
+              // info('完整事件', currentEvent);
               this.handleStreamEvent(currentEvent);
               currentEvent = {}; // 重置为新事件
             }
@@ -470,6 +571,16 @@ Page({
     if (!data || !data.content) return;
     
     const content = data.content;
+    
+    // 检查内容是否包含中文，用于调试
+    const hasChinese = /[\u4e00-\u9fa5]/.test(content);
+    const preview = content.length > 20 ? content.substring(0, 20) + '...' : content;
+    
+    info('接收到消息内容', {
+      contentLength: content.length,
+      hasChinese: hasChinese,
+      preview: preview
+    });
     
     // 累加Markdown内容
     const mdContent = this.data.mdContent + content;
@@ -717,18 +828,6 @@ Page({
     wx.navigateTo({
       url: '/pages/history/history'
     });
-  },
-  
-  // ArrayBuffer转字符串，改进兼容性和处理大数据
-  ab2str: function(buf) {
-    try {
-      // 使用TextDecoder处理，更现代且高效
-      return new TextDecoder('utf-8').decode(new Uint8Array(buf));
-    } catch (err) {
-      // 兼容性回退方案
-      error('TextDecoder失败，使用回退方案', err);
-      return String.fromCharCode.apply(null, new Uint8Array(buf));
-    }
   },
   
   // 显示Toast
