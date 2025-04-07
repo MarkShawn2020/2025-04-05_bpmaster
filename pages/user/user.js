@@ -657,11 +657,70 @@ Page({
     const { avatarUrl } = e.detail;
     info('用户选择头像', { avatarUrl });
     
-    const userInfo = this.data.userInfo || {};
-    userInfo.avatarUrl = avatarUrl;
+    wx.showLoading({
+      title: '上传头像中...',
+      mask: true
+    });
     
-    this.setData({ userInfo });
-    this.saveUserInfo();
+    // 将临时头像上传到云存储
+    this.uploadAvatarToCloud(avatarUrl)
+      .then(fileID => {
+        info('头像上传成功', { fileID });
+        
+        // 获取头像的云存储访问链接
+        return wx.cloud.getTempFileURL({
+          fileList: [fileID]
+        });
+      })
+      .then(res => {
+        if (res.fileList && res.fileList[0] && res.fileList[0].tempFileURL) {
+          const cloudAvatarUrl = res.fileList[0].tempFileURL;
+          info('获取云存储头像链接成功', { cloudAvatarUrl });
+          
+          const userInfo = this.data.userInfo || {};
+          userInfo.avatarUrl = cloudAvatarUrl;
+          userInfo.avatarFileID = res.fileList[0].fileID; // 保存文件ID方便后续管理
+          
+          this.setData({ userInfo });
+          this.saveUserInfo();
+        } else {
+          throw new Error('获取云存储头像链接失败');
+        }
+        
+        wx.hideLoading();
+      })
+      .catch(err => {
+        error('头像上传失败', err);
+        wx.hideLoading();
+        wx.showToast({
+          title: '头像上传失败',
+          icon: 'error'
+        });
+      });
+  },
+  
+  // 上传头像到云存储
+  uploadAvatarToCloud: function(avatarUrl) {
+    return new Promise((resolve, reject) => {
+      // 生成云存储路径，使用用户ID和时间戳确保唯一性
+      const cloudPath = `avatars/${this.data.userInfo?.openid || 'anonymous'}_${Date.now()}.jpg`;
+      
+      // 上传文件到云存储
+      wx.cloud.uploadFile({
+        cloudPath: cloudPath,
+        filePath: avatarUrl,
+        success: res => {
+          if (res.fileID) {
+            resolve(res.fileID);
+          } else {
+            reject(new Error('上传失败，未获取到文件ID'));
+          }
+        },
+        fail: err => {
+          reject(err);
+        }
+      });
+    });
   },
 
   // 昵称输入框失去焦点
@@ -712,7 +771,8 @@ Page({
       name: 'updateUserInfo',
       data: {
         nickname: userInfo.nickname,
-        avatarUrl: userInfo.avatarUrl
+        avatarUrl: userInfo.avatarUrl,
+        avatarFileID: userInfo.avatarFileID
       },
       success: (res) => {
         info('用户信息更新到云端成功', res.result);
