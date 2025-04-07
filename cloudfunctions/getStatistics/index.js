@@ -38,38 +38,6 @@ exports.main = async (event, context) => {
       .count();
     const weeklyAnalysis = weeklyAnalysisResult.total;
     
-    // 获取平均分
-    const avgScoreResult = await db.collection('analysis_tasks')
-      .aggregate()
-      .group({
-        _id: null,
-        averageScore: $.avg('$score')
-      })
-      .end();
-    
-    let averageScore = 0;
-    if (avgScoreResult.list.length > 0) {
-      averageScore = parseFloat(avgScoreResult.list[0].averageScore.toFixed(1));
-    }
-    
-    // 获取最高分
-    const highestScoreResult = await db.collection('analysis_tasks')
-      .orderBy('score', 'desc')
-      .limit(1)
-      .get();
-    
-    let highestScore = {
-      score: 0,
-      fileName: ''
-    };
-    
-    if (highestScoreResult.data.length > 0) {
-      highestScore = {
-        score: parseFloat(highestScoreResult.data[0].score.toFixed(1)),
-        fileName: highestScoreResult.data[0].fileName || '未命名文件'
-      };
-    }
-    
     // 获取行业分布
     const industryResult = await db.collection('analysis_tasks')
       .aggregate()
@@ -132,8 +100,6 @@ exports.main = async (event, context) => {
         totalAnalysis,
         fileCount,          // 新增文件数统计
         weeklyAnalysis,
-        averageScore,
-        highestScore,
         industryDistribution: industryMap
       }
     };

@@ -17,7 +17,7 @@
         <view class="stats-highlight-value">{{statistics.totalUsers}}</view>
         <view class="stats-highlight-text">用户分析了</view>
         <view class="stats-highlight-value">{{statistics.totalAnalysis}}</view>
-        <view class="stats-highlight-text">份BP文件</view>
+        <view class="stats-highlight-text">次 BP</view>
       </view>
     </view>
   </view>
