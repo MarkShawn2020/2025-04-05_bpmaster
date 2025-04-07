@@ -7,12 +7,14 @@ Page({
     recentAnalysisList: [],
     totalAnalysisCount: 0,
     loading: true,
+    loadingStats: false,
     // 添加统计数据
     statistics: {
       totalAnalysis: 0,
       weeklyAnalysis: 0,
       averageScore: 0,
       totalUsers: 0, // 添加用户数统计项
+      fileCount: 0,  // 添加文件数统计项
       highestScore: {
         score: 0,
         fileName: ''
@@ -107,6 +109,12 @@ Page({
             statistics: res.result.data,
             loadingStats: false
           });
+          
+          info('首页统计数据更新', {
+            totalUsers: res.result.data.totalUsers,
+            totalAnalysis: res.result.data.totalAnalysis,
+            fileCount: res.result.data.fileCount
+          });
         } else {
           // 返回失败，显示错误信息
           error('获取统计数据失败', res.result);
@@ -151,7 +159,6 @@ Page({
           userInfo: app.globalData.userInfo,
           loading: false
         });
-        
         // 获取最近分析列表
         this.getRecentAnalysisList();
       } else if (isDev) {
@@ -164,6 +171,8 @@ Page({
               userInfo: app.globalData.userInfo,
               loading: false
             });
+            // 在登录成功后获取最近分析列表
+            this.getRecentAnalysisList();
           } else {
             this.setData({
               isLoggedIn: false,
@@ -201,26 +210,11 @@ Page({
         
         // 如果云函数返回成功
         if (res.result && res.result.code === 0) {
-          // 更新分析列表和总数
           this.setData({
             recentAnalysisList: res.result.data.list,
             totalAnalysisCount: res.result.data.total,
             loading: false
           });
-          
-          // 更新统计数据
-          if (res.result.data.statistics) {
-            this.setData({
-              'statistics.totalUsers': res.result.data.statistics.userCount || 0,
-              'statistics.totalAnalysis': res.result.data.statistics.analysisCount || 0
-            });
-            
-            info('更新统计数据', {
-              userCount: res.result.data.statistics.userCount,
-              fileCount: res.result.data.statistics.fileCount,
-              analysisCount: res.result.data.statistics.analysisCount
-            });
-          }
         } else {
           // 返回失败，显示错误信息
           error('获取分析列表失败', res.result);
@@ -316,9 +310,7 @@ Page({
           userInfo: app.globalData.userInfo,
           showLoginPanel: false
         });
-        
-        // 获取最近分析列表
-        this.getRecentAnalysisList();
+      
         
         // 显示登录成功提示
         this.selectComponent('#toast').success('登录成功');
