@@ -27,8 +27,34 @@ Page({
     info('上传页面加载');
   },
 
+  // 检查登录状态
+  checkLoginStatus: function() {
+    const userInfo = wx.getStorageSync('userInfo');
+    if (!userInfo || !userInfo.openId) {
+      wx.showModal({
+        title: '提示',
+        content: '请先登录后再上传文件',
+        confirmText: '去登录',
+        success: (res) => {
+          if (res.confirm) {
+            wx.switchTab({
+              url: '/pages/user/user'
+            });
+          }
+        }
+      });
+      return false;
+    }
+    return true;
+  },
+
   // 选择文件
   handleChooseFile: function() {
+    // 检查登录状态
+    if (!this.checkLoginStatus()) {
+      return;
+    }
+
     const that = this;
     
     info('选择文件');
@@ -94,6 +120,11 @@ Page({
   
   // 上传文件
   handleUploadFile: function() {
+    // 检查登录状态
+    if (!this.checkLoginStatus()) {
+      return;
+    }
+
     if (!this.data.file.path || this.data.isUploading) {
       return;
     }
@@ -175,6 +206,11 @@ Page({
   
   // 开始分析
   handleStartAnalysis: function() {
+    // 检查登录状态
+    if (!this.checkLoginStatus()) {
+      return;
+    }
+
     info('开始分析', { fileId: this.data.file.id, fileName: this.data.file.name });
     
     // 跳转到分析结果页

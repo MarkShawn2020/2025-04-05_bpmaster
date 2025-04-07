@@ -1,7 +1,11 @@
 import { apiService } from '../../services/api';
-import { info, error } from '../../utils/logger';
+import { info, error } from '../../utils/logger.js';
 import { toast } from '../../utils/toast';
 import { formatDisplayTime } from '../../utils/date';
+
+const app = getApp();
+
+const defaultAvatarUrl = 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0';
 
 Page({
   data: {
@@ -11,11 +15,13 @@ Page({
     reportCount: 0,
     bpList: [],  // 最近上传的BP
     isDev: getApp().globalData.isDev,
+    version: '1.0.0',
+    defaultAvatarUrl: defaultAvatarUrl
   },
 
   onLoad() {
     info('用户中心页面加载');
-    this.loadUserInfo();
+    this.checkLoginStatus();
   },
 
   onShow() {
@@ -356,64 +362,53 @@ Page({
   
   // 重新登录
   handleLogin() {
-    toast.loading('登录中...');
+    info('开始登录流程');
     
-    getApp().login((success) => {
-      toast.hide(); // 隐藏加载提示
-      
-      if (success) {
-        // 获取最新的用户信息
-        const userInfo = getApp().globalData.userInfo;
+    wx.showLoading({ title: '登录中...' });
+    
+    // 使用云函数登录，只获取openid
+    wx.cloud.callFunction({
+      name: 'login',
+      success: (res) => {
+        wx.hideLoading();
+        info('云函数登录返回', res.result);
+
+        const userInfo = res.result.userInfo;
+        this.setData({ userInfo });
+        wx.setStorageSync('userInfo', userInfo);
         
-        info('登录成功，用户信息:', userInfo);
-        toast.success('登录成功');
-        
-        // 更新页面数据并重新加载用户数据
-        this.setData({ userInfo }, () => {
-          this.loadUserData();
+      },
+      fail: (err) => {
+        wx.hideLoading();
+        error('云函数调用失败', err);
+        wx.showToast({
+          title: '登录失败',
+          icon: 'error'
         });
-      } else {
-        toast.error('登录失败');
       }
     });
   },
   
   // 退出登录
-  async handleLogout() {
-    try {
-      // 先调用API的登出方法
-      await apiService.logout();
-      
-      // 清除全部本地存储，而不仅仅是token
-      wx.clearStorageSync();
-      
-      // 重置全局数据
-      getApp().globalData.userInfo = null;
-      getApp().globalData.currentBP = null;
-      getApp().globalData.uploadedFiles = [];
-      getApp().globalData.analysisList = [];
-      
-      // 重置页面数据
-      this.setData({
-        userInfo: null,
-        bpList: [],
-        bpCount: 0,
-        reportCount: 0
-      });
-      
-      // 提示用户
-      toast.success('已退出登录');
-      
-      // 显示提示，建议用户重启或重新编译小程序
-      wx.showModal({
-        title: '退出成功',
-        content: '为确保完全退出，建议重启小程序或重新编译',
-        showCancel: false
-      });
-    } catch (error) {
-      error('退出登录失败', error);
-      toast.error('退出失败');
-    }
+  handleLogout() {
+    wx.showModal({
+      title: '提示',
+      content: '确定要退出登录吗？',
+      success: (res) => {
+        if (res.confirm) {
+          info('用户确认退出登录');
+          
+          // 清除用户信息
+          wx.removeStorageSync('userInfo');
+          this.setData({ userInfo: null });
+          
+          wx.showToast({
+            title: '已退出登录',
+            icon: 'success'
+          });
+        }
+      }
+    });
   },
   
   // 清理缓存 - 添加更强力的清理选项
@@ -646,4 +641,137 @@ Page({
     // 尝试使用日期工具格式化
     return formatDisplayTime(timestamp);
   },
-}) 
+
+  // 检查登录状态
+  checkLoginStatus: function() {
+    const userInfo = wx.getStorageSync('userInfo');
+    if (userInfo) {
+      this.setData({ userInfo });
+    } else {
+      this.setData({ userInfo: null });
+    }
+  },
+
+  // 选择头像
+  onChooseAvatar: function(e) {
+    const { avatarUrl } = e.detail;
+    info('用户选择头像', { avatarUrl });
+    
+    const userInfo = this.data.userInfo || {};
+    userInfo.avatarUrl = avatarUrl;
+    
+    this.setData({ userInfo });
+    this.saveUserInfo();
+  },
+
+  // 昵称输入框失去焦点
+  onNicknameBlur: function(e) {
+    const nickName = e.detail.value;
+    info('用户输入昵称', { nickName });
+    
+    if (!nickName) {
+      wx.showToast({
+        title: '请输入昵称',
+        icon: 'none'
+      });
+      return;
+    }
+    
+    const userInfo = this.data.userInfo || {};
+    userInfo.nickName = nickName;
+    
+    this.setData({ userInfo });
+    this.saveUserInfo();
+  },
+
+  // 保存用户信息
+  saveUserInfo: function() {
+    const userInfo = this.data.userInfo;
+    if (!userInfo) return;
+    
+    try {
+      // 保存到本地
+      wx.setStorageSync('userInfo', userInfo);
+      info('用户信息保存到本地成功', userInfo);
+      
+      // 如果有 openId，同时保存到云端
+      if (userInfo.openId) {
+        this.updateUserInfoToCloud(userInfo);
+      } else {
+        wx.showToast({
+          title: '保存成功',
+          icon: 'success'
+        });
+      }
+    } catch (err) {
+      error('保存用户信息失败', err);
+      wx.showToast({
+        title: '保存失败',
+        icon: 'error'
+      });
+    }
+  },
+  
+  // 更新用户信息到云端
+  updateUserInfoToCloud: function(userInfo) {
+    wx.cloud.callFunction({
+      name: 'updateUserInfo',
+      data: {
+        nickName: userInfo.nickName,
+        avatarUrl: userInfo.avatarUrl
+      },
+      success: (res) => {
+        info('用户信息更新到云端成功', res.result);
+        wx.showToast({
+          title: '保存成功',
+          icon: 'success'
+        });
+      },
+      fail: (err) => {
+        error('用户信息更新到云端失败', err);
+        // 即使云端更新失败，本地已保存成功，也显示成功提示
+        wx.showToast({
+          title: '保存成功',
+          icon: 'success'
+        });
+      }
+    });
+  },
+  
+  // 查看历史
+  handleViewHistory: function() {
+    if (!this.data.userInfo) {
+      wx.showToast({
+        title: '请先登录',
+        icon: 'none'
+      });
+      return;
+    }
+    
+    wx.navigateTo({
+      url: '/pages/history/history'
+    });
+  },
+
+  // 查看收藏
+  handleViewFavorites: function() {
+    if (!this.data.userInfo) {
+      wx.showToast({
+        title: '请先登录',
+        icon: 'none'
+      });
+      return;
+    }
+    
+    wx.navigateTo({
+      url: '/pages/favorites/favorites'
+    });
+  },
+
+  // 查看设置
+  handleViewSettings: function() {
+    wx.navigateTo({
+      url: '/pages/settings/settings'
+    });
+  }
+}); 

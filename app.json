@@ -43,7 +43,7 @@
   "lazyCodeLoading": "requiredComponents",
   "cloud": true,
   "usingComponents": {
-    "mp-toast": "components/toast/toast"
+    "toast": "/components/toast/toast"
   },
   "permission": {
     "scope.userLocation": {
