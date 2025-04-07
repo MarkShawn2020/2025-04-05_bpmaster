@@ -201,11 +201,26 @@ Page({
         
         // 如果云函数返回成功
         if (res.result && res.result.code === 0) {
+          // 更新分析列表和总数
           this.setData({
             recentAnalysisList: res.result.data.list,
             totalAnalysisCount: res.result.data.total,
             loading: false
           });
+          
+          // 更新统计数据
+          if (res.result.data.statistics) {
+            this.setData({
+              'statistics.totalUsers': res.result.data.statistics.userCount || 0,
+              'statistics.totalAnalysis': res.result.data.statistics.analysisCount || 0
+            });
+            
+            info('更新统计数据', {
+              userCount: res.result.data.statistics.userCount,
+              fileCount: res.result.data.statistics.fileCount,
+              analysisCount: res.result.data.statistics.analysisCount
+            });
+          }
         } else {
           // 返回失败，显示错误信息
           error('获取分析列表失败', res.result);

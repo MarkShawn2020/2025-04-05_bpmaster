@@ -22,7 +22,7 @@ exports.main = async (event, context) => {
   const db = cloud.database()
   
   try {
-    let query = db.collection('bp_analysis')
+    let query = db.collection('analysis_tasks')
     
     // 如果传入了特定用户的openid，则只查询该用户的数据
     if (openid && !event.all) {
@@ -62,13 +62,31 @@ exports.main = async (event, context) => {
       }
     })
     
+    // 获取统计数据
+    // 1. 用户总数
+    const userCountResult = await db.collection('users').count()
+    const userCount = userCountResult.total || 0
+    
+    // 2. 文件总数
+    const fileCountResult = await db.collection('bp_files').count()
+    const fileCount = fileCountResult.total || 0
+    
+    // 3. 分析任务总数 (已经通过上面的countResult获取)
+    const analysisCount = total
+    
     // 返回结果
     return {
       code: 0,
       message: '获取最近分析列表成功',
       data: {
         list: analysisList,
-        total: total
+        total: total,
+        statistics: {
+          userCount: userCount,
+          fileCount: fileCount,
+          analysisCount: analysisCount,
+          totalAnalysis: analysisCount // 兼容原有字段
+        }
       }
     }
   } catch (err) {
