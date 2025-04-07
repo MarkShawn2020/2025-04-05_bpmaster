@@ -9,17 +9,104 @@
     </block>
   </swiper>
 
-  <!-- 数据统计区域 -->
+  <!-- 数据统计区域 - 优化版 -->
   <view class="stats-container">
-    <view class="stats-highlight-card">
-      <view class="stats-highlight-content">
-        <view class="stats-highlight-text">已帮助</view>
-        <view class="stats-highlight-value">{{statistics.totalUsers}}</view>
-        <view class="stats-highlight-text">用户分析了</view>
-        <view class="stats-highlight-value">{{statistics.totalAnalysis}}</view>
-        <view class="stats-highlight-text">次 BP</view>
+    <!-- 主要统计数据卡片 -->
+    <view class="stats-main-card">
+      <view class="stats-title">平台概览</view>
+      
+      <view class="stats-metrics-row">
+        <view class="stats-metric">
+          <view class="metric-value">{{statistics.totalUsers || 0}}</view>
+          <view class="metric-label">累计用户</view>
+        </view>
+        
+        <view class="stats-metric">
+          <view class="metric-value">{{statistics.fileCount || 0}}</view>
+          <view class="metric-label">上传文件</view>
+        </view>
+        
+        <view class="stats-metric">
+          <view class="metric-value">{{statistics.totalAnalysis || 0}}</view>
+          <view class="metric-label">分析总数</view>
+        </view>
+      </view>
+      
+      <!-- 活跃度指标 -->
+      <view class="stats-growth-section">
+        <view class="growth-header">
+          <view class="growth-title">近7天分析活跃度</view>
+          <view class="growth-badge" wx:if="{{statistics.weeklyAnalysis > 0}}">↑ {{statistics.weeklyAnalysis}}</view>
+        </view>
+        
+        <view class="activity-bars">
+          <view class="activity-bar" wx:for="{{statistics.dailyActivity || [0,0,0,0,0,0,0]}}" wx:key="index" style="height: {{item > 0 ? (item/statistics.maxDailyActivity)*120 : 10}}rpx;"></view>
+        </view>
+        <view class="activity-labels">
+          <view class="day-label" wx:for="{{['一','二','三','四','五','六','日']}}" wx:key="index">{{item}}</view>
+        </view>
       </view>
     </view>
+    
+    <!-- 行业统计卡片 -->
+    <view class="stats-row">
+      <view class="stats-card industry-card">
+        <view class="stats-header">
+          <view class="stats-label">BP行业分布</view>
+        </view>
+        <view class="industry-chart">
+          <view class="industry-bar">
+            <view class="industry-segment tech" style="width: {{statistics.industryDistribution.tech}}%;"></view>
+            <view class="industry-segment finance" style="width: {{statistics.industryDistribution.finance}}%;"></view>
+            <view class="industry-segment healthcare" style="width: {{statistics.industryDistribution.healthcare}}%;"></view>
+            <view class="industry-segment education" style="width: {{statistics.industryDistribution.education}}%;"></view>
+            <view class="industry-segment other" style="width: {{statistics.industryDistribution.other}}%;"></view>
+          </view>
+          <view class="industry-legend">
+            <view class="legend-item">
+              <view class="legend-color tech"></view>
+              <view class="legend-text">科技 {{statistics.industryDistribution.tech}}%</view>
+            </view>
+            <view class="legend-item">
+              <view class="legend-color finance"></view>
+              <view class="legend-text">金融 {{statistics.industryDistribution.finance}}%</view>
+            </view>
+            <view class="legend-item">
+              <view class="legend-color healthcare"></view>
+              <view class="legend-text">医疗 {{statistics.industryDistribution.healthcare}}%</view>
+            </view>
+            <view class="legend-item">
+              <view class="legend-color education"></view>
+              <view class="legend-text">教育 {{statistics.industryDistribution.education}}%</view>
+            </view>
+            <view class="legend-item">
+              <view class="legend-color other"></view>
+              <view class="legend-text">其他 {{statistics.industryDistribution.other}}%</view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 最高分数和平均分卡片 -->
+    <!-- <view class="stats-row">
+      <view class="stats-card highlight">
+        <view class="stats-header">
+          <view class="stats-value">{{statistics.highestScore.score || 0}}</view>
+          <view class="stats-badge">最高分</view>
+        </view>
+        <view class="stats-label">BP最高评分</view>
+        <view class="stats-subtitle" wx:if="{{statistics.highestScore.fileName}}">{{statistics.highestScore.fileName}}</view>
+      </view>
+      
+      <view class="stats-card">
+        <view class="stats-header">
+          <view class="stats-value">{{statistics.averageScore || 0}}</view>
+        </view>
+        <view class="stats-label">平均评分</view>
+        <view class="stats-subtitle">基于全部BP评估</view>
+      </view>
+    </view> -->
   </view>
 
   <!-- 功能区 - 使用优化后的双列布局 -->
@@ -33,41 +120,11 @@
     </view>
   </view>
 
-  <!-- 最近分析 -->
-  <view class="recent-section">
-    <view class="section-header">
-      <view class="section-title">最近分析</view>
-      <view class="section-more" bindtap="goToHistoryList">查看全部</view>
-    </view>
 
-    <!-- 双列卡片布局 -->
-    <view class="analysis-grid" wx:if="{{!loading && recentAnalysisList.length > 0}}">
-      <view class="analysis-card" wx:for="{{recentAnalysisList}}" wx:key="id" bindtap="goToAnalysisDetail" data-id="{{item.id}}">
-        <view class="analysis-card-header">
-          <image class="file-icon" src="/assets/icons/file-{{item.fileName.split('.').pop().toLowerCase()}}.png" mode="aspectFit"></image>
-          <view class="analysis-card-score {{item.score >= 90 ? 'score-excellent' : (item.score >= 80 ? 'score-good' : 'score-average')}}">
-            {{item.score}}
-          </view>
-        </view>
-        <view class="analysis-card-title">{{item.fileName}}</view>
-        <view class="analysis-card-footer">
-          <view class="analysis-card-time">{{item.analysisDate}}</view>
-          <view class="analysis-card-tag">已分析</view>
-        </view>
-      </view>
-    </view>
+    <view class="empty-state" >
 
-    <view class="empty-state" wx:elif="{{!loading && recentAnalysisList.length === 0}}">
-      <image src="/assets/images/empty.png" class="empty-image" mode="widthFix"></image>
-      <view class="empty-text">暂无分析记录</view>
-      <button class="btn-primary" bindtap="goToUpload">立即上传分析</button>
+  <button class="btn-primary" bindtap="goToUpload">立即上传分析</button>
     </view>
-
-    <view class="loading-state" wx:elif="{{loading}}">
-      <view class="loading-spinner"></view>
-      <view class="loading-text">加载中...</view>
-    </view>
-  </view>
 
   <!-- 用户登录面板 -->
   <view class="login-panel-mask" wx:if="{{showLoginPanel}}" bindtap="hideLoginPanel"></view>
