@@ -30,7 +30,7 @@ Page({
   // 检查登录状态
   checkLoginStatus: function() {
     const userInfo = wx.getStorageSync('userInfo');
-    if (!userInfo || !userInfo.openId) {
+    if (!userInfo || !userInfo.openid) {
       wx.showModal({
         title: '提示',
         content: '请先登录后再上传文件',

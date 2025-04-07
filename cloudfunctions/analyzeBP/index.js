@@ -21,7 +21,7 @@ exports.main = async (event, context) => {
     tcbContext: context,
     userInfo: {
       appId: APPID,
-      openId: OPENID
+      openid: OPENID
     }
   })
 

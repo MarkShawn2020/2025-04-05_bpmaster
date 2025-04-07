@@ -54,7 +54,7 @@ function formatLog(level, message, data) {
     timestamp,
     level,
     page: getCurrentPageName(),
-    user: app ? (app.globalData.userInfo ? app.globalData.userInfo.openId : 'unknown') : 'unknown',
+    user: app ? (app.globalData.userInfo ? app.globalData.userInfo.openid : 'unknown') : 'unknown',
     version: app ? app.globalData.version : 'unknown'
   };
   

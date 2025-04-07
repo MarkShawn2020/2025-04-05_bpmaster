@@ -666,8 +666,9 @@ Page({
 
   // 昵称输入框失去焦点
   onNicknameBlur: function(e) {
+    
     const nickName = e.detail.value;
-    info('用户输入昵称', { nickName });
+    info('用户输入昵称', e.detail, { nickName });
     
     if (!nickName) {
       wx.showToast({
@@ -694,8 +695,8 @@ Page({
       wx.setStorageSync('userInfo', userInfo);
       info('用户信息保存到本地成功', userInfo);
       
-      // 如果有 openId，同时保存到云端
-      if (userInfo.openId) {
+      // 如果有 openid，同时保存到云端
+      if (userInfo.openid) {
         this.updateUserInfoToCloud(userInfo);
       } else {
         wx.showToast({
