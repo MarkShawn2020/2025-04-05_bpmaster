@@ -288,11 +288,10 @@ Page({
       return;
     }
     
-    info('调用Coze工作流', { workflowId, fileId: this.data.fileId });
     
     const headers = {
-      // ref: [wx.request POST传递中文时显示乱码处理方法_wx.request传值乱码的问题-CSDN博客](https://blog.csdn.net/weixin_45807026/article/details/124175930)
-      'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8',
+      // 不能用 application/x-www-form-urlencoded;charset=utf-8，否则会导致 coze 收不到消息
+      "Content-Type": "application/json",
       'Authorization': `Bearer ${token}`
     };
     
@@ -303,6 +302,8 @@ Page({
         // todo: add user identification
       }
     };
+
+    info('调用Coze工作流', data);
     
     // 设置超时计时器，防止工作流卡死
     if (this.workflowTimeout) {
@@ -394,7 +395,7 @@ Page({
       const hasChinese = /[\u4e00-\u9fa5]/.test(text);
       const preview = text.length > 20 ? text.substring(0, 20) + '...' : text;
       
-      info('解码ArrayBuffer结果', {
+      debug('解码ArrayBuffer结果', {
         byteLength: buf.byteLength,
         textLength: text.length,
         hasChinese: hasChinese,
@@ -576,7 +577,7 @@ Page({
     const hasChinese = /[\u4e00-\u9fa5]/.test(content);
     const preview = content.length > 20 ? content.substring(0, 20) + '...' : content;
     
-    info('接收到消息内容', {
+    debug('接收到消息内容', {
       contentLength: content.length,
       hasChinese: hasChinese,
       preview: preview
