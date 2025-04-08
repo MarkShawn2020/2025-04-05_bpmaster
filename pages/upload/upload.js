@@ -29,7 +29,8 @@ Page({
 
   // 检查登录状态
   checkLoginStatus: function() {
-    const userInfo = wx.getStorageSync('userInfo');
+
+    const userInfo = app.globalData.userInfo;
     if (!userInfo || !userInfo.openid) {
       wx.showModal({
         title: '提示',
