@@ -90,9 +90,6 @@ Page({
     
     // 获取统计数据
     this.getStatisticsData();
-
-    // 不再测试空状态
-    // this.testEmptyState();
   },
   
   // 获取统计数据
@@ -275,119 +272,6 @@ Page({
         this.selectComponent('#toast').error('登录失败，请重试');
       }
     });
-  },
-
-  // 前往历史分析页
-  goToHistoryList() {
-    const app = getApp();
-    
-    // 如果已登录，直接跳转
-    if (this.data.isLoggedIn) {
-      wx.switchTab({
-        url: '/pages/history/history'
-      });
-      return;
-    }
-    
-    // 开发环境自动登录
-    if (app.globalData.isDev) {
-      info('开发环境历史页面自动登录');
-      app.login((success) => {
-        if (success) {
-          this.setData({
-            isLoggedIn: true,
-            userInfo: app.globalData.userInfo
-          });
-          
-          // 登录成功后跳转
-          wx.switchTab({
-            url: '/pages/history/history'
-          });
-        } else {
-          // 即使在开发环境，登录失败也显示登录面板
-          this.showLoginPanel();
-        }
-      });
-      return;
-    }
-    
-    // 生产环境显示登录面板
-    this.showLoginPanel();
-  },
-
-  // 前往分析详情页
-  goToAnalysisDetail(e) {
-    const id = e.currentTarget.dataset.id;
-    
-    wx.navigateTo({
-      url: `/pages/analysis/analysis?id=${id}`
-    });
-  },
-
-  // 点击Banner
-  onBannerTap(e) {
-    const index = e.currentTarget.dataset.index;
-    const banner = this.data.bannerList[index];
-    
-    info('点击Banner', banner);
-    
-    // 可以根据不同的banner进行不同的操作
-    if (index === 0) {
-      this.goToUpload();
-    }
-  },
-
-  // 点击功能
-  onFeatureTap(e) {
-    const id = e.currentTarget.dataset.id;
-    const app = getApp();
-    
-    info('点击功能', id);
-    
-    // 如果在开发环境中但未登录，先尝试自动登录
-    if (app.globalData.isDev && !this.data.isLoggedIn) {
-      info('开发环境功能点击自动登录');
-      app.login((success) => {
-        if (success) {
-          this.setData({
-            isLoggedIn: true,
-            userInfo: app.globalData.userInfo
-          }, () => {
-            // 登录成功后继续处理功能点击
-            this.handleFeature(id);
-          });
-        } else {
-          // 即使开发环境登录失败，也显示登录面板
-          this.showLoginPanel();
-        }
-      });
-      return;
-    }
-    
-    // 正常处理功能点击
-    this.handleFeature(id);
-  },
-
-  // 处理功能点击的实际逻辑
-  handleFeature(id) {
-    switch (id) {
-      case 1: // 上传
-        this.goToUpload();
-        break;
-      case 2: // 分析
-        this.goToUpload();
-        break;
-      case 3: // 报告
-        if (this.data.recentAnalysisList.length > 0) {
-          this.goToAnalysisDetail({ currentTarget: { dataset: { id: this.data.recentAnalysisList[0].id } } });
-        } else {
-          this.goToUpload();
-        }
-        break;
-      case 4: // 对比
-        this.goToHistoryList();
-        break;
-    }
   },
 
   onShareAppMessage() {
