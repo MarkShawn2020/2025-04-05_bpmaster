@@ -1,281 +1,304 @@
 /**
- * AI分析服务
- * 负责BP文件的AI智能分析逻辑
+ * AI服务
+ * 提供与AI相关的服务接口
  */
-import { logger } from '../utils/logger';
-import { apiService } from './api';
 
-// BP分析结果数据结构
-export const BP_STRUCTURE = {
-  projectInfo: {
-    projectName: "", // 项目名称
-    companyName: "", // 企业名称
-    companyCode: "", // 统一社会信用代码(如有)
-    industryCategory: "", // 行业分类
-    developmentStage: "", // 发展阶段
-    projectManager: "", // 项目负责人
-    contactPerson: "", // 项目联系人
-    contactPhone: "" // 联系电话
-  },
-  businessPlan: {
-    projectSummary: "", // 项目简介
-    productsAndServices: "", // 产品与服务
-    industryAndMarket: "", // 行业与市场
-    coreTechnology: "", // 核心技术
-    businessModel: "", // 商业模式
-    coreTeam: "", // 核心团队
-    strategicPlanning: "" // 战略规划
-  },
-  patents: [
-    // {
-    //   patentNumber: "", // 专利号
-    //   patentName: "", // 专利名称
-    //   inventors: [""] // 发明人
-    // }
-  ],
-  teamMembers: [
-    // {
-    //   name: "", // 姓名
-    //   organization: "", // 单位
-    //   position: "", // 职务
-    //   education: "", // 学历
-    //   experience: "" // 履历
-    // }
-  ],
-  financials: {
-    revenueProjections: [
-      // {
-      //   year: 0,
-      //   amount: 0
-      // }
-    ],
-    expenseProjections: [
-      // {
-      //   year: 0,
-      //   amount: 0
-      // }
-    ],
-    profitProjections: [
-      // {
-      //   year: 0,
-      //   amount: 0
-      // }
-    ]
+const app = getApp();
+import { info, error, debug, warn } from '../utils/logger.js';
+
+/**
+ * 调用Coze流式工作流API并处理SSE响应
+ * @param {Object} options 选项
+ * @param {string} options.fileUrl 文件URL
+ * @param {Function} options.onChunk 接收原始数据块的回调
+ * @param {Function} options.onEvent 接收格式化事件的回调，如 {event: 'Message', data: {...}}
+ * @param {Function} options.onComplete 完成时的回调
+ * @param {Function} options.onError 错误时的回调
+ * @param {Function} options.isAnalyzing 可选，用于检查当前是否仍在分析中的回调函数
+ * @param {Object} options.parameters 可选，传递给Coze工作流的额外参数
+ * @returns {Object} 请求任务对象
+ */
+function callCozeWorkflow(options) {
+  // 检查选项
+  if (!options || !options.fileUrl) {
+    const error = new Error('缺少必要参数');
+    if (options.onError) options.onError(error);
+    return;
   }
-};
 
-// AI分析服务
-export const aiService = {
-  /**
-   * 分析BP文件
-   * @param {string} fileId 文件ID
-   * @param {Function} progressCallback 进度回调
-   * @returns {Promise} 分析结果
-   */
-  async analyzeBP(fileId, progressCallback = null) {
-    logger.info('开始分析BP文件', fileId);
-    
-    try {
-      // 调用后端分析接口
-      if (progressCallback) progressCallback(10, '准备分析...');
-      
-      const result = await apiService.analyzeBP(fileId);
-      
-      if (progressCallback) progressCallback(100, '分析完成');
-      
-      logger.info('BP分析完成', result);
-      return result;
-    } catch (error) {
-      logger.error('BP分析失败', error);
-      throw error;
+  // 获取配置
+  const cozeConfig = app.globalData.config.coze;
+  const workflowId = cozeConfig.WORKFLOW_ID;
+  const token = cozeConfig.TOKEN;
+  const apiUrl = cozeConfig.API_URL;
+
+  info('Coze配置信息', { workflowId, apiUrl, tokenLength: token ? token.length : 0 });
+
+  // 检查配置
+  if (!workflowId || !token || !apiUrl) {
+    const configError = new Error('系统配置错误，缺少Coze必要配置项');
+    error('缺少Coze必要配置项', { workflowId, hasToken: !!token, apiUrl });
+    if (options.onError) options.onError(configError);
+    return;
+  }
+
+  const headers = {
+    // 不能用 application/x-www-form-urlencoded;charset=utf-8，否则会导致 coze 收不到消息
+    "Content-Type": "application/json", 
+    'Authorization': `Bearer ${token}`
+  };
+
+  const data = {
+    workflow_id: workflowId, 
+    parameters: {
+      files: [options.fileUrl]
+      // 可以添加更多参数
     }
-  },
-  
-  /**
-   * 生成BP报告
-   * @param {Object} analysisData 分析数据
-   * @param {Object} options 生成选项
-   * @returns {Promise} 生成结果
-   */
-  async generateReport(analysisData, options = {}) {
-    logger.info('开始生成BP报告');
-    
-    try {
-      // 调用后端报告生成接口
-      const result = await apiService.generateReport(analysisData.id, options);
-      
-      logger.info('BP报告生成完成', result);
-      return result;
-    } catch (error) {
-      logger.error('BP报告生成失败', error);
-      throw error;
-    }
-  },
-  
-  /**
-   * 评估BP得分
-   * @param {Object} analysisData 分析数据
-   * @returns {Object} 评估结果
-   */
-  evaluateBP(analysisData) {
-    logger.info('开始评估BP得分');
-    
-    // 这里仅为示例，实际应从后端获取或基于复杂规则计算
-    const scores = {
-      businessModel: this._calculateScore(analysisData.businessPlan.businessModel, 100),
-      market: this._calculateScore(analysisData.businessPlan.industryAndMarket, 100),
-      technology: this._calculateScore(analysisData.businessPlan.coreTechnology, 100),
-      team: this._evaluateTeam(analysisData.teamMembers),
-      financials: this._evaluateFinancials(analysisData.financials)
-    };
-    
-    // 计算总分
-    const totalScore = (
-      scores.businessModel * 0.25 +
-      scores.market * 0.25 +
-      scores.technology * 0.2 +
-      scores.team * 0.2 +
-      scores.financials * 0.1
-    ).toFixed(1);
-    
-    const result = {
-      totalScore,
-      categoryScores: scores,
-      recommendations: this._generateRecommendations(scores, analysisData)
-    };
-    
-    logger.info('BP评估完成', result);
-    return result;
-  },
-  
-  /**
-   * 计算简单得分
-   * @private
-   * @param {string} text 文本内容
-   * @param {number} maxLength 最大长度
-   * @returns {number} 得分
-   */
-  _calculateScore(text, maxLength) {
-    // 示例：简单基于内容长度和关键词计算得分
-    if (!text) return 60;
-    
-    const length = text.length;
-    const lengthScore = Math.min(length / maxLength * 100, 85);
-    
-    const keywords = ['创新', '优势', '技术', '市场', '核心', '团队', '专利', '盈利'];
-    const keywordCount = keywords.filter(keyword => text.includes(keyword)).length;
-    const keywordScore = keywordCount / keywords.length * 15;
-    
-    return Math.min(lengthScore + keywordScore, 100).toFixed(1);
-  },
-  
-  /**
-   * 评估团队
-   * @private
-   * @param {Array} teamMembers 团队成员
-   * @returns {number} 团队得分
-   */
-  _evaluateTeam(teamMembers) {
-    if (!teamMembers || !teamMembers.length) return 60;
-    
-    // 根据团队规模、经验等评估
-    const size = Math.min(teamMembers.length, 10);
-    const sizeScore = size / 10 * 40;
-    
-    let experienceScore = 0;
-    teamMembers.forEach(member => {
-      if (member.experience && member.experience.length > 50) {
-        experienceScore += 6;
+  };
+
+  // 如果有额外参数，合并到parameters中
+  if (options.parameters) {
+    Object.assign(data.parameters, options.parameters);
+  }
+
+  info('调用Coze工作流', data);
+
+  // 请求任务对象
+  const requestTask = wx.request({
+    url: apiUrl, 
+    method: 'POST', 
+    header: headers, 
+    data: data, 
+    enableChunked: true, // 启用分块接收
+    responseType: 'arraybuffer', // 重要：确保以ArrayBuffer格式接收数据
+    success: function (res) {
+      // 请求成功只表示请求已经发出
+      info('Coze工作流请求成功', res.statusCode);
+    }, 
+    fail: function (err) {
+      // 请求失败
+      error('Coze工作流请求失败', err);
+      if (options.onError) options.onError(err);
+    }, 
+    complete: function () {
+      // 请求完成，但可能没收到[DONE]标记，启动一个短超时
+      // 如果提供了onComplete回调，在5秒后如果仍在分析中且有内容，则自动调用
+      if (options.onComplete) {
+        setTimeout(() => {
+          // 这里需要通过回调获取当前状态，因为服务函数无法访问页面的data
+          if (options.isAnalyzing && options.isAnalyzing()) {
+            info('工作流数据接收完毕但未收到完成标记，自动完成');
+            options.onComplete();
+          }
+        }, 5000); // 5秒后如果仍在分析中，则自动完成
       }
+    }
+  });
+
+  // 监听分块数据
+  requestTask.onChunkReceived(function (res) {
+    try {
+      // 记录接收到的原始数据块信息
+      debug('接收数据块', {
+        chunkSize: res.data.byteLength, 
+        isLastChunk: res.isLastChunk || false
+      });
+
+      // 解析ArrayBuffer数据为文本（使用内部实现的ab2str函数）
+      const chunk = ab2str(res.data);
+
+      // 如果是最后一个块，记录日志
+      if (res.isLastChunk) {
+        info('接收到最后一个数据块');
+      }
+
+      // 处理数据块
+      if (options.onChunk) {
+        options.onChunk(chunk);
+      }
+      
+      // 内部使用processSSEChunk处理SSE格式数据
+      processSSEChunk(chunk, 
+        // 事件回调
+        (event) => {
+          if (options.onEvent) options.onEvent(event);
+        }, 
+        // 完成回调
+        () => {
+          if (options.onComplete) options.onComplete();
+        }
+      );
+    } catch (err) {
+      error('处理Coze响应块数据失败', err);
+      if (options.onError) options.onError(err);
+    }
+  });
+
+  return requestTask;
+}
+
+/**
+ * ArrayBuffer转字符串，确保中文不乱码
+ * @param {ArrayBuffer} buf ArrayBuffer数据
+ * @returns {string} 转换后的字符串
+ */
+function ab2str(buf) {
+  try {
+    // 使用TextDecoder指定UTF-8编码，确保中文正确解码
+    const decoder = new TextDecoder('utf-8');
+    const text = decoder.decode(new Uint8Array(buf));
+    
+    // 检查内容，记录是否包含中文(用于调试)
+    const hasChinese = /[\u4e00-\u9fa5]/.test(text);
+    const preview = text.length > 20 ? text.substring(0, 20) + '...' : text;
+    
+    debug('解码ArrayBuffer结果', {
+      byteLength: buf.byteLength,
+      textLength: text.length,
+      hasChinese: hasChinese,
+      preview: preview
     });
     
-    experienceScore = Math.min(experienceScore, 60);
+    return text;
+  } catch (err) {
+    error('TextDecoder解码失败', err);
     
-    return Math.min(sizeScore + experienceScore, 100).toFixed(1);
-  },
-  
-  /**
-   * 评估财务
-   * @private
-   * @param {Object} financials 财务数据
-   * @returns {number} 财务得分
-   */
-  _evaluateFinancials(financials) {
-    if (!financials) return 60;
-    
-    const hasRevenue = financials.revenueProjections && financials.revenueProjections.length > 0;
-    const hasExpense = financials.expenseProjections && financials.expenseProjections.length > 0;
-    const hasProfit = financials.profitProjections && financials.profitProjections.length > 0;
-    
-    let score = 60; // 基础分
-    
-    if (hasRevenue) score += 10;
-    if (hasExpense) score += 10;
-    if (hasProfit) score += 10;
-    
-    // 简单检查收入是否随时间增长
-    if (hasRevenue && financials.revenueProjections.length > 1) {
-      const firstYear = financials.revenueProjections[0].amount;
-      const lastYear = financials.revenueProjections[financials.revenueProjections.length - 1].amount;
+    // 兼容性方案1：手动解码UTF-8
+    try {
+      const bytes = new Uint8Array(buf);
+      let result = '';
+      let i = 0;
+      while (i < bytes.length) {
+        if (bytes[i] < 128) {
+          // ASCII字符，直接添加
+          result += String.fromCharCode(bytes[i]);
+          i++;
+        } else if (bytes[i] >= 192 && bytes[i] < 224) {
+          // 2字节UTF-8
+          const code = ((bytes[i] & 0x1f) << 6) | (bytes[i+1] & 0x3f);
+          result += String.fromCharCode(code);
+          i += 2;
+        } else if (bytes[i] >= 224 && bytes[i] < 240) {
+          // 3字节UTF-8
+          const code = ((bytes[i] & 0x0f) << 12) | 
+                     ((bytes[i+1] & 0x3f) << 6) | 
+                     (bytes[i+2] & 0x3f);
+          result += String.fromCharCode(code);
+          i += 3;
+        } else if (bytes[i] >= 240) {
+          // 4字节UTF-8，需要拆成两个UTF-16字符
+          const codePoint = ((bytes[i] & 0x07) << 18) | 
+                         ((bytes[i+1] & 0x3f) << 12) | 
+                         ((bytes[i+2] & 0x3f) << 6) | 
+                         (bytes[i+3] & 0x3f);
+          
+          // 从代码点计算UTF-16代理对
+          const highSurrogate = Math.floor((codePoint - 0x10000) / 0x400) + 0xD800;
+          const lowSurrogate = ((codePoint - 0x10000) % 0x400) + 0xDC00;
+          
+          result += String.fromCharCode(highSurrogate, lowSurrogate);
+          i += 4;
+        } else {
+          // 无效字节，跳过
+          i++;
+        }
+      }
       
-      if (lastYear > firstYear) {
-        score += 10;
+      info('手动UTF-8解码成功');
+      return result;
+    } catch (decodeErr) {
+      error('手动UTF-8解码失败', decodeErr);
+      
+      // 最后的兜底方案：逐字节转换，可能会乱码
+      try {
+        const bytes = new Uint8Array(buf);
+        let result = '';
+        for (let i = 0; i < bytes.length; i++) {
+          result += String.fromCharCode(bytes[i]);
+        }
+        
+        // 尝试使用encodeURIComponent和decodeURIComponent修复UTF-8编码
+        try {
+          const fixed = decodeURIComponent(escape(result));
+          info('URI编码修复成功');
+          return fixed;
+        } catch (e) {
+          info('URI编码修复失败，返回原始结果');
+          return result;
+        }
+      } catch (finalErr) {
+        error('所有解码方法都失败', finalErr);
+        return ''; // 返回空字符串避免报错
       }
     }
-    
-    return Math.min(score, 100).toFixed(1);
-  },
-  
-  /**
-   * 生成建议
-   * @private
-   * @param {Object} scores 评分
-   * @param {Object} analysisData 分析数据
-   * @returns {Array} 建议列表
-   */
-  _generateRecommendations(scores, analysisData) {
-    const recommendations = [];
-    
-    // 商业模式建议
-    if (scores.businessModel < 70) {
-      recommendations.push({
-        category: '商业模式',
-        content: '商业模式描述不够清晰，建议明确说明如何获取客户、创造价值和实现盈利。'
-      });
-    }
-    
-    // 市场建议
-    if (scores.market < 70) {
-      recommendations.push({
-        category: '市场分析',
-        content: '市场分析不够深入，建议增加目标市场规模、增长率、竞争格局和进入壁垒等信息。'
-      });
-    }
-    
-    // 技术建议
-    if (scores.technology < 70) {
-      recommendations.push({
-        category: '核心技术',
-        content: '核心技术优势不够突出，建议详细说明技术创新点、专利保护和技术壁垒。'
-      });
-    }
-    
-    // 团队建议
-    if (scores.team < 70) {
-      recommendations.push({
-        category: '团队组成',
-        content: '团队介绍不够完善，建议突出团队成员的专业背景、行业经验和互补优势。'
-      });
-    }
-    
-    // 财务建议
-    if (scores.financials < 70) {
-      recommendations.push({
-        category: '财务规划',
-        content: '财务预测不够具体，建议提供更详细的收入来源、成本结构和盈利模型。'
-      });
-    }
-    
-    return recommendations;
   }
+}
+
+/**
+ * 处理SSE格式数据
+ * @param {string} chunk 数据块 
+ * @param {Function} onEvent 事件回调
+ * @param {Function} onComplete 完成回调
+ */
+function processSSEChunk(chunk, onEvent, onComplete) {
+  try {
+    // 按行分割，处理SSE格式
+    const lines = chunk.split('\n');
+    let currentEvent = {};
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      
+      // 解析SSE格式的行
+      if (line.startsWith('id: ')) {
+        currentEvent.id = parseInt(line.substring(4));
+      } else if (line.startsWith('event: ')) {
+        currentEvent.event = line.substring(7);
+      } else if (line.startsWith('data: ')) {
+        const jsonStr = line.substring(6);
+        
+        // 特殊情况: [DONE]标记，表示流结束
+        if (jsonStr === '[DONE]') {
+          info('收到[DONE]标记，流式传输完成');
+          if (onComplete) onComplete();
+          continue;
+        }
+        
+        try {
+          // 尝试解析JSON数据
+          const data = JSON.parse(jsonStr);
+          currentEvent.data = data;
+          
+          // 如果有完整事件（至少包含event和data），回调处理
+          if (currentEvent.event && onEvent) {
+            onEvent(currentEvent);
+            // 重置当前事件对象
+            currentEvent = {};
+          }
+        } catch (jsonErr) {
+          error('解析SSE数据JSON失败', { jsonStr, error: jsonErr });
+        }
+      }
+    }
+
+    // 检查纯文本[DONE]标记
+    if (chunk.trim() === '[DONE]') {
+      info('收到纯文本[DONE]标记');
+      if (onComplete) onComplete();
+    }
+  } catch (err) {
+    error('处理SSE数据块失败', err);
+    throw err;
+  }
+}
+
+/**
+ * AI服务模块
+ * 注意：模块内部使用了以下辅助函数，但不对外暴露：
+ * - ab2str: 用于ArrayBuffer转字符串，确保中文不乱码
+ * - processSSEChunk: 处理SSE格式数据
+ */
+export const aiService = {
+  callCozeWorkflow
 };

@@ -181,7 +181,7 @@ Page({
     
     // 跳转到分析结果页
     wx.navigateTo({
-      url: `/pages/analysis-result/analysis-result?fileId=${this.data.file.id}&fileName=${encodeURIComponent(this.data.file.name)}&fileSize=${encodeURIComponent(this.data.file.sizeText)}&fileTime=${encodeURIComponent(this.data.file.time)}&fileType=${this.data.file.type}&fileUrl=${encodeURIComponent(this.data.file.url || '')}`,
+      url: `/pages/analysis-result/analysis-result?fileId=${this.data.file.id}&analysisId=`,
       success: () => {
         info('跳转到分析结果页成功');
       },

@@ -90,58 +90,8 @@ function uploadFile(filePath, originalFileName) {
   });
 }
 
-/**
- * 调用Coze工作流
- * @param {string} workflowId 工作流ID
- * @param {Object} inputs 输入参数
- * @returns {Promise} 执行结果
- */
-function callCozeWorkflow(workflowId, inputs) {
-  return new Promise((resolve, reject) => {
-    if (!workflowId) {
-      reject(new Error('工作流ID不能为空'));
-      return;
-    }
-    
-    const token = app.globalData.config.cozeApiToken;
-    if (!token) {
-      reject(new Error('API Token未配置'));
-      return;
-    }
-    
-    info('调用Coze工作流', { workflowId });
-    
-    wx.request({
-      url: 'https://api.coze.cn/v1/workflow/run',
-      method: 'POST',
-      header: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      data: {
-        workflow_id: workflowId,
-        inputs: inputs
-      },
-      success: (res) => {
-        if (res.statusCode === 200) {
-          info('工作流调用成功', res.data);
-          resolve(res.data);
-        } else {
-          error('工作流调用失败', res);
-          reject(new Error(`工作流调用失败: ${res.statusCode}`));
-        }
-      },
-      fail: (err) => {
-        error('工作流调用请求失败', err);
-        reject(err);
-      }
-    });
-  });
-}
-
 
 
 export {
   uploadFile,
-  callCozeWorkflow,
 }; 
