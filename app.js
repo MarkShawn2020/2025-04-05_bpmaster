@@ -1,5 +1,5 @@
 // app.js
-import { info, error, warn } from "./utils/logger";
+import { info, error, warn } from './utils/logger';
 
 // 初始化云开发
 wx.cloud.init({
@@ -8,8 +8,8 @@ wx.cloud.init({
 });
 
 // 判断是否为开发环境
-const isDev = wx.getAccountInfoSync().miniProgram.envVersion === "develop" || 
-              wx.getAccountInfoSync().miniProgram.envVersion === "trial";
+const isDev = wx.getAccountInfoSync().miniProgram.envVersion === 'develop' || 
+              wx.getAccountInfoSync().miniProgram.envVersion === 'trial';
 
 // 定义应用重置方法，可在需要时调用
 function resetAppState() {
@@ -29,9 +29,9 @@ function resetAppState() {
       };
     }
     
-    info("应用状态已重置");
+    info('应用状态已重置');
   } catch (e) {
-    error("重置应用状态失败", e);
+    error('重置应用状态失败', e);
   }
 }
 
@@ -49,12 +49,12 @@ App({
     isDev: true, // 开发模式标志
     analysisStreams: {}, // 初始化分析流数据容器
     hasUserInfo: false,
-    openid: "",
+    openid: '',
     config: {
       coze: {
-        "API_URL": "https://api.coze.cn/v1/workflow/stream_run",
-        "TOKEN": "pat_qLidHTjFnf7XlU0UwEz2L2OcWl34KsuSU56X9V1dFDAuhNf3atXTOl2gO5G2laVN",
-        "WORKFLOW_ID": "7488013332172193801"
+        API_URL: 'https://api.coze.cn/v1/workflow/stream_run',
+        TOKEN: 'pat_qLidHTjFnf7XlU0UwEz2L2OcWl34KsuSU56X9V1dFDAuhNf3atXTOl2gO5G2laVN',
+        WORKFLOW_ID: '7488013332172193801'
       }
     }
   },
@@ -62,11 +62,11 @@ App({
   onLaunch() {
     const that = this;
     
-    info("小程序启动");
+    info('小程序启动');
     
     // 初始化云开发
     if (!wx.cloud) {
-      console.error("基础库版本过低，请升级微信");
+      console.error('基础库版本过低，请升级微信');
     } else {
       wx.cloud.init({
         env: wx.cloud.DYNAMIC_CURRENT_ENV,
@@ -103,14 +103,14 @@ App({
   
   // 检查更新
   checkUpdate() {
-    if (wx.canIUse("getUpdateManager")) {
+    if (wx.canIUse('getUpdateManager')) {
       const updateManager = wx.getUpdateManager();
       updateManager.onCheckForUpdate(function(res) {
         if (res.hasUpdate) {
           updateManager.onUpdateReady(function() {
             wx.showModal({
-              title: "更新提示",
-              content: "新版本已经准备好，是否重启应用？",
+              title: '更新提示',
+              content: '新版本已经准备好，是否重启应用？',
               success: function(res) {
                 if (res.confirm) {
                   updateManager.applyUpdate();
@@ -121,8 +121,8 @@ App({
           
           updateManager.onUpdateFailed(function() {
             wx.showModal({
-              title: "已经有新版本",
-              content: "新版本已经上线，请删除当前小程序，重新搜索打开"
+              title: '已经有新版本',
+              content: '新版本已经上线，请删除当前小程序，重新搜索打开'
             });
           });
         }
@@ -132,14 +132,14 @@ App({
   
   // 错误处理
   onError(err) {
-    error("应用程序错误", err);
+    error('应用程序错误', err);
   },
   
   // 页面不存在
   onPageNotFound(res) {
-    warn("页面不存在", res);
+    warn('页面不存在', res);
     wx.switchTab({
-      url: "/pages/index/index"
+      url: '/pages/index/index'
     });
   },
 
@@ -147,13 +147,13 @@ App({
   checkAndFixAppState() {
     try {
       // 检查本地存储中的token与全局状态是否一致
-      const token = wx.getStorageSync("token");
+      const token = wx.getStorageSync('token');
       const hasToken = !!token;
       const hasUserInfo = !!this.globalData.userInfo;
       
       // 如果状态不一致，进行修复
       if (hasToken !== hasUserInfo) {
-        warn("应用状态不一致，正在修复", { hasToken, hasUserInfo });
+        warn('应用状态不一致，正在修复', { hasToken, hasUserInfo });
         
         if (hasToken) {
           // 有token但无userInfo，尝试验证token
@@ -161,59 +161,59 @@ App({
         } else {
           // 有userInfo但无token，清除userInfo
           this.globalData.userInfo = null;
-          info("已清除不一致的用户信息");
+          info('已清除不一致的用户信息');
         }
       }
     } catch (e) {
-      error("检查应用状态失败", e);
+      error('检查应用状态失败', e);
     }
   },
 
   checkLoginStatus() {
     try {
-      const token = wx.getStorageSync("token")
+      const token = wx.getStorageSync('token')
       
       // 增加token有效性的初步检查
-      if (token && typeof token === "string" && token.length > 20) {
+      if (token && typeof token === 'string' && token.length > 20) {
         // 验证token有效性
         this.validateToken(token)
       } else {
         // 清除可能存在的无效token
         if (token) {
-          warn("发现无效token格式，正在清除", { tokenLength: token.length });
-          wx.removeStorageSync("token");
+          warn('发现无效token格式，正在清除', { tokenLength: token.length });
+          wx.removeStorageSync('token');
         }
         
         // 引导用户登录
-        info("用户未登录，token不存在或无效")
+        info('用户未登录，token不存在或无效')
         this.globalData.userInfo = null;
       }
     } catch (e) {
-      error("检查登录状态失败", e)
+      error('检查登录状态失败', e)
       // 出错时重置登录状态
       this.globalData.userInfo = null;
       try {
-        wx.removeStorageSync("token");
+        wx.removeStorageSync('token');
       } catch (err) {
-        error("清除token失败", err);
+        error('清除token失败', err);
       }
     }
   },
 
   validateToken(token) {
-    info("开始验证token", token.substring(0, 10) + "...")
+    info('开始验证token', token.substring(0, 10) + '...')
     
     // 使用云函数验证token
     wx.cloud.callFunction({
-      name: "validateToken",
+      name: 'validateToken',
       data: {
         token
       },
       success: (res) => {
-        info("验证token返回结果", res.result)
+        info('验证token返回结果', res.result)
         
         if (res.result && res.result.code === 200) {
-          info("Token有效，更新用户信息", res.result.userInfo)
+          info('Token有效，更新用户信息', res.result.userInfo)
           this.globalData.userInfo = res.result.userInfo
           
           // 触发登录成功事件，供页面响应
@@ -222,76 +222,76 @@ App({
             wx.eventCenter.loginSuccess(res.result.userInfo)
           }
         } else {
-          warn("Token无效，需要重新登录", res.result)
-          wx.removeStorageSync("token")
+          warn('Token无效，需要重新登录', res.result)
+          wx.removeStorageSync('token')
           this.globalData.userInfo = null
         }
       },
       fail: (err) => {
-        error("验证Token失败", err)
-        wx.removeStorageSync("token")
+        error('验证Token失败', err)
+        wx.removeStorageSync('token')
         this.globalData.userInfo = null
       }
     })
   },
 
   login(callback) {
-    info("开始登录流程")
+    info('开始登录流程')
     
     wx.login({
       success: (res) => {
         if (res.code) {
-          info("获取微信code成功", res.code)
+          info('获取微信code成功', res.code)
           
           // 使用云函数登录
           wx.cloud.callFunction({
-            name: "login",
+            name: 'login',
             data: {
               code: res.code
             },
             success: (res) => {
-              info("云函数登录返回", res.result)
+              info('云函数登录返回', res.result)
               
               if (res.result && res.result.token) {
                 // 保存token
-                wx.setStorageSync("token", res.result.token)
+                wx.setStorageSync('token', res.result.token)
                 
                 // 保存openid (确保云函数返回了openid)
                 if (res.result.openid) {
                   this.globalData.openid = res.result.openid;
-                  info("获取openid成功", this.globalData.openid);
+                  info('获取openid成功', this.globalData.openid);
                 }
                 
                 // 更新全局用户信息
                 if (res.result.userInfo) {
                   this.globalData.userInfo = res.result.userInfo
-                  info("用户信息已更新", this.globalData.userInfo)
+                  info('用户信息已更新', this.globalData.userInfo)
                 } else {
-                  warn("云函数返回数据中没有userInfo", res.result)
+                  warn('云函数返回数据中没有userInfo', res.result)
                 }
                 
                 if (callback) callback(true)
               } else {
-                error("登录失败", res.result ? res.result.message : "未知错误")
+                error('登录失败', res.result ? res.result.message : '未知错误')
                 this.globalData.userInfo = null
                 
                 if (callback) callback(false)
               }
             },
             fail: (err) => {
-              error("登录请求失败", err)
+              error('登录请求失败', err)
               this.globalData.userInfo = null
               
               if (callback) callback(false)
             }
           })
         } else {
-          error("获取登录code失败", res.errMsg)
+          error('获取登录code失败', res.errMsg)
           if (callback) callback(false)
         }
       },
       fail: (err) => {
-        error("登录失败", err)
+        error('登录失败', err)
         if (callback) callback(false)
       }
     })
@@ -301,14 +301,14 @@ App({
   resetAppState,
 
   onShow() {
-    info("小程序进入前台");
+    info('小程序进入前台');
     
     // 尝试从本地存储恢复分析流数据
     this._recoverAnalysisStreams();
   },
 
   onHide() {
-    info("App hidden")
+    info('App hidden')
   },
 
   // 恢复分析流数据
@@ -316,33 +316,33 @@ App({
     try {
       // 获取所有本地存储的分析流数据
       const keys = wx.getStorageInfoSync().keys;
-      const streamKeys = keys.filter(key => key.startsWith("analysis_stream_"));
+      const streamKeys = keys.filter(key => key.startsWith('analysis_stream_'));
       
       if (streamKeys.length > 0) {
-        info("从本地存储恢复分析流数据", { count: streamKeys.length });
+        info('从本地存储恢复分析流数据', { count: streamKeys.length });
         
         // 恢复每个流数据
         streamKeys.forEach(key => {
           try {
             const content = wx.getStorageSync(key);
-            const streamId = key.replace("analysis_stream_", "");
+            const streamId = key.replace('analysis_stream_', '');
             
             if (!this.globalData.analysisStreams[streamId] && content) {
               this.globalData.analysisStreams[streamId] = {
                 content: content,
                 isComplete: true, // 从存储恢复的数据默认完成
                 error: null,
-                fileId: "",
+                fileId: '',
                 recoveredFromStorage: true
               };
             }
           } catch (e) {
-            error("恢复单个流数据失败", { key, error: e });
+            error('恢复单个流数据失败', { key, error: e });
           }
         });
       }
     } catch (e) {
-      error("恢复分析流数据失败", e);
+      error('恢复分析流数据失败', e);
     }
   },
   
@@ -356,7 +356,7 @@ App({
     // 使用login方法同时获取openid
     this.login((success) => {
       if (success) {
-        info("登录成功，同时获取到了openid");
+        info('登录成功，同时获取到了openid');
       }
     });
   }
