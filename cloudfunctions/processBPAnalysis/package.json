@@ -1,0 +1,15 @@
+{
+  "name": "processBPAnalysis",
+  "version": "1.0.0",
+  "description": "处理BP分析任务并与Coze API通信的云函数",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3",
+    "axios": "^0.27.2"
+  }
+}

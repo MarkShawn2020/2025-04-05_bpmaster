@@ -1,6 +1,6 @@
 import { info, error } from '../../utils/logger.js';
 import { chooseFile, formatFileSize, getFileType, isSupportedFileType } from '../../utils/file.js';
-import { uploadFile } from '../../utils/api.js';
+import { uploadFile, startBPAnalysis } from '../../utils/api.js';
 import { toast } from '../../utils/toast.js';
 import { formatCurrentTime } from '../../utils/date.js';
 const app = getApp();
@@ -179,17 +179,42 @@ Page({
 
     info('开始分析', { fileId: this.data.file.id, fileName: this.data.file.name });
     
-    // 跳转到分析结果页
-    wx.navigateTo({
-      url: `/pages/analysis-result/analysis-result?fileId=${this.data.file.id}&fileName=${encodeURIComponent(this.data.file.name)}&fileSize=${encodeURIComponent(this.data.file.sizeText)}&fileTime=${encodeURIComponent(this.data.file.time)}&fileType=${this.data.file.type}&fileUrl=${encodeURIComponent(this.data.file.url || '')}`,
-      success: () => {
-        info('跳转到分析结果页成功');
-      },
-      fail: (err) => {
-        error('跳转到分析结果页失败', err);
-        this.showToast('跳转失败，请重试', 'error');
-      }
+    // 显示加载状态
+    wx.showLoading({
+      title: '正在启动分析...',
+      mask: true
     });
+    
+    // 调用后端启动分析工作流
+    startBPAnalysis(this.data.file.id, this.data.file.url)
+      .then(res => {
+        info('后端分析工作流启动成功', res);
+        wx.hideLoading();
+        
+        if (!res || !res.code === 0 || !res.data || !res.data.taskId) {
+          throw new Error('启动分析任务失败：服务器响应异常');
+        }
+        
+        const analysisTaskId = res.data.taskId;
+        info('获取分析任务ID', { analysisTaskId });
+        
+        // 跳转到分析结果页，传递分析任务ID
+        wx.navigateTo({
+          url: `/pages/analysis-result/analysis-result?fileId=${this.data.file.id}&analysisTaskId=${analysisTaskId}&fileName=${encodeURIComponent(this.data.file.name)}&fileSize=${encodeURIComponent(this.data.file.sizeText)}&fileTime=${encodeURIComponent(this.data.file.time)}&fileType=${this.data.file.type}&fileUrl=${encodeURIComponent(this.data.file.url || '')}`,
+          success: () => {
+            info('跳转到分析结果页成功');
+          },
+          fail: (err) => {
+            error('跳转到分析结果页失败', err);
+            this.showToast('跳转失败，请重试', 'error');
+          }
+        });
+      })
+      .catch(err => {
+        wx.hideLoading();
+        error('后端分析工作流启动失败', err);
+        this.showToast('启动分析失败，请重试', 'error');
+      });
   },
   
   // 重新选择

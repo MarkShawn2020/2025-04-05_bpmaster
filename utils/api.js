@@ -2,7 +2,9 @@
  * API服务工具类
  * 提供与云端API交互的方法
  */
-import { info, error } from './logger.js';
+import { info, error, warn, debug } from './logger.js';
+
+// 获取全局应用实例
 const app = getApp();
 
 /**
@@ -91,57 +93,262 @@ function uploadFile(filePath, originalFileName) {
 }
 
 /**
- * 调用Coze工作流
- * @param {string} workflowId 工作流ID
- * @param {Object} inputs 输入参数
- * @returns {Promise} 执行结果
+ * 启动BP分析工作流（直接使用Coze API）
+ * @param {string} fileId 文件ID
+ * @param {string} fileUrl 文件URL
+ * @returns {Promise<Object>} 包含文件信息的对象
  */
-function callCozeWorkflow(workflowId, inputs) {
+function startBPAnalysis(fileId, fileUrl) {
   return new Promise((resolve, reject) => {
-    if (!workflowId) {
-      reject(new Error('工作流ID不能为空'));
+    if (!fileId || !fileUrl) {
+      reject(new Error('文件信息不完整'));
       return;
     }
     
-    const token = app.globalData.config.cozeApiToken;
-    if (!token) {
-      reject(new Error('API Token未配置'));
-      return;
-    }
+    info('启动BP分析', { fileId, fileUrl });
     
-    info('调用Coze工作流', { workflowId });
-    
-    wx.request({
-      url: 'https://api.coze.cn/v1/workflow/run',
-      method: 'POST',
-      header: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+    // 保存文件分析记录到云数据库（仅用于记录，主要分析使用Coze API）
+    wx.cloud.callFunction({
+      name: 'recordBPAnalysis',
       data: {
-        workflow_id: workflowId,
-        inputs: inputs
+        fileId: fileId,
+        fileUrl: fileUrl
       },
       success: (res) => {
-        if (res.statusCode === 200) {
-          info('工作流调用成功', res.data);
-          resolve(res.data);
+        if (res.result && res.result.code === 0) {
+          info('BP分析记录保存成功', res.result);
+          resolve({
+            fileId: fileId,
+            fileUrl: fileUrl,
+            recordId: res.result.recordId
+          });
         } else {
-          error('工作流调用失败', res);
-          reject(new Error(`工作流调用失败: ${res.statusCode}`));
+          // 即使记录失败，也继续分析，只是发出警告
+          warn('BP分析记录保存失败', res.result);
+          resolve({
+            fileId: fileId,
+            fileUrl: fileUrl
+          });
         }
       },
       fail: (err) => {
-        error('工作流调用请求失败', err);
+        // 记录失败但不影响分析功能
+        warn('BP分析记录请求失败', err);
+        resolve({
+          fileId: fileId,
+          fileUrl: fileUrl
+        });
+      }
+    });
+  });
+}
+
+/**
+ * 获取BP分析状态
+ * @param {string} taskId 分析任务ID
+ * @returns {Promise} 查询结果
+ */
+function getBPAnalysisStatus(taskId) {
+  return new Promise((resolve, reject) => {
+    if (!taskId) {
+      reject(new Error('任务ID不能为空'));
+      return;
+    }
+    
+    info('查询BP分析状态', { taskId });
+    
+    wx.cloud.callFunction({
+      name: 'getBPAnalysisStatus',
+      data: {
+        taskId: taskId
+      },
+      success: (res) => {
+        info('查询BP分析状态成功', res.result);
+        resolve(res.result);
+      },
+      fail: (err) => {
+        error('查询BP分析状态失败', err);
         reject(err);
       }
     });
   });
 }
 
+/**
+ * 直接连接到Coze的BP分析流
+ * @param {string} fileUrl 文件URL
+ * @param {function} onMessage 接收消息的回调函数
+ * @param {function} onComplete 完成时的回调函数
+ * @param {function} onError 错误时的回调函数
+ * @returns {object} 连接对象，包含close方法
+ */
+function connectToCozeStream(fileUrl, onMessage, onComplete, onError) {
+  if (!fileUrl) {
+    if (onError) onError(new Error('文件URL不能为空'));
+    return null;
+  }
+  
+  info('连接到Coze流式API', { fileUrl });
+  
+  // 从全局配置获取Coze API信息
+  const cozeConfig = app.globalData.config.coze;
+  
+  if (!cozeConfig || !cozeConfig.API_URL || !cozeConfig.TOKEN || !cozeConfig.WORKFLOW_ID) {
+    const errMsg = 'Coze API配置不完整';
+    error(errMsg, cozeConfig);
+    if (onError) onError(new Error(errMsg));
+    return null;
+  }
+  
+  // 准备请求参数
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${cozeConfig.TOKEN}`
+  };
+  
+  const data = {
+    workflow_id: cozeConfig.WORKFLOW_ID,
+    parameters: { 
+      files: [fileUrl]
+      // 可根据需要添加其他参数
+    }
+  };
+  
+  // 使用请求的方式实现流式连接
+  const requestTask = wx.request({
+    url: cozeConfig.API_URL,
+    method: 'POST',
+    header: headers,
+    data: JSON.stringify(data),
+    enableChunked: true, // 启用分块接收
+    responseType: 'arraybuffer', // 以ArrayBuffer格式接收数据
+    success: (res) => {
+      info('Coze流式API连接成功', res.statusCode);
+    },
+    fail: (err) => {
+      error('Coze流式API连接失败', err);
+      if (onError) onError(err);
+    }
+  });
+  
+  // 监听分块数据
+  requestTask.onChunkReceived(function(res) {
+    try {
+      // 解析ArrayBuffer数据为文本
+      const decoder = new TextDecoder('utf-8');
+      const chunk = decoder.decode(new Uint8Array(res.data));
+      
+      debug('接收Coze数据块', { 
+        chunkSize: res.data.byteLength,
+        isLastChunk: res.isLastChunk || false
+      });
+      
+      // 处理SSE格式数据
+      const lines = chunk.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        
+        if (line.startsWith('data: ')) {
+          // 提取数据部分
+          const data = line.substring(6);
+          if (data === '[DONE]') {
+            // 接收完成
+            info('Coze数据接收完成');
+            if (onComplete) onComplete();
+            continue;
+          }
+          
+          try {
+            // 解析JSON数据
+            const eventData = JSON.parse(data);
+            
+            if (eventData.event === 'Message' && eventData.data && eventData.data.content) {
+              const content = eventData.data.content;
+              
+              // 提供消息给回调函数
+              if (onMessage) onMessage(content);
+            } else if (eventData.event === 'Error') {
+              const errorMessage = eventData.data?.message || '流处理错误';
+              error('Coze错误事件', errorMessage);
+              
+              if (onError) onError(new Error(errorMessage));
+            }
+          } catch (jsonErr) {
+            error('解析Coze数据失败', { data, error: jsonErr });
+          }
+        }
+      }
+    } catch (chunkErr) {
+      error('处理Coze数据块错误', chunkErr);
+      if (onError) onError(chunkErr);
+    }
+  });
+  
+  // 监听错误事件
+  requestTask.onError(function(err) {
+    error('Coze流式API连接错误', err);
+    if (onError) onError(err);
+  });
+  
+  // 返回包含close方法的对象
+  return {
+    close: function() {
+      info('关闭Coze流式API连接');
+      try {
+        requestTask.abort();
+      } catch (err) {
+        error('关闭Coze流式API连接失败', err);
+      }
+    }
+  };
+}
 
+/**
+ * 保存分析结果到全局状态和本地存储
+ * @param {string} fileId 文件ID
+ * @param {string} content 分析内容
+ * @param {boolean} isComplete 是否完成
+ * @param {Error} error 错误信息
+ */
+function saveAnalysisContent(fileId, content, isComplete = false, error = null) {
+  if (!fileId) {
+    warn('保存分析内容失败：文件ID为空');
+    return;
+  }
+  
+  const streamId = `analysis_${fileId}`;
+  
+  // 更新全局状态
+  if (!app.globalData.analysisStreams) {
+    app.globalData.analysisStreams = {};
+  }
+  
+  app.globalData.analysisStreams[streamId] = {
+    content: content || '',
+    isComplete: isComplete,
+    error: error,
+    fileId: fileId,
+    updateTime: new Date().getTime()
+  };
+  
+  // 保存到本地存储
+  try {
+    wx.setStorageSync(`analysis_stream_${fileId}`, content || '');
+  } catch (err) {
+    error('保存分析内容到本地存储失败', err);
+  }
+  
+  debug('已保存分析内容', { 
+    fileId, 
+    contentLength: (content || '').length, 
+    isComplete 
+  });
+}
 
 export {
   uploadFile,
-  callCozeWorkflow,
-}; 
+  startBPAnalysis,
+  getBPAnalysisStatus,
+  connectToCozeStream,
+  saveAnalysisContent
+};

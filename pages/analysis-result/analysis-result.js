@@ -1,8 +1,8 @@
 const app = getApp();
 import { info, error, debug, warn } from '../../utils/logger.js';
 import { getFileType } from '../../utils/file.js';
-import { uploadFile, callCozeWorkflow } from '../../utils/api.js';
 import { formatCurrentTime, formatDisplayTime } from '../../utils/date.js';
+import { getBPAnalysisStatus, connectToCozeStream, saveAnalysisContent } from '../../utils/api.js';
 
 Page({
   data: {
@@ -12,7 +12,7 @@ Page({
     fileId: '',
     fileUrl: '',
     fileType: 'unknown',
-    sessionId: '',
+    analysisTaskId: '', // 分析任务ID
     
     isAnalyzing: true,
     isCompleted: false,
@@ -25,9 +25,11 @@ Page({
     statusText: '分析中...',
     
     tocItems: [],
-    savingToHistory: false
+    savingToHistory: false,
+    progress: 0, // 分析进度百分比
+    sseConnected: false // SSE连接状态
   },
-
+  
   onLoad: function(options) {
     info('分析结果页面加载', options);
     
@@ -42,9 +44,6 @@ Page({
         return;
       }
       
-      // 检查所需的图片资源是否存在
-      this.checkImageResources();
-      
       // 从options中获取文件信息，确保正确解码文件名和时间
       const fileName = options.fileName ? decodeURIComponent(options.fileName) : '未知文件';
       const fileSize = options.fileSize ? decodeURIComponent(options.fileSize) : '未知大小';
@@ -58,7 +57,8 @@ Page({
         fileSize: fileSize,
         fileTime: fileTime,
         fileUrl: options.fileUrl ? decodeURIComponent(options.fileUrl) : '',
-        fileType: options.fileType || getFileType(fileName) || 'unknown'
+        fileType: options.fileType || getFileType(fileName) || 'unknown',
+        analysisTaskId: options.analysisTaskId || '' // 获取分析任务ID
       });
       
       info('文件信息', { 
@@ -66,16 +66,18 @@ Page({
         fileName: this.data.fileName,
         fileSize: this.data.fileSize,
         fileTime: this.data.fileTime,
-        fileType: this.data.fileType
-      });
-      
-      // 生成会话ID
-      this.setData({
-        sessionId: 'session_' + new Date().getTime()
+        fileType: this.data.fileType,
+        analysisTaskId: this.data.analysisTaskId
       });
       
       // 检查是否已有报告或正在生成报告
-      this.checkReportStatus();
+      // 如果有分析任务ID，则直接查询分析状态和结果
+      if (this.data.analysisTaskId) {
+        this.startReceivingAnalysisResults();
+      } else {
+        // 兼容旧版页面，基于文件ID检查报告状态
+        this.checkReportStatus();
+      }
     } catch (err) {
       error('分析结果页面加载异常', err);
       this.setData({
@@ -87,37 +89,10 @@ Page({
     }
   },
   
-  // 检查图片资源是否存在
-  checkImageResources: function() {
-    // 初始化图片资源检查
-    info('检查必要的图片资源');
-    
-    try {
-      // 检查loading图标是否存在
-      wx.getImageInfo({
-        src: '/images/loading-icon.png',
-        success: () => {
-          this.setData({
-            isImageExists: true
-          });
-        },
-        fail: (err) => {
-          error('加载图标资源不存在', err);
-          this.setData({
-            isImageExists: false
-          });
-        }
-      });
-    } catch (err) {
-      error('检查图片资源失败', err);
-    }
-  },
-  
   // 检查报告状态
   checkReportStatus: function() {
     info('检查报告状态', { fileId: this.data.fileId });
     
-    const that = this;
     // 先从本地缓存中查询
     const storageKey = 'report_' + this.data.fileId;
     const reportCacheData = wx.getStorageSync(storageKey) || {};
@@ -156,69 +131,402 @@ Page({
         // 提取目录项
         this.extractTocItems(reportCacheData.mdContent);
         
-        // 查询服务端状态
-        this.queryReportStatus();
-        return;
+        // 保存到缓存
+        this.saveReportCache({
+          mdContent: reportCacheData.mdContent,
+          tocItems: this.data.tocItems,
+          isCompleted: false,
+          timestamp: new Date().getTime()
+        });
       }
     }
     
-    // 没有缓存或缓存已过期，需要调用API查询服务端
+    // 无论是否有缓存，都定期查询服务端状态
     this.queryReportStatus();
+    
+    // 设置定时查询
+    this.setupStatusPolling();
+  },
+  
+  // 开始接收分析结果（基于分析任务ID）
+  startReceivingAnalysisResults: function() {
+    if (!this.data.analysisTaskId) {
+      error('开始接收分析结果失败：缺少分析任务ID');
+      this.showToast('缺少分析任务ID', 'error');
+      return;
+    }
+    
+    info('开始接收分析结果', { analysisTaskId: this.data.analysisTaskId });
+    
+    // 1. 先查询当前的分析状态
+    this.queryAnalysisStatus();
+  },
+  
+  // 查询分析状态
+  queryAnalysisStatus: function() {
+    info('查询分析状态', { analysisTaskId: this.data.analysisTaskId });
+    
+    // 调用API查询分析状态
+    getBPAnalysisStatus(this.data.analysisTaskId)
+      .then(res => {
+        if (!res || res.code !== 0) {
+          throw new Error('查询分析状态失败: ' + (res?.message || '服务器响应异常'));
+        }
+        
+        const data = res.data;
+        info('分析状态查询结果', data);
+        
+        // 根据不同状态处理
+        if (data.status === 'completed') {
+          // 已完成，显示结果
+          this.handleCompletedAnalysis(data);
+        } else if (data.status === 'processing') {
+          // 正在处理，连接SSE获取实时更新
+          this.handleProcessingAnalysis(data);
+        } else if (data.status === 'error') {
+          // 分析出错
+          this.handleErrorAnalysis(data);
+        } else if (data.status === 'notfound') {
+          // 找不到任务
+          this.handleNotFoundAnalysis();
+        }
+      })
+      .catch(err => {
+        error('查询分析状态失败', err);
+        
+        this.setData({
+          isAnalyzing: false,
+          hasError: true,
+          errorMessage: '查询分析状态失败，请重试'
+        });
+        
+        this.showToast('查询分析状态失败', 'error');
+      });
+  },
+  
+  // 处理已完成的分析
+  handleCompletedAnalysis: function(data) {
+    info('处理已完成的分析', data);
+    
+    // 更新UI状态
+    this.setData({
+      mdContent: data.content || this.data.mdContent,
+      isAnalyzing: false,
+      isCompleted: true,
+      statusText: '分析完成',
+      progress: 100
+    });
+    
+    // 提取目录项
+    this.extractTocItems(this.data.mdContent);
+    
+    // 保存到缓存
+    this.saveReportCache({
+      mdContent: this.data.mdContent,
+      tocItems: this.data.tocItems,
+      isCompleted: true
+    });
+    
+    // 保存到历史记录
+    this.saveToHistory();
+    
+    // 清除任何现有连接
+    this.closeSSEConnection();
+  },
+  
+  // 处理正在进行的分析
+  handleProcessingAnalysis: function(data) {
+    info('处理正在进行的分析', data);
+    
+    // 更新当前内容（如果有）
+    if (data.content && data.content !== this.data.mdContent) {
+      this.setData({
+        mdContent: data.content,
+        progress: data.progress || this.data.progress
+      });
+      
+      // 提取目录项
+      this.extractTocItems(this.data.mdContent);
+      
+      // 保存到缓存
+      this.saveReportCache({
+        mdContent: this.data.mdContent,
+        tocItems: this.data.tocItems,
+        isCompleted: false,
+        timestamp: new Date().getTime()
+      });
+    }
+    
+    // 更新UI状态
+    this.setData({
+      isAnalyzing: true,
+      statusText: '分析中...'
+    });
+    
+    // 直接连接到Coze流式API处理分析
+    this.handleDirectCozeAnalysis();
+  },
+  
+  // 处理分析错误
+  handleErrorAnalysis: function(data) {
+    error('分析出错', data);
+    
+    this.setData({
+      isAnalyzing: false,
+      hasError: true,
+      errorMessage: data.message || '分析过程出现错误'
+    });
+    
+    this.showToast('分析过程出现错误', 'error');
+    
+    // 清除任何连接
+    this.closeSSEConnection();
+  },
+  
+  // 处理未找到分析任务
+  handleNotFoundAnalysis: function() {
+    warn('未找到分析任务');
+    
+    // 如果是从旧版页面进入，则尝试使用旧版方式查找报告
+    if (this.data.fileId && !this.data.analysisTaskId) {
+      info('尝试使用旧版方式查询报告');
+      this.checkReportStatus();
+      return;
+    }
+    
+    this.setData({
+      isAnalyzing: false,
+      hasError: true,
+      errorMessage: '找不到分析任务，请重新开始分析'
+    });
+    
+    this.showToast('找不到分析任务', 'error');
+  },
+  
+  // 直接连接到Coze流式API处理分析
+  handleDirectCozeAnalysis: function() {
+    const fileUrl = this.data.fileUrl;
+    const fileId = this.data.fileId;
+    
+    info("直接连接到Coze流式API", { fileId, fileUrl });
+    
+    // 如果已经连接，先关闭
+    if (this.cozeConnection) {
+      try {
+        this.cozeConnection.close();
+      } catch (err) {
+        error("关闭Coze连接失败", err);
+      }
+      this.cozeConnection = null;
+    }
+    
+    // 重置分析内容
+    this.setData({
+      mdContent: "",
+      progress: 10,
+      progressText: "分析中...",
+      isAnalyzing: true,
+      statusText: '分析中...'
+    });
+    
+    // 开始进度条动画
+    this.startProgressAnimation();
+    
+    // 建立新连接
+    this.cozeConnection = connectToCozeStream(
+      fileUrl,
+      (content) => {
+        // 处理消息
+        debug("收到Coze消息", { contentLength: content.length });
+        
+        // 累加内容
+        let currentContent = this.data.mdContent || "";
+        currentContent += content;
+        
+        // 计算进度
+        const progressValue = Math.min(Math.floor((currentContent.length / 2000) * 100), 99);
+        
+        this.setData({
+          mdContent: currentContent,
+          progress: progressValue,
+          progressText: "分析中 " + progressValue + "%"
+        });
+        
+        // 保存到全局状态和本地存储
+        saveAnalysisContent(fileId, currentContent, false);
+      },
+      () => {
+        // 完成回调
+        info("Coze流结束，分析完成");
+        
+        this.setData({
+          isAnalyzing: false,
+          isCompleted: true,
+          statusText: '分析完成',
+          progress: 100
+        });
+        
+        // 保存最终内容到全局状态和本地存储，标记为完成
+        saveAnalysisContent(fileId, this.data.mdContent, true);
+        
+        // 停止进度条动画
+        this.stopProgressAnimation();
+        
+        // 清理连接
+        this.cozeConnection = null;
+      },
+      (err) => {
+        // 错误回调
+        error("Coze连接错误", err);
+        
+        // 保存错误状态
+        saveAnalysisContent(fileId, this.data.mdContent, false, err);
+        
+        // 设置错误状态但保留已分析内容
+        if (!this.data.mdContent) {
+          this.setData({
+            isAnalyzing: false,
+            hasError: true,
+            errorMessage: '分析过程中断: ' + err.message
+          });
+        } else {
+          // 如果已有内容，则标记为完成
+          this.setData({
+            isAnalyzing: false,
+            isCompleted: true,
+            statusText: '分析完成 (部分)'
+          });
+        }
+        
+        // 停止进度条动画
+        this.stopProgressAnimation();
+      }
+    );
+  },
+  
+  // 关闭Coze连接
+  closeCozeConnection: function() {
+    if (this.cozeConnection) {
+      try {
+        this.cozeConnection.close();
+      } catch (err) {
+        error("关闭Coze连接失败", err);
+      }
+      this.cozeConnection = null;
+    }
   },
   
   // 从服务端查询报告状态
   queryReportStatus: function() {
     info('查询服务端报告状态', { fileId: this.data.fileId });
     
-    const that = this;
-    // 可以从云函数或API查询当前文件的分析状态
-    wx.showLoading({
-      title: '查询报告状态',
-      mask: true
-    });
-    
-    // 模拟API调用，实际项目中请替换为真实API调用
-    // TODO: 替换为真实API调用
-    setTimeout(function() {
-      wx.hideLoading();
-      
-      // 假设通过API得到的结果中可以判断报告状态
-      const hasReport = false; // 通过API判断是否已有报告
-      const isGenerating = false; // 通过API判断是否正在生成报告
-      
-      if (hasReport) {
-        // 已有报告，API中返回了报告内容
-        info('服务端已有完整报告', { fileId: that.data.fileId });
-        // 加载报告内容并显示
-        that.setData({
-          // mdContent: apiResult.content,
-          isAnalyzing: false,
-          isCompleted: true,
-          statusText: '分析完成'
-        });
-      } else if (isGenerating) {
-        // 正在生成报告
-        info('服务端报告正在生成中', { fileId: that.data.fileId });
-        that.setData({
-          isAnalyzing: true,
-          statusText: '分析中...'
-        });
+    // 调用云函数查询分析状态
+    wx.cloud.callFunction({
+      name: 'getBPAnalysisStatus',
+      data: {
+        fileId: this.data.fileId
+      },
+      success: res => {
+        info('查询分析状态成功', res.result);
         
-        // 可以设置定时器定期检查状态
-        that.checkReportInterval = setInterval(function() {
-          that.queryReportStatus();
-        }, 10000); // 每10秒检查一次
-      } else {
-        // 没有报告，需要开始分析
-        info('没有找到报告，开始新的分析', { fileId: that.data.fileId });
-        that.startAnalysis();
+        if (res.result && res.result.code === 0) {
+          const data = res.result.data;
+          
+          // 根据返回状态更新UI
+          if (data.status === 'completed') {
+            // 分析完成
+            this.setData({
+              mdContent: data.content || this.data.mdContent,
+              isAnalyzing: false,
+              isCompleted: true,
+              statusText: '分析完成'
+            });
+            
+            // 提取目录项
+            this.extractTocItems(this.data.mdContent);
+            
+            // 保存到缓存
+            this.saveReportCache({
+              mdContent: this.data.mdContent,
+              tocItems: this.data.tocItems,
+              isCompleted: true
+            });
+            
+            // 清除轮询定时器
+            this.clearStatusPolling();
+            
+          } else if (data.status === 'processing') {
+            // 正在分析中
+            if (data.content && data.content !== this.data.mdContent) {
+              // 有新内容更新
+              this.setData({
+                mdContent: data.content,
+                isAnalyzing: true,
+                statusText: '分析中...'
+              });
+              
+              // 提取目录项
+              this.extractTocItems(this.data.mdContent);
+              
+              // 保存到缓存
+              this.saveReportCache({
+                mdContent: this.data.mdContent,
+                tocItems: this.data.tocItems,
+                isCompleted: false,
+                timestamp: new Date().getTime()
+              });
+            }
+          } else if (data.status === 'error') {
+            // 分析出错
+            this.setData({
+              isAnalyzing: false,
+              hasError: true,
+              errorMessage: data.message || '分析过程出现错误'
+            });
+            
+            this.showToast('分析过程出现错误', 'error');
+            this.clearStatusPolling();
+          }
+        } else {
+          // 返回错误
+          error('查询分析状态返回错误', res.result);
+        }
+      },
+      fail: err => {
+        error('查询分析状态失败', err);
       }
-    }, 500);
+    });
   },
   
-  // 开始分析
+  // 设置状态轮询
+  setupStatusPolling: function() {
+    info('设置状态轮询');
+    
+    // 清除已有的轮询
+    this.clearStatusPolling();
+    
+    // 设置新的轮询，每5秒查询一次
+    this.statusPollingInterval = setInterval(() => {
+      if (this.data.isAnalyzing && !this.data.hasError) {
+        this.queryReportStatus();
+      } else {
+        // 如果已完成或出错，停止轮询
+        this.clearStatusPolling();
+      }
+    }, 5000);
+  },
+  
+  // 清除状态轮询
+  clearStatusPolling: function() {
+    if (this.statusPollingInterval) {
+      clearInterval(this.statusPollingInterval);
+      this.statusPollingInterval = null;
+    }
+  },
+  
+  // 重新开始分析
   startAnalysis: function() {
-    info('开始AI分析', { fileId: this.data.fileId });
+    info('重新开始分析', { fileId: this.data.fileId });
     
     // 确保有文件ID
     if (!this.data.fileId) {
@@ -231,438 +539,83 @@ Page({
       return;
     }
     
-    // 清空之前的结果
-    this.setData({
-      mdContent: '',
-      tocItems: [],
-      isAnalyzing: true,
-      hasError: false,
-      errorMessage: '',
-      statusText: '分析中...',
-      loadingTip: '正在分析您的商业计划书...'
-    });
-    
-    // 保存当前状态到缓存
-    this.saveReportCache({
-      mdContent: '',
-      isCompleted: false,
-      timestamp: new Date().getTime()
-    });
-    
-    // 调用coze工作流API
-    this.callCozeWorkflow();
-  },
-  
-  // 调用Coze流式工作流API
-  callCozeWorkflow: function() {
-    const that = this;
-    
-    // 检查全局配置
-    if (!app.globalData || !app.globalData.config || !app.globalData.config.coze) {
-      error('Coze配置不存在', { globalData: app.globalData });
-      this.setData({
-        isAnalyzing: false,
-        hasError: true,
-        errorMessage: '系统配置错误，请联系管理员'
-      });
-      this.showToast('系统配置错误', 'error');
-      return;
-    }
-    
-    // 获取配置
-    const cozeConfig = app.globalData.config.coze;
-    const workflowId = cozeConfig.WORKFLOW_ID;
-    const token = cozeConfig.TOKEN;
-    const apiUrl = cozeConfig.API_URL;
-    
-    info('Coze配置信息', { workflowId, apiUrl, tokenLength: token ? token.length : 0 });
-    
-    if (!workflowId || !token || !apiUrl) {
-      error('缺少Coze必要配置项', { workflowId, token, apiUrl });
-      this.setData({
-        isAnalyzing: false,
-        hasError: true,
-        errorMessage: '系统配置错误，请联系管理员'
-      });
-      this.showToast('系统配置错误，请联系管理员', 'error');
-      return;
-    }
-    
-    
-    const headers = {
-      // 不能用 application/x-www-form-urlencoded;charset=utf-8，否则会导致 coze 收不到消息
-      "Content-Type": "application/json",
-      'Authorization': `Bearer ${token}`
-    };
-    
-    const data = {
-      workflow_id: workflowId,
-      parameters: { 
-        files: [this.data.fileUrl]
-        // todo: add user identification
-      }
-    };
-
-    info('调用Coze工作流', data);
-    
-    // 设置超时计时器，防止工作流卡死
-    if (this.workflowTimeout) {
-      clearTimeout(this.workflowTimeout);
-    }
-    
-    this.workflowTimeout = setTimeout(() => {
-      // 如果2分钟后仍处于分析中状态，则自动完成
-      if (this.data.isAnalyzing) {
-        info('工作流执行超时，自动完成');
-        this.handleWorkflowComplete();
-      }
-    }, 120000); // 2分钟超时
-    
-    // 清空之前的结果
-    this.setData({
-      mdContent: '',
-      tocItems: []
-    });
-    
-    const requestTask = wx.request({
-      url: apiUrl,
-      method: 'POST',
-      header: headers,
-      data: data,
-      enableChunked: true, // 启用分块接收
-      responseType: 'arraybuffer', // 重要：确保以ArrayBuffer格式接收数据
-      success: function(res) {
-        // 请求成功只表示请求已经发出
-        info('Coze工作流请求成功', res.statusCode);
-      },
-      fail: function(err) {
-        // 请求失败
-        error('Coze工作流请求失败', err);
-        if (that.workflowTimeout) {
-          clearTimeout(that.workflowTimeout);
-        }
-        that.setData({
-          isAnalyzing: false,
-          hasError: true,
-          errorMessage: '服务调用失败，请稍后重试'
-        });
-        that.showToast('服务调用失败，请稍后重试', 'error');
-      },
-      complete: function() {
-        // 请求完成，但可能没收到[DONE]标记，启动一个短超时
-        setTimeout(() => {
-          if (that.data.isAnalyzing && that.data.mdContent) {
-            info('工作流数据接收完毕但未收到完成标记，自动完成');
-            that.handleWorkflowComplete();
-          }
-        }, 5000); // 5秒后如果有内容但未完成，则自动完成
-      }
-    });
-    
-    // 监听分块数据
-    requestTask.onChunkReceived(function(res) {
-      try {
-        // 记录接收到的原始数据块信息
-        debug('接收数据块', { 
-          chunkSize: res.data.byteLength,
-          isLastChunk: res.isLastChunk || false
-        });
-        
-        // 解析ArrayBuffer数据为文本
-        const chunk = that.ab2str(res.data);
-        
-        // 如果是最后一个块，记录日志
-        if (res.isLastChunk) {
-          info('接收到最后一个数据块');
-        }
-        
-        // 处理数据块
-        that.processChunk(chunk);
-      } catch (err) {
-        error('处理Coze响应块数据失败', err);
-      }
-    });
-  },
-  
-  // ArrayBuffer转字符串，确保中文不乱码
-  ab2str: function(buf) {
-    try {
-      // 使用TextDecoder指定UTF-8编码，确保中文正确解码
-      const decoder = new TextDecoder('utf-8');
-      const text = decoder.decode(new Uint8Array(buf));
-      
-      // 检查内容，记录是否包含中文(用于调试)
-      const hasChinese = /[\u4e00-\u9fa5]/.test(text);
-      const preview = text.length > 20 ? text.substring(0, 20) + '...' : text;
-      
-      debug('解码ArrayBuffer结果', {
-        byteLength: buf.byteLength,
-        textLength: text.length,
-        hasChinese: hasChinese,
-        preview: preview
-      });
-      
-      return text;
-    } catch (err) {
-      error('TextDecoder解码失败', err);
-      
-      // 兼容性方案1：手动解码UTF-8
-      try {
-        const bytes = new Uint8Array(buf);
-        let result = '';
-        let i = 0;
-        while (i < bytes.length) {
-          if (bytes[i] < 128) {
-            // ASCII字符，直接添加
-            result += String.fromCharCode(bytes[i]);
-            i++;
-          } else if (bytes[i] >= 192 && bytes[i] < 224) {
-            // 2字节UTF-8
-            const code = ((bytes[i] & 0x1f) << 6) | (bytes[i+1] & 0x3f);
-            result += String.fromCharCode(code);
-            i += 2;
-          } else if (bytes[i] >= 224 && bytes[i] < 240) {
-            // 3字节UTF-8
-            const code = ((bytes[i] & 0x0f) << 12) | 
-                         ((bytes[i+1] & 0x3f) << 6) | 
-                         (bytes[i+2] & 0x3f);
-            result += String.fromCharCode(code);
-            i += 3;
-          } else if (bytes[i] >= 240) {
-            // 4字节UTF-8，需要拆成两个UTF-16字符
-            const codePoint = ((bytes[i] & 0x07) << 18) | 
-                             ((bytes[i+1] & 0x3f) << 12) | 
-                             ((bytes[i+2] & 0x3f) << 6) | 
-                             (bytes[i+3] & 0x3f);
-            
-            // 从代码点计算UTF-16代理对
-            const highSurrogate = Math.floor((codePoint - 0x10000) / 0x400) + 0xD800;
-            const lowSurrogate = ((codePoint - 0x10000) % 0x400) + 0xDC00;
-            
-            result += String.fromCharCode(highSurrogate, lowSurrogate);
-            i += 4;
-          } else {
-            // 无效字节，跳过
-            i++;
-          }
-        }
-        
-        info('手动UTF-8解码成功');
-        return result;
-      } catch (decodeErr) {
-        error('手动UTF-8解码失败', decodeErr);
-        
-        // 最后的兜底方案：逐字节转换，可能会乱码
-        try {
-          const bytes = new Uint8Array(buf);
-          let result = '';
-          for (let i = 0; i < bytes.length; i++) {
-            result += String.fromCharCode(bytes[i]);
-          }
+    // 显示确认对话框
+    wx.showModal({
+      title: '重新分析',
+      content: '确定要重新开始分析吗？这将清除当前分析结果。',
+      success: (res) => {
+        if (res.confirm) {
+          // 清除现有的SSE连接
+          this.closeSSEConnection();
           
-          // 尝试使用encodeURIComponent和decodeURIComponent修复UTF-8编码
-          try {
-            const fixed = decodeURIComponent(escape(result));
-            info('URI编码修复成功');
-            return fixed;
-          } catch (e) {
-            info('URI编码修复失败，返回原始结果');
-            return result;
-          }
-        } catch (finalErr) {
-          error('所有解码方法都失败', finalErr);
-          return ''; // 返回空字符串避免报错
+          // 清除轮询定时器
+          this.clearStatusPolling();
+          
+          // 清空之前的结果
+          this.setData({
+            mdContent: '',
+            tocItems: [],
+            isAnalyzing: true,
+            hasError: false,
+            errorMessage: '',
+            statusText: '分析中...',
+            loadingTip: '正在启动新的分析...',
+            progress: 0
+          });
+          
+          // 保存当前状态到缓存
+          this.saveReportCache({
+            mdContent: '',
+            isCompleted: false,
+            timestamp: new Date().getTime()
+          });
+          
+          // 显示加载提示
+          wx.showLoading({
+            title: '启动分析...',
+            mask: true
+          });
+          
+          // 调用API启动新的分析任务
+          const startBPAnalysis = require('../../utils/api.js').startBPAnalysis;
+          startBPAnalysis(this.data.fileId, this.data.fileUrl)
+            .then(res => {
+              wx.hideLoading();
+              
+              if (!res || res.code !== 0 || !res.data || !res.data.taskId) {
+                throw new Error('启动分析任务失败：服务器响应异常');
+              }
+              
+              // 更新分析任务ID
+              const analysisTaskId = res.data.taskId;
+              info('重新分析任务启动成功', { analysisTaskId });
+              
+              this.setData({ analysisTaskId });
+              
+              // 开始接收分析结果
+              this.startReceivingAnalysisResults();
+            })
+            .catch(err => {
+              wx.hideLoading();
+              error('重新启动分析失败', err);
+              
+              this.setData({
+                isAnalyzing: false,
+                hasError: true,
+                errorMessage: '重新启动分析失败，请稍后再试'
+              });
+              
+              this.showToast('重新启动分析失败', 'error');
+            });
         }
       }
-    }
+    });
   },
   
-  // 处理数据块
-  processChunk: function(chunk) {
-    // 记录原始接收数据
-    debug('处理数据块', { chunkLength: chunk.length });
-    
-    try {
-      // 先检查是否为纯文本[DONE]标记，一些服务端会单独发送这个
-      if (chunk.trim() === '[DONE]') {
-        info('收到独立[DONE]标记，流式传输完成');
-        this.handleWorkflowComplete();
-        return;
-      }
-      
-      // 按行分割，处理SSE格式
-      const lines = chunk.split('\n');
-      let currentEvent = {};
-      
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-        
-        // 记录接收的行数据
-        // debug(`处理SSE行[${i}]`, { line });
-        
-        // 解析SSE格式的行
-        if (line.startsWith('id: ')) {
-          currentEvent.id = parseInt(line.substring(4));
-        } else if (line.startsWith('event: ')) {
-          currentEvent.event = line.substring(7);
-        } else if (line.startsWith('data: ')) {
-          const jsonStr = line.substring(6);
-          
-          // 特殊情况: [DONE]标记，表示流结束
-          if (jsonStr === '[DONE]') {
-            info('收到[DONE]标记，流式传输完成');
-            this.handleWorkflowComplete();
-            continue;
-          }
-          
-          try {
-            // 尝试解析JSON数据
-            const data = JSON.parse(jsonStr);
-            currentEvent.data = data;
-            
-            // 如果有完整事件（至少包含event和data），处理它
-            if (currentEvent.event) {
-              // info('完整事件', currentEvent);
-              this.handleStreamEvent(currentEvent);
-              currentEvent = {}; // 重置为新事件
-            }
-          } catch (err) {
-            error('解析JSON数据失败', { jsonStr, error: err });
-          }
-        }
-      }
-    } catch (err) {
-      error('处理数据块失败', err);
-    }
-  },
-  
-  // 处理流式事件
-  handleStreamEvent: function(eventData) {
-    // 检查事件类型
-    if (!eventData || !eventData.event) {
-      error('无效的事件数据', eventData);
-      return;
-    }
-    
-    debug('处理流式事件', { event: eventData.event, id: eventData.id });
-    
-    switch (eventData.event) {
-      case 'Message':
-        this.handleWorkflowMessage(eventData.data);
-        break;
-      case 'Error':
-        this.handleWorkflowError(eventData.data);
-        break;
-      case 'Done':
-        info('收到Done事件，工作流执行完成');
-        this.handleWorkflowComplete();
-        break;
-      case 'Interrupt':
-        info('工作流被中断', eventData.data);
-        // 这里可以处理工作流中断逻辑
-        break;
-      default:
-        info('未知的工作流事件类型', { event: eventData.event });
-    }
-  },
-  
-  // 处理工作流消息
-  handleWorkflowMessage: function(data) {
-    if (!data || !data.content) return;
-    
-    const content = data.content;
-    
-    // 检查内容是否包含中文，用于调试
-    const hasChinese = /[\u4e00-\u9fa5]/.test(content);
-    const preview = content.length > 20 ? content.substring(0, 20) + '...' : content;
-    
-    debug('接收到消息内容', {
-      contentLength: content.length,
-      hasChinese: hasChinese,
-      preview: preview
-    });
-    
-    // 累加Markdown内容
-    const mdContent = this.data.mdContent + content;
-    
-    this.setData({
-      mdContent: mdContent
-    });
-    
-    // 更新进度信息
-    if (this.data.loadingTip === '正在分析您的商业计划书...') {
-      this.setData({
-        loadingTip: '正在生成分析报告...'
-      });
-    }
-    
-    // 提取目录项
-    this.extractTocItems(mdContent);
-    
-    // 保存当前状态到缓存
-    this.saveReportCache({
-      mdContent,
-      tocItems: this.data.tocItems,
-      isCompleted: false
-    });
-    
-    debug('工作流消息内容更新', { contentLength: content.length });
-  },
-  
-  // 处理工作流错误
-  handleWorkflowError: function(data) {
-    error('工作流执行错误', data);
-    
-    this.setData({
-      isAnalyzing: false,
-      hasError: true,
-      errorMessage: data.message ? data.message : '分析过程出现错误'
-    });
-    
-    this.showToast('分析过程出现错误', 'error');
-  },
-  
-  // 处理工作流元数据
-  handleWorkflowMetadata: function(data) {
-    info('工作流元数据', data);
-    // 可以处理一些元数据，例如估计完成时间等
-  },
-  
-  // 处理工作流完成
-  handleWorkflowComplete: function() {
-    info('工作流执行完成');
-    
-    // 防止重复调用
-    if (!this.data.isAnalyzing) return;
-    
-    // 清除超时计时器
-    if (this.workflowTimeout) {
-      clearTimeout(this.workflowTimeout);
-      this.workflowTimeout = null;
-    }
-    
-    // 清除状态检查定时器
-    if (this.checkReportInterval) {
-      clearInterval(this.checkReportInterval);
-      this.checkReportInterval = null;
-    }
-    
-    this.setData({
-      isAnalyzing: false,
-      isCompleted: true,
-      statusText: '分析完成'
-    });
-    
-    // 保存完整报告到缓存
-    this.saveReportCache({
-      mdContent: this.data.mdContent,
-      tocItems: this.data.tocItems,
-      isCompleted: true
-    });
-    
-    // 保存到历史记录
-    this.saveToHistory();
+  // 重新分析
+  handleReAnalyze: function() {
+    // 调用startAnalysis，它会显示确认对话框并处理重新分析
+    this.startAnalysis();
   },
   
   // 提取目录项
@@ -729,23 +682,6 @@ Page({
           savingToHistory: false
         });
       });
-  },
-  
-  // 重新分析
-  handleReAnalyze: function() {
-    this.setData({
-      isAnalyzing: true,
-      isCompleted: false,
-      hasError: false,
-      errorMessage: '',
-      mdContent: '',
-      loadingTip: '正在分析您的商业计划书...',
-      statusText: '分析中...',
-      tocItems: [],
-      sessionId: 'session_' + new Date().getTime()
-    });
-    
-    this.startAnalysis();
   },
   
   // 保存报告
@@ -865,16 +801,9 @@ Page({
   },
   
   onUnload: function() {
-    // 清除超时计时器
-    if (this.workflowTimeout) {
-      clearTimeout(this.workflowTimeout);
-      this.workflowTimeout = null;
-    }
+    info('分析结果页面卸载');
     
-    // 清除状态检查定时器
-    if (this.checkReportInterval) {
-      clearInterval(this.checkReportInterval);
-      this.checkReportInterval = null;
-    }
+    // 清除轮询定时器
+    this.clearStatusPolling();
   }
 }); 
