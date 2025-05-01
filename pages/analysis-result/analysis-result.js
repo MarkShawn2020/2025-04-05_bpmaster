@@ -865,6 +865,10 @@ Page({
   },
   
   onUnload: function() {
+    warn(`页面卸载，清除定时器和缓存`, {
+      fileId: this.data.fileId,
+      sessionId: this.data.sessionId
+    });
     // 清除超时计时器
     if (this.workflowTimeout) {
       clearTimeout(this.workflowTimeout);
