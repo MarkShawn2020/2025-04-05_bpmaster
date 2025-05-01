@@ -87,26 +87,6 @@
         </view>
       </view>
     </view>
-    
-    <!-- 最高分数和平均分卡片 -->
-    <!-- <view class="stats-row">
-      <view class="stats-card highlight">
-        <view class="stats-header">
-          <view class="stats-value">{{statistics.highestScore.score || 0}}</view>
-          <view class="stats-badge">最高分</view>
-        </view>
-        <view class="stats-label">BP最高评分</view>
-        <view class="stats-subtitle" wx:if="{{statistics.highestScore.fileName}}">{{statistics.highestScore.fileName}}</view>
-      </view>
-      
-      <view class="stats-card">
-        <view class="stats-header">
-          <view class="stats-value">{{statistics.averageScore || 0}}</view>
-        </view>
-        <view class="stats-label">平均评分</view>
-        <view class="stats-subtitle">基于全部BP评估</view>
-      </view>
-    </view> -->
   </view>
 
   <!-- 功能区 - 使用优化后的双列布局 -->

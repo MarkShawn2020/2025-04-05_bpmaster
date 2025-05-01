@@ -100,58 +100,55 @@ Page({
     // 显示加载状态
     this.setData({ loadingStats: true });
     
-    // 调用云函数获取真实数据
-    wx.cloud.callFunction({
-      name: 'getStatistics',
-      success: res => {
-        info('获取统计数据成功', res);
-        
-        // 如果云函数返回成功
-        if (res.result && res.result.code === 0) {
-          // 处理从云函数返回的数据
-          const statsData = res.result.data;
-          
-          // 如果返回了每日活跃度数据，计算最大值
-          if (statsData.dailyActivity && Array.isArray(statsData.dailyActivity)) {
-            statsData.maxDailyActivity = Math.max(...statsData.dailyActivity, 1); // 至少为1，避免除以0
-          } else {
-            // 如果没有返回活跃度数据，使用默认值
-            statsData.dailyActivity = [0, 5, 12, 8, 15, 20, 10];
-            statsData.maxDailyActivity = 20;
-          }
-          
-          this.setData({
-            statistics: statsData,
-            loadingStats: false
-          });
-          
-          info('首页统计数据更新', {
-            totalUsers: statsData.totalUsers,
-            totalAnalysis: statsData.totalAnalysis,
-            fileCount: statsData.fileCount,
-            maxDailyActivity: statsData.maxDailyActivity
-          });
-        } else {
-          // 返回失败，显示错误信息
-          error('获取统计数据失败', res.result);
-          this.setData({ loadingStats: false });
-          wx.showToast({
-            title: '获取统计数据失败',
-            icon: 'none',
-            duration: 2000
-          });
+    // 使用前端数据库访问获取数据
+    const db = wx.cloud.database();
+    const _ = db.command;
+    const $ = db.command.aggregate;
+    
+    // 并行获取多种统计数据
+    db.collection('users').count()
+    .then(res => {
+      console.log('getUsersCount', res);
+      this.setData({
+        statistics: {
+          ...this.data.statistics,
+          totalUsers: res.total
         }
-      },
-      fail: err => {
-        error('获取统计数据失败', err);
-        this.setData({ loadingStats: false });
-        wx.showToast({
-          title: '获取统计数据失败',
-          icon: 'none',
-          duration: 2000
-        });
-      }
+      });
+    })
+    .catch(err => {
+      error('getUsersCount', err);
     });
+
+    db.collection('analysis_tasks').count()
+    .then(res => {
+      console.log('getAnalysisCount', res);
+      this.setData({
+        statistics: {
+          ...this.data.statistics,
+          totalAnalysis: res.total
+        }
+      });
+    })
+    .catch(err => {
+      error('getAnalysisCount', err);
+    });
+
+    db.collection('bp_files').count()
+    .then(res => {
+      console.log('getFileCount', res);
+      this.setData({
+        statistics: {
+          ...this.data.statistics,
+          fileCount: res.total
+        }
+      });
+    })
+    .catch(err => {
+      error('getFileCount', err);
+    });
+    
+  
   },
   
   onShow() {
