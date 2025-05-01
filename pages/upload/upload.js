@@ -3,6 +3,8 @@ import { chooseFile, formatFileSize, getFileType, isSupportedFileType } from '..
 import { uploadFile } from '../../utils/api.js';
 import { toast } from '../../utils/toast.js';
 import { formatCurrentTime } from '../../utils/date.js';
+import {aiService} from '../../utils/ai.js';
+
 const app = getApp();
 
 Page({
@@ -20,7 +22,8 @@ Page({
     },
     uploadProgress: 0,
     errorMessage: '',
-    isUploading: false
+    isUploading: false,
+    reports: {} // 存储报告内容，键为文件ID，值为对应的报告内容
   },
 
   onLoad: function(options) {
@@ -178,6 +181,38 @@ Page({
     }
 
     info('开始分析', { fileId: this.data.file.id, fileName: this.data.file.name });
+
+    aiService.callCozeWorkflow({
+      fileUrl: this.data.file.url,
+      onChunk: (chunk) => {
+        // 使用setData更新reports对象
+        const fileId = this.data.file.id;
+        const currentReport = this.data.reports[fileId] || '';
+        const updatedReport = currentReport + chunk;
+        
+        // 构建更新对象
+        const reportUpdate = {};
+        reportUpdate[`reports.${fileId}`] = updatedReport;
+        
+        // 使用setData更新
+        this.setData(reportUpdate);
+
+      },
+      onComplete: () => {
+        this.setData({
+          step: 'success',
+          uploadProgress: 100
+        });
+      },
+      onError: (err) => {
+        error('文件分析失败', err);
+        this.setData({
+          step: 'error',
+          errorMessage: '文件分析失败: ' + (err.errMsg || JSON.stringify(err))
+        });
+        this.showToast('文件分析失败', 'error');
+      }
+    });
     
     // 跳转到分析结果页
     wx.navigateTo({

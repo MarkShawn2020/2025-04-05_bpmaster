@@ -19,8 +19,8 @@
       <view class="analysis-title">AI评估报告</view>
       <view class="analysis-status">
         <text class="status-text {{isAnalyzing ? 'status-loading' : (isCompleted ? 'status-success' : '')}}">{{statusText}}</text>
-        <image wx:if="{{isAnalyzing && isImageExists}}" class="status-icon" src="/images/loading-icon.png"></image>
-        <image wx:if="{{isCompleted}}" class="status-icon" src="/images/check-circle.png"></image>
+        <image wx:if="{{isAnalyzing && isImageExists}}" class="status-icon" src="/assets/images/loading-icon.png"></image>
+        <image wx:if="{{isCompleted}}" class="status-icon" src="/assets/images/check-circle.png"></image>
       </view>
     </view>
     
@@ -78,15 +78,15 @@
       <block wx:if="{{isCompleted}}">
         <view class="action-bar">
           <view class="action-btn" hover-class="hover" bindtap="handleReAnalyze">
-            <image class="btn-icon" src="/images/refresh.png"></image>
+            <image class="btn-icon" src="/assets/images/refresh.png"></image>
             <text class="btn-text">重新分析</text>
           </view>
           <view class="action-btn primary" hover-class="hover" bindtap="handleSaveReport">
-            <image class="btn-icon" src="/images/save.png"></image>
+            <image class="btn-icon" src="/assets/images/save.png"></image>
             <text class="btn-text">保存报告</text>
           </view>
           <view class="action-btn" hover-class="hover" bindtap="handleShareReport">
-            <image class="btn-icon" src="/images/share.png"></image>
+            <image class="btn-icon" src="/assets/images/share.png"></image>
             <text class="btn-text">分享</text>
           </view>
         </view>

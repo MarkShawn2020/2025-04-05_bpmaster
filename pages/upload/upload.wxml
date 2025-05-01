@@ -6,7 +6,7 @@
     
     <!-- 未选择文件时 -->
     <view class="upload-area" bindtap="handleChooseFile" wx:if="{{!file.name}}">
-      <image class="upload-icon" src="/images/upload-icon.png"></image>
+      <image class="upload-icon" src="/assets/images/upload-icon.png"></image>
       <view class="upload-text">点击选择文件</view>
       <view class="upload-hint">支持PDF、Word、PPT等格式，文件大小不超过20MB</view>
     </view>
@@ -44,7 +44,7 @@
     <!-- 上传成功 -->
     <view class="success-area" wx:if="{{step === 'success'}}">
       <view class="success-header">
-        <image class="success-icon" src="/images/check-circle.png"></image>
+        <image class="success-icon" src="/assets/images/check-circle.png"></image>
         <view class="success-text">上传成功</view>
       </view>
       <view class="file-info">
@@ -75,19 +75,19 @@
     <view class="info-title">支持的文件格式</view>
     <view class="format-list">
       <view class="format-item">
-        <image class="format-icon" src="/images/file-icons/file-pdf.png"></image>
+        <image class="format-icon" src="/assets/images/file-icons/file-pdf.png"></image>
         <view class="format-name">PDF</view>
       </view>
       <view class="format-item">
-        <image class="format-icon" src="/images/file-icons/file-doc.png"></image>
+        <image class="format-icon" src="/assets/images/file-icons/file-doc.png"></image>
         <view class="format-name">Word</view>
       </view>
       <view class="format-item">
-        <image class="format-icon" src="/images/file-icons/file-ppt.png"></image>
+        <image class="format-icon" src="/assets/images/file-icons/file-ppt.png"></image>
         <view class="format-name">PPT</view>
       </view>
       <view class="format-item">
-        <image class="format-icon" src="/images/file-icons/file-txt.png"></image>
+        <image class="format-icon" src="/assets/images/file-icons/file-txt.png"></image>
         <view class="format-name">TXT</view>
       </view>
     </view>
@@ -101,27 +101,27 @@
     <view class="info-title">AI分析能力</view>
     <view class="feature-list">
       <view class="feature-item-small">
-        <image class="feature-icon-small" src="/images/features/summary.png"></image>
+        <image class="feature-icon-small" src="/assets/images/features/summary.png"></image>
         <view class="feature-name">项目概述</view>
       </view>
       <view class="feature-item-small">
-        <image class="feature-icon-small" src="/images/features/market.png"></image>
+        <image class="feature-icon-small" src="/assets/images/features/market.png"></image>
         <view class="feature-name">市场分析</view>
       </view>
       <view class="feature-item-small">
-        <image class="feature-icon-small" src="/images/features/team.png"></image>
+        <image class="feature-icon-small" src="/assets/images/features/team.png"></image>
         <view class="feature-name">团队评估</view>
       </view>
       <view class="feature-item-small">
-        <image class="feature-icon-small" src="/images/features/finance.png"></image>
+        <image class="feature-icon-small" src="/assets/images/features/finance.png"></image>
         <view class="feature-name">财务评估</view>
       </view>
       <view class="feature-item-small">
-        <image class="feature-icon-small" src="/images/features/model.png"></image>
+        <image class="feature-icon-small" src="/assets/images/features/model.png"></image>
         <view class="feature-name">商业模式</view>
       </view>
       <view class="feature-item-small">
-        <image class="feature-icon-small" src="/images/features/risk.png"></image>
+        <image class="feature-icon-small" src="/assets/images/features/risk.png"></image>
         <view class="feature-name">风险分析</view>
       </view>
     </view>

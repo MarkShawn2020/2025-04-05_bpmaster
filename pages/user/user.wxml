@@ -20,19 +20,19 @@
   <!-- 功能列表 -->
   <view class="menu-list">
     <view class="menu-item" bindtap="handleViewHistory">
-      <image class="menu-icon" src="/images/menu/history.png"></image>
+      <image class="menu-icon" src="/assets/images/menu/history.png"></image>
       <view class="menu-text">分析历史</view>
-      <image class="menu-arrow" src="/images/arrow-right.png"></image>
+      <image class="menu-arrow" src="/assets/images/arrow-right.png"></image>
     </view>
     <view class="menu-item" bindtap="handleViewFavorites">
-      <image class="menu-icon" src="/images/menu/favorite.png"></image>
+      <image class="menu-icon" src="/assets/images/menu/favorite.png"></image>
       <view class="menu-text">收藏报告</view>
-      <image class="menu-arrow" src="/images/arrow-right.png"></image>
+      <image class="menu-arrow" src="/assets/images/arrow-right.png"></image>
     </view>
     <view class="menu-item" bindtap="handleViewSettings">
-      <image class="menu-icon" src="/images/menu/settings.png"></image>
+      <image class="menu-icon" src="/assets/images/menu/settings.png"></image>
       <view class="menu-text">设置</view>
-      <image class="menu-arrow" src="/images/arrow-right.png"></image>
+      <image class="menu-arrow" src="/assets/images/arrow-right.png"></image>
     </view>
   </view>
 
