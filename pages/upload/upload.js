@@ -141,9 +141,6 @@ Page({
       fileSize: this.data.file.size
     });
     
-    // 模拟上传进度
-    this.simulateProgress();
-    
     // 调用实际上传API
     uploadFile(this.data.file.path, this.data.file.name)
       .then(res => {
@@ -171,38 +168,6 @@ Page({
         
         this.showToast('文件上传失败', 'error');
       });
-  },
-  
-  // 模拟进度
-  simulateProgress: function() {
-    if (this.progressTimer) {
-      clearTimeout(this.progressTimer);
-    }
-    
-    let progress = 0;
-    const that = this;
-    
-    const updateProgress = function() {
-      // 上传完成或出错时停止更新
-      if (that.data.step !== 'uploading') {
-        return;
-      }
-      
-      // 模拟进度，保持在95%以内，剩余5%留给实际完成时
-      if (progress < 95) {
-        // 开始快，接近95%时变慢
-        const increment = progress < 50 ? 10 : (progress < 80 ? 5 : 1);
-        progress += increment;
-        
-        that.setData({
-          uploadProgress: progress
-        });
-        
-        that.progressTimer = setTimeout(updateProgress, 300);
-      }
-    };
-    
-    updateProgress();
   },
   
   // 开始分析

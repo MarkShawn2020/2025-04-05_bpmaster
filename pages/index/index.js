@@ -155,11 +155,6 @@ Page({
   },
   
   onShow() {
-    // 如果已登录，获取最近分析列表
-    if (this.data.isLoggedIn) {
-      // 获取最近分析列表
-      this.getRecentAnalysisList();
-    }
   },
 
   // 检查登录状态
@@ -175,8 +170,6 @@ Page({
           userInfo: app.globalData.userInfo,
           loading: false
         });
-        // 获取最近分析列表
-        this.getRecentAnalysisList();
       } else if (isDev) {
         // 在开发环境中自动登录
         info('开发环境自动登录检查');
@@ -187,8 +180,6 @@ Page({
               userInfo: app.globalData.userInfo,
               loading: false
             });
-            // 在登录成功后获取最近分析列表
-            this.getRecentAnalysisList();
           } else {
             this.setData({
               isLoggedIn: false,
@@ -211,54 +202,6 @@ Page({
     }
   },
 
-  // 获取最近分析列表
-  getRecentAnalysisList() {
-    this.setData({ loading: true });
-    
-    // 调用云函数获取真实数据
-    wx.cloud.callFunction({
-      name: 'getRecentAnalysis',
-      data: {
-        limit: 6
-      },
-      success: res => {
-        info('获取最近分析列表成功', res);
-        
-        // 如果云函数返回成功
-        if (res.result && res.result.code === 0) {
-          this.setData({
-            recentAnalysisList: res.result.data.list,
-            totalAnalysisCount: res.result.data.total,
-            loading: false
-          });
-        } else {
-          // 返回失败，显示错误信息
-          error('获取分析列表失败', res.result);
-          this.setData({ 
-            recentAnalysisList: [],
-            loading: false 
-          });
-          wx.showToast({
-            title: '获取分析列表失败',
-            icon: 'none',
-            duration: 2000
-          });
-        }
-      },
-      fail: err => {
-        error('获取最近分析列表失败', err);
-        this.setData({ 
-          recentAnalysisList: [],
-          loading: false 
-        });
-        wx.showToast({
-          title: '获取分析列表失败',
-          icon: 'none',
-          duration: 2000
-        });
-      }
-    });
-  },
 
   // 去上传页面
   goToUpload() {

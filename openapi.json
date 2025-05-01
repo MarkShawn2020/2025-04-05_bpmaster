@@ -1,0 +1,1321 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "BP小诸葛 API",
+    "description": "商业计划书AI分析小程序API接口文档",
+    "version": "1.0.0",
+    "contact": {
+      "name": "开发团队"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.bpmaster.cn/v1",
+      "description": "生产环境"
+    },
+    {
+      "url": "https://dev-api.bpmaster.cn/v1",
+      "description": "开发环境"
+    }
+  ],
+  "tags": [
+    {
+      "name": "文件操作",
+      "description": "文件上传和管理相关接口"
+    },
+    {
+      "name": "AI分析",
+      "description": "商业计划书AI分析相关接口"
+    },
+    {
+      "name": "历史记录",
+      "description": "分析历史记录相关接口"
+    },
+    {
+      "name": "用户管理",
+      "description": "用户信息和认证相关接口"
+    }
+  ],
+  "paths": {
+    "/file/upload": {
+      "post": {
+        "tags": ["文件操作"],
+        "summary": "上传商业计划书文件",
+        "description": "上传商业计划书文件到云存储，支持PDF、Word、PPT、TXT格式",
+        "operationId": "uploadFile",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "要上传的文件"
+                  },
+                  "originalFileName": {
+                    "type": "string",
+                    "description": "原始文件名（可选）"
+                  }
+                },
+                "required": ["file"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "文件上传成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileUploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "无效的请求参数",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未授权",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "文件太大",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "不支持的文件类型",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/coze/workflow/stream_run": {
+      "post": {
+        "tags": ["AI分析"],
+        "summary": "流式执行Coze工作流",
+        "description": "使用流式响应方式执行已发布的Coze工作流，用于实时分析商业计划书并返回结果。支持打字机效果，适用于消息节点、问答节点和开启了流式输出的结束节点。",
+        "operationId": "streamRunCozeWorkflow",
+        "security": [
+          {
+            "CozeAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "workflow_id": {
+                    "type": "string",
+                    "description": "要执行的Coze工作流ID",
+                    "example": "73664689170551*****"
+                  },
+                  "parameters": {
+                    "type": "object",
+                    "description": "工作流的输入参数",
+                    "example": {
+                      "files": ["https://storage.bpmaster.cn/files/temp/bp_files/1234567890_business_plan.pdf"]
+                    }
+                  },
+                  "bot_id": {
+                    "type": "string",
+                    "description": "关联的智能体ID（可选）。部分工作流需要关联智能体，例如存在数据库节点、变量节点等。"
+                  }
+                },
+                "required": ["workflow_id"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "工作流流式执行成功，以SSE(Server-Sent Events)格式返回",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                },
+                "examples": {
+                  "message-event": {
+                    "value": "id: 0\nevent: Message\ndata: {\"content\":\"正在分析您的商业计划书...\",\"node_is_finish\":false,\"node_seq_id\":\"0\",\"node_title\":\"Message\"}\n\nid: 1\nevent: Message\ndata: {\"content\":\"为\",\"node_is_finish\":false,\"node_seq_id\":\"1\",\"node_title\":\"Message\"}\n\nid: 2\nevent: Done\ndata: {}\n"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "无效的请求参数",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CozeErrorResponse"
+                },
+                "example": {
+                  "error_code": 4000,
+                  "error_message": "请求参数错误"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未授权",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CozeErrorResponse"
+                },
+                "example": {
+                  "error_code": 4010,
+                  "error_message": "Token无效或已过期"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限不足",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CozeErrorResponse"
+                },
+                "example": {
+                  "error_code": 4030,
+                  "error_message": "权限不足，缺少run权限"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "工作流未发布",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CozeErrorResponse"
+                },
+                "example": {
+                  "error_code": 4200,
+                  "error_message": "工作流未发布"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CozeErrorResponse"
+                },
+                "example": {
+                  "error_code": 5000,
+                  "error_message": "服务器内部错误"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/analyze": {
+      "post": {
+        "tags": ["AI分析"],
+        "summary": "开始商业计划书分析",
+        "description": "使用Coze工作流对已上传的商业计划书进行AI分析",
+        "operationId": "startAnalysis",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fileId": {
+                    "type": "string",
+                    "description": "上传文件后获得的文件ID"
+                  },
+                  "fileName": {
+                    "type": "string",
+                    "description": "文件名称"
+                  },
+                  "fileUrl": {
+                    "type": "string",
+                    "description": "文件URL"
+                  }
+                },
+                "required": ["fileId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "分析任务已创建",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "无效的请求参数",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未授权",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "文件不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/stream": {
+      "post": {
+        "tags": ["AI分析"],
+        "summary": "流式返回分析结果",
+        "description": "通过流式响应返回Coze工作流的实时分析结果",
+        "operationId": "streamAnalysisResult",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fileId": {
+                    "type": "string",
+                    "description": "已上传文件的ID"
+                  },
+                  "sessionId": {
+                    "type": "string",
+                    "description": "分析会话ID"
+                  },
+                  "workflowId": {
+                    "type": "string",
+                    "description": "Coze工作流ID"
+                  }
+                },
+                "required": ["fileId", "sessionId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "流式分析结果",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "无效的请求参数",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未授权",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "文件或会话不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/status/{fileId}": {
+      "get": {
+        "tags": ["AI分析"],
+        "summary": "查询分析状态",
+        "description": "查询特定文件的分析状态和结果",
+        "operationId": "getAnalysisStatus",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "fileId",
+            "in": "path",
+            "description": "文件ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "分析状态和结果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisStatusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未授权",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "文件或分析记录不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/history": {
+      "get": {
+        "tags": ["历史记录"],
+        "summary": "获取分析历史列表",
+        "description": "分页获取用户的分析历史记录列表",
+        "operationId": "getHistoryList",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "每页记录数",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "偏移量",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "历史记录列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未授权",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["历史记录"],
+        "summary": "保存分析历史记录",
+        "description": "保存商业计划书分析的历史记录",
+        "operationId": "saveHistory",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HistoryItem"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "历史记录保存成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "historyId": {
+                      "type": "string",
+                      "example": "hist_12345678"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "无效的请求参数",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未授权",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/history/{historyId}": {
+      "get": {
+        "tags": ["历史记录"],
+        "summary": "获取历史记录详情",
+        "description": "获取特定分析历史记录的详细内容",
+        "operationId": "getHistoryDetail",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "historyId",
+            "in": "path",
+            "description": "历史记录ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "历史记录详情",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryDetailResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未授权",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "历史记录不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/login": {
+      "post": {
+        "tags": ["用户管理"],
+        "summary": "用户登录",
+        "description": "通过微信小程序获取的code登录系统",
+        "operationId": "login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "description": "微信小程序登录返回的code"
+                  }
+                },
+                "required": ["code"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "登录成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "无效的请求参数",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/userinfo": {
+      "post": {
+        "tags": ["用户管理"],
+        "summary": "更新用户信息",
+        "description": "更新用户的个人信息",
+        "operationId": "updateUserInfo",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserInfoUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "用户信息更新成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "无效的请求参数",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未授权",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["用户管理"],
+        "summary": "获取用户信息",
+        "description": "获取当前登录用户的信息",
+        "operationId": "getUserInfo",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "用户信息",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserInfo"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未授权",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务器错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "FileUploadResponse": {
+        "type": "object",
+        "properties": {
+          "fileId": {
+            "type": "string",
+            "description": "上传文件的唯一标识",
+            "example": "file_12345678"
+          },
+          "fileUrl": {
+            "type": "string",
+            "description": "文件的临时访问URL",
+            "example": "https://storage.bpmaster.cn/files/temp/bp_files/1234567890_business_plan.pdf"
+          }
+        }
+      },
+      "AnalysisResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "分析会话ID，用于查询分析状态和结果",
+            "example": "session_12345678"
+          },
+          "status": {
+            "type": "string",
+            "description": "分析任务状态",
+            "enum": ["pending", "processing", "completed", "failed"],
+            "example": "processing"
+          }
+        }
+      },
+      "AnalysisStatusResponse": {
+        "type": "object",
+        "properties": {
+          "fileId": {
+            "type": "string",
+            "example": "file_12345678"
+          },
+          "fileName": {
+            "type": "string",
+            "example": "商业计划书.pdf"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "processing", "completed", "failed"],
+            "example": "completed"
+          },
+          "progress": {
+            "type": "number",
+            "description": "分析进度（0-100）",
+            "example": 100
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2023-04-01T12:00:00Z"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2023-04-01T12:02:30Z"
+          },
+          "content": {
+            "type": "string",
+            "description": "分析结果内容（Markdown格式）",
+            "example": "# 商业计划书分析报告\n\n## 项目概述\n\n这是一个很有前景的项目..."
+          }
+        }
+      },
+      "HistoryItem": {
+        "type": "object",
+        "properties": {
+          "fileId": {
+            "type": "string",
+            "example": "file_12345678"
+          },
+          "fileName": {
+            "type": "string",
+            "example": "商业计划书.pdf"
+          },
+          "fileSize": {
+            "type": "string",
+            "example": "2.5MB"
+          },
+          "fileType": {
+            "type": "string",
+            "example": "pdf"
+          },
+          "analysisTime": {
+            "type": "string",
+            "example": "2023-04-01 12:00:00"
+          },
+          "sessionId": {
+            "type": "string",
+            "example": "session_12345678"
+          },
+          "content": {
+            "type": "string",
+            "description": "分析结果内容（Markdown格式）",
+            "example": "# 商业计划书分析报告\n\n## 项目概述\n\n这是一个很有前景的项目..."
+          }
+        }
+      },
+      "HistoryListResponse": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "总记录数",
+            "example": 25
+          },
+          "list": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "historyId": {
+                  "type": "string",
+                  "example": "hist_12345678"
+                },
+                "fileId": {
+                  "type": "string",
+                  "example": "file_12345678"
+                },
+                "fileName": {
+                  "type": "string",
+                  "example": "商业计划书.pdf"
+                },
+                "fileType": {
+                  "type": "string",
+                  "example": "pdf"
+                },
+                "fileSize": {
+                  "type": "string",
+                  "example": "2.5MB"
+                },
+                "analysisTime": {
+                  "type": "string",
+                  "example": "2023-04-01 12:00:00"
+                },
+                "createTime": {
+                  "type": "string",
+                  "format": "date-time",
+                  "example": "2023-04-01T12:02:30Z"
+                }
+              }
+            }
+          }
+        }
+      },
+      "HistoryDetailResponse": {
+        "type": "object",
+        "properties": {
+          "historyId": {
+            "type": "string",
+            "example": "hist_12345678"
+          },
+          "fileId": {
+            "type": "string",
+            "example": "file_12345678"
+          },
+          "fileName": {
+            "type": "string",
+            "example": "商业计划书.pdf"
+          },
+          "fileType": {
+            "type": "string",
+            "example": "pdf"
+          },
+          "fileSize": {
+            "type": "string",
+            "example": "2.5MB"
+          },
+          "fileUrl": {
+            "type": "string",
+            "example": "https://storage.bpmaster.cn/files/bp_files/1234567890_business_plan.pdf"
+          },
+          "analysisTime": {
+            "type": "string",
+            "example": "2023-04-01 12:00:00"
+          },
+          "createTime": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2023-04-01T12:02:30Z"
+          },
+          "content": {
+            "type": "string",
+            "description": "分析结果内容（Markdown格式）",
+            "example": "# 商业计划书分析报告\n\n## 项目概述\n\n这是一个很有前景的项目..."
+          }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "JWT认证令牌",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          },
+          "openid": {
+            "type": "string",
+            "description": "微信用户openid",
+            "example": "oABC123DEF456GHI789"
+          },
+          "userInfo": {
+            "$ref": "#/components/schemas/UserInfo"
+          }
+        }
+      },
+      "UserInfo": {
+        "type": "object",
+        "properties": {
+          "openid": {
+            "type": "string",
+            "example": "oABC123DEF456GHI789"
+          },
+          "nickName": {
+            "type": "string",
+            "example": "用户昵称"
+          },
+          "avatarUrl": {
+            "type": "string",
+            "example": "https://thirdwx.qlogo.cn/mmopen/vi_32/..."
+          },
+          "gender": {
+            "type": "integer",
+            "enum": [0, 1, 2],
+            "description": "性别：0-未知，1-男，2-女",
+            "example": 1
+          },
+          "country": {
+            "type": "string",
+            "example": "China"
+          },
+          "province": {
+            "type": "string",
+            "example": "Guangdong"
+          },
+          "city": {
+            "type": "string",
+            "example": "Shenzhen"
+          },
+          "language": {
+            "type": "string",
+            "example": "zh_CN"
+          },
+          "createTime": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2023-01-01T12:00:00Z"
+          },
+          "lastLoginTime": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2023-04-01T12:00:00Z"
+          }
+        }
+      },
+      "UserInfoUpdate": {
+        "type": "object",
+        "properties": {
+          "nickName": {
+            "type": "string",
+            "example": "新昵称"
+          },
+          "avatarUrl": {
+            "type": "string",
+            "example": "https://thirdwx.qlogo.cn/mmopen/vi_32/..."
+          },
+          "gender": {
+            "type": "integer",
+            "enum": [0, 1, 2],
+            "example": 1
+          },
+          "country": {
+            "type": "string",
+            "example": "China"
+          },
+          "province": {
+            "type": "string",
+            "example": "Guangdong"
+          },
+          "city": {
+            "type": "string",
+            "example": "Shenzhen"
+          },
+          "language": {
+            "type": "string",
+            "example": "zh_CN"
+          }
+        }
+      },
+      "CozeStreamEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "事件ID，从0开始计数",
+            "example": 0
+          },
+          "event": {
+            "type": "string",
+            "description": "事件类型",
+            "enum": ["Message", "Error", "Done", "Interrupt"],
+            "example": "Message"
+          },
+          "data": {
+            "type": "object",
+            "description": "事件数据，根据事件类型不同而有所差异"
+          }
+        }
+      },
+      "CozeMessageEvent": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "流式输出的消息内容",
+            "example": "正在分析您的商业计划书..."
+          },
+          "node_title": {
+            "type": "string",
+            "description": "输出消息的节点名称",
+            "example": "Message"
+          },
+          "node_seq_id": {
+            "type": "string",
+            "description": "此消息在节点中的消息ID",
+            "example": "0"
+          },
+          "node_is_finish": {
+            "type": "boolean",
+            "description": "当前消息是否为此节点的最后一个数据包",
+            "example": false
+          },
+          "ext": {
+            "type": "object",
+            "description": "额外字段",
+            "example": {}
+          },
+          "cost": {
+            "type": "string",
+            "description": "预留字段",
+            "example": "0.00"
+          }
+        }
+      },
+      "CozeErrorEvent": {
+        "type": "object",
+        "properties": {
+          "error_code": {
+            "type": "integer",
+            "description": "错误代码",
+            "example": 4000
+          },
+          "error_message": {
+            "type": "string",
+            "description": "错误信息",
+            "example": "请求参数错误"
+          }
+        }
+      },
+      "CozeInterruptEvent": {
+        "type": "object",
+        "properties": {
+          "interrupt_data": {
+            "type": "object",
+            "properties": {
+              "event_id": {
+                "type": "string",
+                "description": "工作流中断事件ID",
+                "example": "event_12345678"
+              },
+              "type": {
+                "type": "integer",
+                "description": "工作流中断类型",
+                "example": 1
+              }
+            }
+          },
+          "node_title": {
+            "type": "string",
+            "description": "输出消息的节点名称",
+            "example": "问答"
+          }
+        }
+      },
+      "CozeErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error_code": {
+            "type": "integer",
+            "description": "错误代码",
+            "example": 4000
+          },
+          "error_message": {
+            "type": "string",
+            "description": "错误信息",
+            "example": "请求参数错误"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "错误代码",
+            "example": 400
+          },
+          "message": {
+            "type": "string",
+            "description": "错误信息",
+            "example": "无效的参数"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      },
+      "CozeAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "token",
+        "description": "Coze API访问令牌，通过在扣子平台生成"
+      }
+    }
+  }
+} 

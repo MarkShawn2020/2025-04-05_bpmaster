@@ -139,88 +139,9 @@ function callCozeWorkflow(workflowId, inputs) {
   });
 }
 
-/**
- * 保存分析历史记录
- * @param {Object} historyItem 历史记录项
- * @returns {Promise} 执行结果
- */
-function saveAnalysisHistory(historyItem) {
-  return new Promise((resolve, reject) => {
-    info('保存分析历史记录', { fileId: historyItem.fileId });
-    
-    wx.cloud.callFunction({
-      name: 'saveAnalysisHistory',
-      data: historyItem,
-      success: (res) => {
-        info('保存历史记录成功', res.result);
-        resolve(res.result);
-      },
-      fail: (err) => {
-        error('保存历史记录失败', err);
-        reject(err);
-      }
-    });
-  });
-}
 
-/**
- * 获取分析历史记录列表
- * @param {number} limit 获取条数
- * @param {number} offset 偏移量
- * @returns {Promise} 历史记录列表
- */
-function getAnalysisHistoryList(limit = 10, offset = 0) {
-  return new Promise((resolve, reject) => {
-    info('获取分析历史记录列表', { limit, offset });
-    
-    wx.cloud.callFunction({
-      name: 'getAnalysisHistoryList',
-      data: {
-        limit,
-        offset
-      },
-      success: (res) => {
-        info('获取历史记录列表成功', { count: res.result.list ? res.result.list.length : 0 });
-        resolve(res.result);
-      },
-      fail: (err) => {
-        error('获取历史记录列表失败', err);
-        reject(err);
-      }
-    });
-  });
-}
-
-/**
- * 获取分析历史记录详情
- * @param {string} historyId 历史记录ID
- * @returns {Promise} 历史记录详情
- */
-function getAnalysisHistoryDetail(historyId) {
-  return new Promise((resolve, reject) => {
-    info('获取分析历史记录详情', { historyId });
-    
-    wx.cloud.callFunction({
-      name: 'getAnalysisHistoryDetail',
-      data: {
-        historyId
-      },
-      success: (res) => {
-        info('获取历史记录详情成功');
-        resolve(res.result);
-      },
-      fail: (err) => {
-        error('获取历史记录详情失败', err);
-        reject(err);
-      }
-    });
-  });
-}
 
 export {
   uploadFile,
   callCozeWorkflow,
-  saveAnalysisHistory,
-  getAnalysisHistoryList,
-  getAnalysisHistoryDetail
 }; 
