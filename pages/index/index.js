@@ -84,9 +84,6 @@ Page({
         showLoginPanel: true
       });
     }
-
-    // 获取用户登录状态
-    this.checkLoginStatus();
     
     // 获取统计数据
     this.getStatisticsData();
@@ -157,52 +154,6 @@ Page({
   onShow() {
   },
 
-  // 检查登录状态
-  checkLoginStatus() {
-    try {
-      const app = getApp();
-      const token = wx.getStorageSync('token');
-      const isDev = app.globalData.isDev;
-      
-      if (token && app.globalData.userInfo) {
-        this.setData({
-          isLoggedIn: true,
-          userInfo: app.globalData.userInfo,
-          loading: false
-        });
-      } else if (isDev) {
-        // 在开发环境中自动登录
-        info('开发环境自动登录检查');
-        app.login((success) => {
-          if (success) {
-            this.setData({
-              isLoggedIn: true,
-              userInfo: app.globalData.userInfo,
-              loading: false
-            });
-          } else {
-            this.setData({
-              isLoggedIn: false,
-              loading: false
-            });
-          }
-        });
-      } else {
-        this.setData({
-          isLoggedIn: false,
-          loading: false
-        });
-      }
-    } catch (e) {
-      error('检查登录状态失败', e);
-      this.setData({
-        isLoggedIn: false,
-        loading: false
-      });
-    }
-  },
-
-
   // 去上传页面
   goToUpload() {
     const app = getApp();
@@ -252,31 +203,6 @@ Page({
   hideLoginPanel() {
     this.setData({
       showLoginPanel: false
-    });
-  },
-
-  // 登录
-  handleLogin() {
-    this.setData({ loginLoading: true });
-    
-    const app = getApp();
-    app.login((success) => {
-      this.setData({ loginLoading: false });
-      
-      if (success) {
-        this.setData({
-          isLoggedIn: true,
-          userInfo: app.globalData.userInfo,
-          showLoginPanel: false
-        });
-      
-        
-        // 显示登录成功提示
-        this.selectComponent('#toast').success('登录成功');
-      } else {
-        // 显示登录失败提示
-        this.selectComponent('#toast').error('登录失败，请重试');
-      }
     });
   },
 

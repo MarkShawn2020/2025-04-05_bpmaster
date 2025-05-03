@@ -17,6 +17,54 @@
     </view>
   </view>
 
+  <!-- 上传历史列表 -->
+  <view class="upload-history" wx:if="{{userInfo && uploadHistory.length > 0}}">
+    <view class="section-title">我的上传</view>
+    <view class="file-list">
+      <view class="file-item" wx:for="{{uploadHistory}}" wx:key="id">
+        <view class="file-info">
+          <image class="file-icon" src="/assets/images/file-icons/file-{{item.fileType}}.png"></image>
+          <view class="file-detail">
+            <view class="file-name">{{item.fileName}}</view>
+            <view class="file-meta">
+              <text class="file-size">{{item.fileSize}}</text>
+              <text class="meta-separator">·</text>
+              <text class="file-time">{{item.uploadTime}}</text>
+            </view>
+          </view>
+        </view>
+        <view class="file-actions">
+          <view class="action-btn preview" bindtap="previewFile" data-id="{{item.id}}">
+            <image class="action-icon" src="/assets/images/preview.png"></image>
+            <text>预览</text>
+          </view>
+          <view class="action-btn analyze" bindtap="goToAnalysis" data-id="{{item.id}}">
+            <image class="action-icon" src="/assets/images/analyze.png"></image>
+            <text>分析</text>
+          </view>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 加载更多按钮 -->
+    <view class="load-more" wx:if="{{hasMore}}" bindtap="loadMoreFiles">
+      <text wx:if="{{!loading}}">加载更多</text>
+      <text wx:else>加载中...</text>
+    </view>
+    
+    <!-- 无更多数据提示 -->
+    <view class="no-more" wx:if="{{!hasMore && uploadHistory.length > 0}}">
+      <text>— 没有更多数据 —</text>
+    </view>
+  </view>
+  
+  <!-- 空状态提示 -->
+  <view class="empty-state" wx:if="{{userInfo && uploadHistory.length === 0 && !loading}}">
+    <image class="empty-icon" src="/assets/images/empty.png"></image>
+    <view class="empty-text">您还没有上传文件</view>
+    <button class="upload-btn" bindtap="navigateToUpload">去上传</button>
+  </view>
+
   <!-- 功能列表 -->
   <view class="menu-list">
     <view class="menu-item" bindtap="handleViewHistory">
@@ -45,4 +93,7 @@
   <view class="version-info">
     <text>版本 {{version}}</text>
   </view>
+  
+  <!-- Toast组件 -->
+  <toast id="toast"></toast>
 </view> 
