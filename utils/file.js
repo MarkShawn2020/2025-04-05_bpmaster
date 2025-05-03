@@ -3,6 +3,7 @@
  */
 import { error, info, warn } from './logger.js';
 
+
 /**
  * 选择文件
  * @returns {Promise} 返回文件信息的Promise
@@ -113,6 +114,7 @@ async function getBPFileInfo(fileId) {
     
     const db = wx.cloud.database();
     const fileRes = await db.collection('bp_files').doc(fileId).get();
+    info('获取文件详细信息', fileRes);
     
     if (!fileRes || !fileRes.data) {
       throw new Error('文件不存在');

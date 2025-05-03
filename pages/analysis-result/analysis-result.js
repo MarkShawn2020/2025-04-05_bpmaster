@@ -1,6 +1,6 @@
 const app = getApp();
 import { debug, error, info, warn } from '../../utils/logger.js';
-import { getFileType } from '../../utils/file.js';
+import {getBPFileInfo, getFileType, getFileUrl} from '../../utils/file.js';
 import { formatCurrentTime, formatDisplayTime } from '../../utils/date.js';
 import { aiService } from '../../utils/ai.js';
 
@@ -43,15 +43,19 @@ Page({
         this.showToast('缺少必要的文件信息', 'error');
         return;
       }
-      
+
+
+      // 从云数据库获取文件信息
+      const fileInfo = await getBPFileInfo(options.fileId);
+
       // 设置当前处理的文件ID
       this.setData({
         fileId: options.fileId,
-        curFileId: options.fileId
+        curFileId: options.fileId,
+        fileUrl: await getFileUrl(options.fileId),
+        ...fileInfo
       });
-      
-      // 从云数据库获取文件信息
-      await this.getFileInfo(options.fileId);
+
       
       // 检查是否已有分析任务
       const hasAnalysis = await this.checkAnalysisTask(options.fileId);
@@ -72,42 +76,8 @@ Page({
       this.showToast('加载异常，请返回重试', 'error');
     }
   },
-  
-  // 获取文件信息
-  getFileInfo: async function(fileId) {
-    try {
-      const db = wx.cloud.database();
-      const fileRes = await db.collection("bp_files").doc(fileId).get();
-      
-      if (!fileRes || !fileRes.data) {
-        throw new Error('文件不存在');
-      }
-      
-      const fileData = fileRes.data;
-      // 格式化文件大小和时间
-      const fileTime = fileData.uploadTime ? formatDisplayTime(fileData.uploadTime) : formatCurrentTime();
-      
-      this.setData({
-        fileName: fileData.name || '未知文件',
-        fileSize: fileData.sizeText || '未知大小',
-        fileTime: fileTime,
-        fileUrl: fileData.url || '',
-        fileType: fileData.fileType || getFileType(fileData.name) || 'unknown'
-      });
-      
-      info('文件信息', { 
-        fileId: this.data.fileId, 
-        fileName: this.data.fileName,
-        fileUrl: this.data.fileUrl
-      });
-      
-      return fileData;
-    } catch (err) {
-      error('获取文件信息失败', err);
-      throw err;
-    }
-  },
-  
+
+
   // 检查是否已有分析任务
   checkAnalysisTask: async function(fileId) {
     try {
@@ -218,9 +188,9 @@ Page({
       }
     }, 10000); // 10秒检查一次
   },
-  
+
   // 开始分析
-  startAnalysis: function() {
+  startAnalysis: async function() {
     info('开始AI分析', { fileId: this.data.fileId, fileUrl: this.data.fileUrl });
     
     // 清空之前的结果

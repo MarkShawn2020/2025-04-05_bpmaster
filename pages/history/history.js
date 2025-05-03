@@ -115,9 +115,7 @@ Page({
 
         // 有分析结果，跳转到分析详情页
         wx.navigateTo({
-          url: `/pages/analysis-result/analysis-result?id=${id}&fileName=${encodeURIComponent(
-            item.fileName
-          )}`,
+          url: `/pages/analysis-result/analysis-result?fileId=${id}`,
           fail: (err) => {
             error("导航到分析页失败", err);
             toast.error("打开分析页失败");
