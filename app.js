@@ -302,48 +302,10 @@ App({
 
   onShow() {
     info('小程序进入前台');
-    
-    // 尝试从本地存储恢复分析流数据
-    this._recoverAnalysisStreams();
   },
 
   onHide() {
     info('App hidden')
-  },
-
-  // 恢复分析流数据
-  _recoverAnalysisStreams() {
-    try {
-      // 获取所有本地存储的分析流数据
-      const keys = wx.getStorageInfoSync().keys;
-      const streamKeys = keys.filter(key => key.startsWith('analysis_stream_'));
-      
-      if (streamKeys.length > 0) {
-        info('从本地存储恢复分析流数据', { count: streamKeys.length });
-        
-        // 恢复每个流数据
-        streamKeys.forEach(key => {
-          try {
-            const content = wx.getStorageSync(key);
-            const streamId = key.replace('analysis_stream_', '');
-            
-            if (!this.globalData.analysisStreams[streamId] && content) {
-              this.globalData.analysisStreams[streamId] = {
-                content: content,
-                isComplete: true, // 从存储恢复的数据默认完成
-                error: null,
-                fileId: '',
-                recoveredFromStorage: true
-              };
-            }
-          } catch (e) {
-            error('恢复单个流数据失败', { key, error: e });
-          }
-        });
-      }
-    } catch (e) {
-      error('恢复分析流数据失败', e);
-    }
   },
   
   // 获取用户openid

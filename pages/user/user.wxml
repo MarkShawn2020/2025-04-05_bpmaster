@@ -60,7 +60,7 @@
   
   <!-- 空状态提示 -->
   <view class="empty-state" wx:if="{{userInfo && uploadHistory.length === 0 && !loading}}">
-    <image class="empty-icon" src="/assets/images/empty.png"></image>
+    <image class="empty-icon" src="/assets/images/empty-files.png"></image>
     <view class="empty-text">您还没有上传文件</view>
     <button class="upload-btn" bindtap="navigateToUpload">去上传</button>
   </view>

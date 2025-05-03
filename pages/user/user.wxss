@@ -233,6 +233,11 @@
   font-size: 28rpx;
 }
 
+.empty-icon {
+  width: 120rpx;
+  height: 120rpx;
+}
+
 .bp-item {
   display: flex;
   align-items: center;

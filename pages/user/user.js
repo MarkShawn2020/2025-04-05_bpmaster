@@ -8,7 +8,7 @@ const app = getApp();
 Page({
   data: {
     userInfo: null,
-    defaultAvatarUrl: '/assets/images/default-avatar.jpg',
+    defaultAvatarUrl: '/assets/images/default-avatar.png',
     version: app.globalData.version || '1.0.0',
     uploadHistory: [], // 用户上传的文件历史
     loading: false,

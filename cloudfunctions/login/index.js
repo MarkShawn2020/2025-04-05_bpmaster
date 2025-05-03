@@ -1,103 +1,147 @@
 // 云函数入口文件
-const cloud = require('wx-server-sdk')
+const cloud = require('wx-server-sdk');
 
-cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV }) // 使用当前云环境
+// 初始化云开发环境
+cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV }); // 使用当前云环境
+
+// 数据库实例
+const db = cloud.database();
+const userCollection = db.collection('users');
 
 /**
- * 登录云函数
+ * 获取用户信息
+ * @param {string} openid - 用户的openid
+ * @returns {Promise<Object>} 用户信息
+ */
+async function getUserByOpenid(openid) {
+  console.log('查询用户信息', { openid });
+  return await userCollection.where({ openid }).get();
+}
+
+/**
+ * 创建新用户
+ * @param {string} openid - 用户的openid
+ * @param {string} appid - 小程序appid
+ * @returns {Promise<Object>} 创建结果
+ */
+async function createUser(openid, appid) {
+  console.log('创建新用户', { openid });
+  
+  const userData = {
+    openid,
+    appid,
+    createdAt: db.serverDate(),
+    updatedAt: db.serverDate(),
+    // 默认用户信息
+    nickname: `用户${openid.substring(openid.length - 6)}`,
+    avatarUrl: '',
+    // 其他默认字段
+    loginCount: 1,
+    lastLoginTime: db.serverDate()
+  };
+  
+  return await userCollection.add({ data: userData });
+}
+
+/**
+ * 更新用户登录信息
+ * @param {string} openid - 用户的openid
+ * @returns {Promise<Object>} 更新结果
+ */
+async function updateUserLoginInfo(openid) {
+  console.log('更新用户登录信息', { openid });
+  
+  return await userCollection.where({ openid }).update({
+    data: {
+      updatedAt: db.serverDate(),
+      lastLoginTime: db.serverDate(),
+      loginCount: db.command.inc(1)
+    }
+  });
+}
+
+/**
+ * 生成登录令牌
+ * @param {string} openid - 用户的openid
+ * @returns {string} 生成的令牌
+ */
+function generateToken(openid) {
+  // 生成简单token (实际项目中应使用更安全的方式，如JWT)
+  return `${openid}_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+}
+
+/**
+ * 处理登录逻辑
+ * @param {string} openid - 用户的openid
+ * @param {string} appid - 小程序appid
+ * @returns {Promise<Object>} 处理结果
+ */
+async function handleLogin(openid, appid) {
+  try {
+    // 查询用户是否存在
+    const userResult = await getUserByOpenid(openid);
+    const token = generateToken(openid);
+    
+    if (userResult.data.length === 0) {
+      // 新用户，创建用户记录
+      await createUser(openid, appid);
+      return {
+        success: true,
+        isNewUser: true,
+        openid,
+        token
+      };
+    } else {
+      // 已存在的用户，更新登录信息
+      await updateUserLoginInfo(openid);
+      return {
+        success: true,
+        isNewUser: false,
+        openid,
+        token,
+        userInfo: userResult.data[0]
+      };
+    }
+  } catch (error) {
+    console.error('登录处理失败', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * 登录云函数入口
  * 此函数接收微信code，返回自定义登录态
  */
 exports.main = async (event, context) => {
-  console.log('登录云函数被调用', event)
+  console.log('登录云函数被调用', event);
   
-  const wxContext = cloud.getWXContext()
+  // 获取微信上下文
+  const wxContext = cloud.getWXContext();
   
   // 获取用户openid
-  const { OPENID, APPID } = wxContext
+  const { OPENID, APPID } = wxContext;
   
-  console.log('当前用户OPENID:', OPENID)
-  
-  // 检查用户是否已存在
-  const db = cloud.database()
-  const userCollection = db.collection('users')
-  
-  try {
-    // 查询用户
-    let user = await userCollection.where({
-      openid: OPENID
-    }).get()
-    
-    // 生成token (实际项目中应使用更安全的方式)
-    const token = `${OPENID}_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`
-    
-    if (user.data.length === 0) {
-      // 新用户，创建用户记录
-      console.log('创建新用户')
-      
-      const userData = {
-        openid: OPENID,
-        appid: APPID,
-        createdAt: db.serverDate(),
-        lastLoginAt: db.serverDate(),
-        token: token,
-        nickname: '用户' + OPENID.substring(0, 5),
-        avatarUrl: ''
-      }
-      
-      const result = await userCollection.add({
-        data: userData
-      })
-      
-      console.log('新用户创建成功，ID:', result._id)
-      
-      // 返回登录信息
-      return {
-        code: 200,
-        message: '登录成功',
-        token,
-        userInfo: {
-          isNewUser: true,
-          userId: result._id,
-          nickname: userData.nickname,
-          avatarUrl: userData.avatarUrl,
-          openid: OPENID
-        }
-      }
-    } else {
-      // 已存在用户，更新登录时间和token
-      const userId = user.data[0]._id
-      const userData = user.data[0]
-      
-      console.log('用户已存在，ID:', userId)
-      
-      await userCollection.doc(userId).update({
-        data: {
-          lastLoginAt: db.serverDate(),
-          token: token
-        }
-      })
-      
-      console.log('用户token已更新')
-      
-      // 返回登录信息
-      return {
-        code: 200,
-        message: '登录成功',
-        token,
-        userInfo: {
-          isNewUser: false,
-          userId: userId,
-          nickname: userData.nickname || '用户' + OPENID.substring(0, 5),
-          avatarUrl: userData.avatarUrl || '',
-          openid: OPENID
-        }
-      }
-    }
-  } catch (err) {
-    console.error('登录失败', err)
+  if (!OPENID) {
     return {
-      code: 500,
-      message: '登录失败: ' + err.message
-    }
+      success: false,
+      error: '无法获取用户openid'
+    };
   }
-} 
+  
+  console.log('当前用户OPENID:', OPENID);
+  
+  // 使用单一出口模式处理登录逻辑
+  const result = await handleLogin(OPENID, APPID);
+  
+  return {
+    ...result,
+    // 返回云调用相关信息供参考
+    event,
+    openid: OPENID,
+    appid: APPID,
+    unionid: wxContext.UNIONID,
+  };
+};
