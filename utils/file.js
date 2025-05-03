@@ -1,7 +1,7 @@
 /**
  * 文件相关工具函数
  */
-import { error, info } from './logger.js';
+import { error, info, warn } from './logger.js';
 
 /**
  * 选择文件
@@ -213,6 +213,60 @@ async function getBPList(page, pageSize) {
   }
 }
 
+/**
+ * 获取BP文件详情
+ * @param {string} fileId - 文件ID
+ * @returns {Promise<Object>} 返回文件详情的Promise
+ */
+async function getBPDetail(fileId) {
+  try {
+    info('获取BP详情', { fileId });
+    if (!fileId) {
+      throw new Error('文件ID不能为空');
+    }
+    
+    const db = wx.cloud.database();
+    
+    // 查询BP文件信息
+    const fileRes = await db.collection('bp_files').doc(fileId).get();
+    if (!fileRes || !fileRes.data) {
+      throw new Error('找不到文件信息');
+    }
+    
+    // 查询BP分析报告（如果存在）
+    let report = null;
+    try {
+      const reportRes = await db.collection('reports')
+        .where({ fileId: fileId })
+        .get();
+      
+      if (reportRes && reportRes.data && reportRes.data.length > 0) {
+        report = reportRes.data[0];
+      }
+    } catch (e) {
+      // 报告可能不存在，不影响主流程
+      warn('查询报告失败', e);
+    }
+    
+    // 返回完整的数据
+    return {
+      code: 200,
+      message: '获取成功',
+      data: {
+        ...fileRes.data,
+        report
+      }
+    };
+  } catch (err) {
+    error('获取BP详情失败', err);
+    return {
+      code: 500,
+      message: err.message || '获取详情失败',
+      error: err
+    };
+  }
+}
+
 export {
   chooseFile,
   formatFileSize,
@@ -221,5 +275,6 @@ export {
   getFileIcon,
   getBPFileInfo,
   getFileUrl,
-  getBPList
+  getBPList,
+  getBPDetail
 };

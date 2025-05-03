@@ -1,7 +1,7 @@
 // pages/history/history.js
 import { error, info, warn } from "../../utils/logger";
 import { toast } from "../../utils/toast";
-import { getBPFileInfo, getFileUrl, getFileType, formatFileSize, getBPList } from "../../utils/file";
+import { getBPFileInfo, getFileUrl, getFileType, formatFileSize, getBPList, getBPDetail } from "../../utils/file";
 
 Page({
   data: {
@@ -108,9 +108,8 @@ Page({
     // 显示加载中
     const loading = toast.loading("加载数据中...");
 
-    // 使用API服务获取BP详情数据
-    apiService
-      .getBPDetail(id)
+    // 使用云数据库获取BP详情数据
+    getBPDetail(id)
       .then((res) => {
         loading.hide();
 
