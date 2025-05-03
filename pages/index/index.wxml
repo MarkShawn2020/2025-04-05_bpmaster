@@ -106,14 +106,14 @@
     </view>
     
     <!-- 测试页面入口 -->
-    <view class="test-area">
+    <!-- <view class="test-area">
       <view class="test-area-title">测试页面入口</view>
       <view class="test-buttons">
         <button class="test-btn test-btn-a" bindtap="goToTestPage" data-type="A">打开测试页面 A</button>
         <button class="test-btn test-btn-b" bindtap="goToTestPage" data-type="B">打开测试页面 B</button>
       </view>
       <view class="test-desc">用于测试页面实例生命周期与参数独立性</view>
-    </view>
+    </view> -->
 
   <!-- 用户登录面板 -->
   <view class="login-panel-mask" wx:if="{{showLoginPanel}}" bindtap="hideLoginPanel"></view>
