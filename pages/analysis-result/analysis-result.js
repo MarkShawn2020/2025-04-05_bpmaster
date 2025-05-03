@@ -1,5 +1,3 @@
-import { cloud } from "wx-server-sdk";
-
 const app = getApp();
 import { debug, error, info, warn } from '../../utils/logger.js';
 import { getFileType } from '../../utils/file.js';
