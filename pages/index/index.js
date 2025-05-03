@@ -399,5 +399,25 @@ Page({
       path: '/pages/index/index',
       imageUrl: '/assets/images/share.png'
     };
+  },
+  
+  // 跳转到测试页面
+  goToTestPage(e) {
+    const pageType = e.currentTarget.dataset.type || 'A';
+    info('用户跳转到测试页面', { pageType });
+    
+    wx.navigateTo({
+      url: `/pages/test-page/test-page?type=${pageType}`,
+      success: () => {
+        info('测试页面跳转成功', { pageType });
+      },
+      fail: (err) => {
+        error('测试页面跳转失败', err);
+        wx.showToast({
+          title: '页面跳转失败',
+          icon: 'none'
+        });
+      }
+    });
   }
 }) 

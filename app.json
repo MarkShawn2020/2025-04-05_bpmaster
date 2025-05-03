@@ -4,7 +4,8 @@
     "pages/user/user",
     "pages/upload/upload",
     "pages/analysis-result/analysis-result",
-    "pages/history/history"
+    "pages/history/history",
+    "pages/test-page/test-page"
   ],
   "window": {
     "backgroundTextStyle": "light",
