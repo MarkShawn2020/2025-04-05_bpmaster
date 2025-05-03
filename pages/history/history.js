@@ -1,7 +1,7 @@
 // pages/history/history.js
 import { error, info, warn } from "../../utils/logger";
-import { apiService } from "../../services/api";
 import { toast } from "../../utils/toast";
+import { getBPFileInfo, getFileUrl, getFileType, formatFileSize, getBPList } from "../../utils/file";
 
 Page({
   data: {
@@ -38,8 +38,8 @@ Page({
         pageSize: this.data.pageSize,
       });
 
-      // 调用API获取数据
-      const res = await apiService.getBPList(
+      // 调用云函数获取数据
+      const res = await getBPList(
         this.data.page,
         this.data.pageSize
       );
@@ -55,7 +55,7 @@ Page({
         list = list.map((item) => ({
           id: item._id,
           fileName: item.fileName,
-          fileSize: this.formatFileSize(item.fileSize),
+          fileSize: formatFileSize(item.fileSize),
           analysisDate: item.uploadTime,
           score: item.score || 0,
           status: item.status || "NOT_ANALYZED",
@@ -77,22 +77,6 @@ Page({
       error("加载历史记录失败", error);
       this.setData({ loading: false });
       toast.error("加载失败，请稍后重试");
-    }
-  },
-
-  // 格式化文件大小
-  formatFileSize(size) {
-    if (!size) return "未知大小";
-
-    const KB = 1024;
-    const MB = KB * 1024;
-
-    if (size < KB) {
-      return size + "B";
-    } else if (size < MB) {
-      return (size / KB).toFixed(1) + "KB";
-    } else {
-      return (size / MB).toFixed(1) + "MB";
     }
   },
 
@@ -174,8 +158,7 @@ Page({
     const loading = toast.loading("加载文件中...");
 
     // 先获取BP文件详细信息，包含实际的云存储fileID
-    apiService
-      .getBPFileInfo(id)
+    getBPFileInfo(id)
       .then((fileInfo) => {
         if (!fileInfo || !fileInfo.fileID) {
           throw new Error("找不到文件的云存储ID");
@@ -184,7 +167,7 @@ Page({
         info("获取到文件信息", fileInfo);
 
         // 使用真正的云存储fileID获取临时访问URL
-        return apiService.getFileUrl(fileInfo.fileID);
+        return getFileUrl(fileInfo.fileID);
       })
       .then((tempUrl) => {
         info("获取文件临时URL成功", tempUrl);
@@ -205,7 +188,7 @@ Page({
           // 使用本地路径预览文件
           wx.openDocument({
             filePath: filePath,
-            fileType: this.getFileType(item.fileName),
+            fileType: getFileType(item.fileName),
             showMenu: true,
             success: () => {
               info("文件预览成功");

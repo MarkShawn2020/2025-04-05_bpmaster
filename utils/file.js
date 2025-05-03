@@ -1,7 +1,7 @@
 /**
  * 文件相关工具函数
  */
-import { error } from './logger.js';
+import { error, info } from './logger.js';
 
 /**
  * 选择文件
@@ -99,10 +99,127 @@ function getFileIcon(fileType) {
   return `/images/file-icons/${fileType}.png`;
 }
 
+/**
+ * 获取BP文件详细信息
+ * @param {string} fileId - 文件ID
+ * @returns {Promise<Object>} 返回文件信息的Promise
+ */
+async function getBPFileInfo(fileId) {
+  try {
+    info('获取文件详细信息', { fileId });
+    if (!fileId) {
+      throw new Error('缺少文件ID');
+    }
+    
+    const db = wx.cloud.database();
+    const fileRes = await db.collection('bp_files').doc(fileId).get();
+    
+    if (!fileRes || !fileRes.data) {
+      throw new Error('文件不存在');
+    }
+    
+    return fileRes.data;
+  } catch (err) {
+    error('获取文件详细信息失败', err);
+    throw err;
+  }
+}
+
+/**
+ * 获取文件的临时访问URL
+ * @param {string} fileID - 文件在云存储中的ID
+ * @returns {Promise<string>} 返回文件临时URL的Promise
+ */
+async function getFileUrl(fileID) {
+  try {
+    info('获取文件临时URL', { fileID });
+    if (!fileID) {
+      throw new Error('缺少文件云存储ID');
+    }
+    
+    const result = await wx.cloud.getTempFileURL({
+      fileList: [fileID]
+    });
+    
+    if (!result || !result.fileList || result.fileList.length === 0) {
+      throw new Error('获取文件临时URL失败');
+    }
+    
+    const tempUrl = result.fileList[0].tempFileURL;
+    info('获取文件临时URL成功', tempUrl);
+    return tempUrl;
+  } catch (err) {
+    error('获取文件临时URL失败', err);
+    throw err;
+  }
+}
+
+/**
+ * 获取BP文件列表
+ * @param {number} page - 页码
+ * @param {number} pageSize - 每页数量
+ * @returns {Promise<Object>} 返回文件列表的Promise
+ */
+async function getBPList(page, pageSize) {
+  try {
+    info('获取BP文件列表', { page, pageSize });
+    
+    const db = wx.cloud.database();
+    // 计算跳过的数量
+    const skip = (page - 1) * pageSize;
+    
+    // 获取当前用户ID
+    const userInfo = wx.getStorageSync('userInfo') || {};
+    const openid = userInfo.openid;
+    
+    if (!openid) {
+      throw new Error('用户未登录');
+    }
+    
+    // 查询条件：当前用户的文件
+    const query = {
+      openid: openid
+    };
+    
+    // 使用count方法获取总数
+    const countResult = await db.collection('bp_files').where(query).count();
+    
+    // 获取文件列表，按上传时间降序排列
+    const listResult = await db.collection('bp_files')
+      .where(query)
+      .orderBy('uploadTime', 'desc')
+      .skip(skip)
+      .limit(pageSize)
+      .get();
+    
+    // 返回结果
+    return {
+      code: 200,
+      message: '获取成功',
+      data: {
+        list: listResult.data || [],
+        total: countResult.total || 0,
+        page,
+        pageSize
+      }
+    };
+  } catch (err) {
+    error('获取BP文件列表失败', err);
+    return {
+      code: 500,
+      message: err.message || '获取列表失败',
+      error: err
+    };
+  }
+}
+
 export {
   chooseFile,
   formatFileSize,
   getFileType,
   isSupportedFileType,
-  getFileIcon
+  getFileIcon,
+  getBPFileInfo,
+  getFileUrl,
+  getBPList
 };
