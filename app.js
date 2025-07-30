@@ -11,6 +11,24 @@ wx.cloud.init({
 const isDev = wx.getAccountInfoSync().miniProgram.envVersion === 'develop' || 
               wx.getAccountInfoSync().miniProgram.envVersion === 'trial';
 
+// 加载环境配置
+let envConfig = {};
+try {
+  const config = require('./config.env.js');
+  envConfig = isDev ? config.dev : config.prod;
+  info('环境配置加载成功', { env: isDev ? 'dev' : 'prod' });
+} catch (e) {
+  // 如果配置文件不存在，使用默认配置
+  warn('config.env.js 不存在，使用默认配置');
+  envConfig = {
+    coze: {
+      API_URL: 'https://api.coze.cn/v1/workflow/stream_run',
+      TOKEN: '', // 请创建 config.env.js 文件并填入实际的 token
+      WORKFLOW_ID: ''
+    }
+  };
+}
+
 // 定义应用重置方法，可在需要时调用
 function resetAppState() {
   try {
@@ -50,13 +68,7 @@ App({
     analysisStreams: {}, // 初始化分析流数据容器
     hasUserInfo: false,
     openid: '',
-    config: {
-      coze: {
-        API_URL: 'https://api.coze.cn/v1/workflow/stream_run',
-        TOKEN: 'pat_3rj2Yex0Z2I9LxvkfezTxrhPv8wXH0vYx1y5sc1b4XO7kfC4V9iQfSc7Bilffkrl',
-        WORKFLOW_ID: '7488013332172193801'
-      }
-    }
+    config: envConfig // 使用加载的环境配置
   },
 
   onLaunch() {

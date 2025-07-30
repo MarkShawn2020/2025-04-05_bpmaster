@@ -32,7 +32,21 @@
 - Node.js
 - 微信云开发
 
-## 云开发配置步骤
+## 快速开始
+
+### 1. 配置环境变量
+
+```bash
+# 复制配置模板
+cp config.env.example.js config.env.js
+
+# 编辑 config.env.js，填入你的 Coze API Token
+# 获取 Token 地址：https://www.coze.cn/open/oauth/pats
+```
+
+详细配置说明请参考 [环境变量配置指南](docs/ENVIRONMENT_CONFIG.md)
+
+### 2. 云开发配置
 
 1. 在微信开发者工具中创建新项目，选择云开发模板
 2. 按以下步骤配置云开发环境:

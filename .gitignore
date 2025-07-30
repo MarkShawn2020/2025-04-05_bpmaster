@@ -16,6 +16,7 @@ tmp/
 # 密钥
 private.key
 project.private.config.json
+config.env.js
 
 # npm相关
 package-lock.json
