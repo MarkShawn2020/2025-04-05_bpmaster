@@ -1,6 +1,6 @@
 {
   "name": "bp-xiaozhu",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "商业计划书智能评估小程序",
   "main": "app.js",
   "scripts": {
