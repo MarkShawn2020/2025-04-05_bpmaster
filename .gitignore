@@ -19,4 +19,5 @@ project.private.config.json
 
 # npm相关
 package-lock.json
-yarn.lock 
+yarn.lock .env
+.env
