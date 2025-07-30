@@ -14,7 +14,7 @@ Page({
     fileUrl: '',
     fileType: 'unknown',
     analysisId: '', // 分析任务ID
-    content: '', // 分析报告内容
+    mdContent: '', // 分析报告内容（对应WXML中的mdContent）
     
     isAnalyzing: true,
     isCompleted: false,
@@ -92,7 +92,7 @@ Page({
         
         this.setData({
           analysisId: analysis._id,
-          content: analysis.content || '',
+          mdContent: analysis.content || '',
           isAnalyzing: analysis.status !== 'completed',
           isCompleted: analysis.status === 'completed',
           statusText: analysis.status === 'completed' ? '分析完成' : '分析中...'
@@ -166,9 +166,9 @@ Page({
         
         if (analysis && analysis.data) {
           // 如果数据库中的内容有更新，则更新页面内容
-          if (analysis.data.content && analysis.data.content !== this.data.content) {
+          if (analysis.data.content && analysis.data.content !== this.data.mdContent) {
             this.setData({
-              content: analysis.data.content
+              mdContent: analysis.data.content
             });
             this.extractTocItems(analysis.data.content);
           }
@@ -195,7 +195,7 @@ Page({
     
     // 清空之前的结果
     this.setData({
-      content: '',
+      mdContent: '',
       tocItems: [],
       isAnalyzing: true,
       hasError: false,
@@ -221,34 +221,131 @@ Page({
     // 调用AI服务
     aiService.callCozeWorkflow({
       fileUrl: this.data.fileUrl,
-      onChunk: async (chunk) => {
-        // 如果当前处理的文件ID与页面显示的文件ID一致，才更新UI
+      onEvent: async (event) => {
+        // 处理SSE事件数据
         if (curFileId === that.data.curFileId) {
-          // 累加内容
-          const content = that.data.content + chunk;
-          
-          that.setData({
-            content: content
+          debug('接收到SSE事件', { 
+            event: event.event, 
+            hasData: !!event.data,
+            nodeType: event.data?.node_type,
+            nodeId: event.data?.node_id,
+            hasContent: !!(event.data?.content)
           });
           
-          // 提取目录项
-          that.extractTocItems(content);
-          
-          // 更新分析任务内容
-          try {
-            // 每收到新的数据块，就更新数据库中的内容
-            const db = wx.cloud.database();
-            await db.collection("analysis_tasks").doc(that.data.analysisId).update({
-              data: {
-                content: content,
-                updatedAt: new Date()
-              }
-            });
-          } catch (err) {
-            error('更新分析任务内容失败', err);
+          // 处理不同类型的事件
+          if (event.event === 'Done') {
+            info('接收到Done事件，分析即将完成');
+            return;
           }
-        } else {
-          info('忽略非当前文件的数据块', { curFileId, pageFileId: that.data.curFileId });
+          
+          // 记录所有节点信息以便调试
+          if (event.data) {
+            info('节点信息', {
+              nodeId: event.data.node_id,
+              nodeType: event.data.node_type,
+              nodeTitle: event.data.node_title,
+              hasContent: !!(event.data.mdContent && event.data.mdContent.trim()),
+              contentLength: event.data.mdContent ? event.data.mdContent.length : 0,
+              contentPreview: event.data.mdContent ? event.data.mdContent.substring(0, 50) : '',
+              isFinish: event.data.node_is_finish
+            });
+          }
+          
+          // 从事件数据中提取实际内容
+          // 支持多种事件类型
+          if (event.data && (event.event === 'Message' || event.event === 'message' || event.event === 'chunk' || event.event === 'data')) {
+            
+            let chunk = '';
+            
+            // 根据Coze API响应格式提取内容，检查更多可能的字段
+            if (event.data.mdContent && typeof event.data.mdContent === 'string' && event.data.mdContent.trim()) {
+              chunk = event.data.mdContent;
+            } else if (event.data.output && typeof event.data.output === 'string') {
+              chunk = event.data.output;
+            } else if (event.data.response && typeof event.data.response === 'string') {
+              chunk = event.data.response;
+            } else if (event.data.result && typeof event.data.result === 'string') {
+              chunk = event.data.result;
+            } else if (event.data.message && typeof event.data.message === 'string') {
+              chunk = event.data.message;
+            } else if (event.data.text && typeof event.data.text === 'string') {
+              chunk = event.data.text;
+            } else if (event.data.data && typeof event.data.data === 'string') {
+              chunk = event.data.data;
+            } else if (typeof event.data === 'string') {
+              chunk = event.data;
+            } else {
+              // 记录完整的事件数据结构以便调试
+              debug('未找到文本内容，事件数据详情', { 
+                event: event.event, 
+                dataKeys: Object.keys(event.data || {}),
+                nodeType: event.data.node_type,
+                nodeTitle: event.data.node_title,
+                fullData: JSON.stringify(event.data)
+              });
+            }
+            
+            if (chunk && chunk.trim()) {
+              info('提取到内容片段', { 
+                chunkLength: chunk.length,
+                chunkPreview: chunk.substring(0, 100),
+                nodeId: event.data.node_id,
+                nodeTitle: event.data.node_title
+              });
+              
+              // 累加内容
+              const content = that.data.mdContent + chunk;
+              
+              that.setData({
+                mdContent: content
+              });
+              
+              // 提取目录项
+              that.extractTocItems(content);
+              
+              // 更新分析任务内容
+              try {
+                const db = wx.cloud.database();
+                await db.collection("analysis_tasks").doc(that.data.analysisId).update({
+                  data: {
+                    content: content,  // 数据库字段仍保持为content
+                    updatedAt: new Date()
+                  }
+                });
+              } catch (err) {
+                error('更新分析任务内容失败', err);
+              }
+            } else if (event.data && event.data.content !== undefined) {
+              // 即使content为空也记录，帮助调试
+              debug('content字段存在但为空或无效', {
+                content: event.data.content,
+                contentType: typeof event.data.content,
+                nodeType: event.data.node_type,
+                nodeTitle: event.data.node_title,
+                allDataKeys: Object.keys(event.data)
+              });
+            }
+          } else if (!event.event) {
+            // 如果没有事件类型，可能是纯文本内容
+            warn('接收到无事件类型的数据', event);
+          }
+        }
+      },
+      onChunk: (chunk) => {
+        // 保留原始数据块处理，用于调试和兜底
+        debug('接收到原始数据块', { 
+          length: chunk.length,
+          preview: chunk.substring(0, 100)
+        });
+        
+        // 如果原始数据看起来像是纯文本内容（不是SSE格式），直接更新
+        if (curFileId === that.data.curFileId && chunk && !chunk.includes('event:') && !chunk.includes('data:')) {
+          // 可能是非SSE格式的纯文本响应
+          const content = that.data.mdContent + chunk;
+          that.setData({
+            mdContent: content
+          });
+          that.extractTocItems(content);
         }
       },
       onComplete: async () => {
@@ -336,7 +433,7 @@ Page({
   
   // 保存报告
   handleSaveReport: async function() {
-    if (!this.data.content || this.data.savingToHistory) {
+    if (!this.data.mdContent || this.data.savingToHistory) {
       return;
     }
     
@@ -350,7 +447,7 @@ Page({
         data: {
           fileId: this.data.fileId,
           analysisId: this.data.analysisId,
-          content: this.data.content,
+          content: this.data.mdContent,  // 保存的是mdContent字段的内容
           createdAt: new Date()
         }
       });
