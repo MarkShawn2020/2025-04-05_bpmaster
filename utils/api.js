@@ -46,29 +46,65 @@ function uploadFile(filePath, originalFileName) {
             if (result.fileList && result.fileList.length > 0) {
               const fileInfo = result.fileList[0];
               
-              // 调用云函数保存文件信息
-              wx.cloud.callFunction({
-                name: 'saveBPFile',
-                data: {
-                  fileID: res.fileID,
-                  fileUrl: fileInfo.tempFileURL,
-                  fileName: fileName, // 使用原始文件名
-                  originalName: originalFileName || '', // 同时保存原始文件名字段
-                  uploadTime: new Date().getTime()
-                },
-                success: (callRes) => {
-                  info('保存文件信息成功', callRes.result);
-                  resolve({
-                    fileId: callRes.result.fileId || res.fileID,
-                    fileUrl: fileInfo.tempFileURL
+              // 获取文件信息
+              wx.getFileInfo({
+                filePath: filePath,
+                success: (fileInfoRes) => {
+                  const fileSize = fileInfoRes.size || 0;
+                  
+                  // 调用云函数保存文件信息
+                  wx.cloud.callFunction({
+                    name: 'saveBPFile',
+                    data: {
+                      fileID: res.fileID,
+                      fileUrl: fileInfo.tempFileURL,
+                      fileName: fileName, // 使用原始文件名
+                      fileSize: fileSize, // 添加文件大小
+                      originalName: originalFileName || '', // 同时保存原始文件名字段
+                      uploadTime: new Date().getTime()
+                    },
+                    success: (callRes) => {
+                      info('保存文件信息成功', callRes.result);
+                      resolve({
+                        fileId: callRes.result.fileId || res.fileID,
+                        fileUrl: fileInfo.tempFileURL
+                      });
+                    },
+                    fail: (err) => {
+                      error('保存文件信息失败', err);
+                      // 即使保存信息失败，也返回上传成功信息
+                      resolve({
+                        fileId: res.fileID,
+                        fileUrl: fileInfo.tempFileURL
+                      });
+                    }
                   });
                 },
                 fail: (err) => {
-                  error('保存文件信息失败', err);
-                  // 即使保存信息失败，也返回上传成功信息
-                  resolve({
-                    fileId: res.fileID,
-                    fileUrl: fileInfo.tempFileURL
+                  error('获取文件信息失败', err);
+                  // 即使获取文件信息失败，也尝试保存其他信息
+                  wx.cloud.callFunction({
+                    name: 'saveBPFile',
+                    data: {
+                      fileID: res.fileID,
+                      fileUrl: fileInfo.tempFileURL,
+                      fileName: fileName,
+                      fileSize: 0, // 默认值
+                      originalName: originalFileName || '',
+                      uploadTime: new Date().getTime()
+                    },
+                    success: (callRes) => {
+                      resolve({
+                        fileId: callRes.result.fileId || res.fileID,
+                        fileUrl: fileInfo.tempFileURL
+                      });
+                    },
+                    fail: (callErr) => {
+                      resolve({
+                        fileId: res.fileID,
+                        fileUrl: fileInfo.tempFileURL
+                      });
+                    }
                   });
                 }
               });

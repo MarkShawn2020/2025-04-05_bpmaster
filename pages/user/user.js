@@ -41,6 +41,23 @@ Page({
   },
 
   /**
+   * 格式化日期对象
+   */
+  formatDateObject: function(date) {
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+      return '未知时间';
+    }
+    
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hour = String(date.getHours()).padStart(2, '0');
+    const minute = String(date.getMinutes()).padStart(2, '0');
+    
+    return `${year}-${month}-${day} ${hour}:${minute}`;
+  },
+
+  /**
    * 加载用户文件历史
    */
   loadUserFiles: async function() {
@@ -63,8 +80,8 @@ Page({
       
       // 从bp_files集合查询当前用户的文件
       const filesResult = await db.collection('bp_files')
-        .where({ _openid: userId })
-        .orderBy('uploadTime', 'desc')
+        .where({ openid: userId })
+        .orderBy('uploadDate', 'desc')
         .skip((this.data.page - 1) * this.data.pageSize)
         .limit(this.data.pageSize)
         .get();
@@ -77,15 +94,36 @@ Page({
         hasMore = list.length === this.data.pageSize;
         
         // 处理数据，格式化文件大小和上传时间
-        list = list.map(item => ({
-          id: item._id,
-          fileName: item.name || '未命名文件',
-          fileSize: formatFileSize(item.size) || '未知大小',
-          uploadTime: item.uploadTime || '未知时间',
-          fileType: getFileType(item.name) || 'unknown',
-          hasAnalysis: !!item.analysisId, // 是否已有分析
-          analysisStatus: item.analysisStatus || 'NOT_ANALYZED' // 分析状态
-        }));
+        list = list.map(item => {
+          // 处理日期 - 可能是 Date 对象、时间戳或字符串
+          let formattedTime = '未知时间';
+          const dateValue = item.uploadDate || item.uploadTime;
+          if (dateValue) {
+            if (dateValue instanceof Date) {
+              // 如果是 Date 对象
+              formattedTime = this.formatDateObject(dateValue);
+            } else if (typeof dateValue === 'object' && dateValue.$date) {
+              // 如果是 MongoDB 风格的日期对象
+              formattedTime = this.formatDateObject(new Date(dateValue.$date));
+            } else if (typeof dateValue === 'number') {
+              // 如果是时间戳
+              formattedTime = this.formatDateObject(new Date(dateValue));
+            } else if (typeof dateValue === 'string') {
+              // 如果是字符串
+              formattedTime = dateValue;
+            }
+          }
+          
+          return {
+            id: item._id,
+            fileName: item.fileName || item.name || '未命名文件',
+            fileSize: formatFileSize(item.fileSize || item.size || 0),
+            uploadTime: formattedTime,
+            fileType: getFileType(item.fileName || item.name) || 'unknown',
+            hasAnalysis: !!item.analysisId, // 是否已有分析
+            analysisStatus: item.analysisStatus || 'NOT_ANALYZED' // 分析状态
+          };
+        });
       } else {
         warn('获取文件列表失败或无数据');
       }
@@ -420,6 +458,19 @@ Page({
       fail: (err) => {
         error('导航到设置页面失败', err);
         toast.info('设置功能开发中');
+      }
+    });
+  },
+
+  /**
+   * 导航到上传页面
+   */
+  navigateToUpload: function() {
+    wx.switchTab({
+      url: '/pages/upload/upload',
+      fail: (err) => {
+        error('导航到上传页面失败', err);
+        toast.error('无法打开上传页面');
       }
     });
   }
