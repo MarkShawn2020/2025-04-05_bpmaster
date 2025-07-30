@@ -143,11 +143,10 @@ async function getFileUrl(fileID) {
       fileList: [fileID]
     });
     
-    if (!result || !result.fileList || result.fileList.length === 0) {
-      throw new Error('获取文件临时URL失败');
+    const tempUrl = result?.fileList?.[0]?.tempFileURL;
+    if(!tempUrl){
+      throw new Error('获取文件临时URL失败: ', {result});
     }
-    
-    const tempUrl = result.fileList[0].tempFileURL;
     info('获取文件临时URL成功', tempUrl);
     return tempUrl;
   } catch (err) {

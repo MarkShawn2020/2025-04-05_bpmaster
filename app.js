@@ -53,7 +53,7 @@ App({
     config: {
       coze: {
         API_URL: 'https://api.coze.cn/v1/workflow/stream_run',
-        TOKEN: 'cztei_lW2gb7RdPA1Oi6AEHDnJM6dK85o8ARxUjstc0CNOVj15lu64v1xoWYUpgH2Aoqdg7',
+        TOKEN: 'pat_3rj2Yex0Z2I9LxvkfezTxrhPv8wXH0vYx1y5sc1b4XO7kfC4V9iQfSc7Bilffkrl',
         WORKFLOW_ID: '7488013332172193801'
       }
     }
