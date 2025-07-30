@@ -73,7 +73,7 @@ function getFileType(fileName) {
   } else if (['ppt', 'pptx'].includes(extension)) {
     return 'ppt';
   } else if (['xls', 'xlsx'].includes(extension)) {
-    return 'xls';
+    return 'unknown'; // Fallback to unknown since xls icon is missing
   } else if (['txt'].includes(extension)) {
     return 'txt';
   } else {

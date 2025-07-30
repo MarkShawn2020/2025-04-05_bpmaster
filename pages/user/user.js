@@ -8,7 +8,7 @@ const app = getApp();
 Page({
   data: {
     userInfo: null,
-    defaultAvatarUrl: '/assets/images/default-avatar.png',
+    defaultAvatarUrl: '/assets/images/default-avatar.jpg',
     version: app.globalData.version || '1.0.0',
     uploadHistory: [], // 用户上传的文件历史
     loading: false,
@@ -41,20 +41,46 @@ Page({
   },
 
   /**
-   * 格式化日期对象
+   * 格式化日期对象为相对时间
    */
   formatDateObject: function(date) {
     if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
       return '未知时间';
     }
     
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hour = String(date.getHours()).padStart(2, '0');
-    const minute = String(date.getMinutes()).padStart(2, '0');
+    const now = new Date();
+    const diff = now - date;
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
     
-    return `${year}-${month}-${day} ${hour}:${minute}`;
+    // 相对时间格式化
+    if (seconds < 60) {
+      return '刚刚';
+    } else if (minutes < 60) {
+      return `${minutes}分钟前`;
+    } else if (hours < 24) {
+      return `${hours}小时前`;
+    } else if (days === 1) {
+      const hour = String(date.getHours()).padStart(2, '0');
+      const minute = String(date.getMinutes()).padStart(2, '0');
+      return `昨天 ${hour}:${minute}`;
+    } else if (days < 7) {
+      return `${days}天前`;
+    } else {
+      // 超过7天显示具体日期
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      
+      // 如果是今年，不显示年份
+      if (year === now.getFullYear()) {
+        return `${month}-${day}`;
+      } else {
+        return `${year}-${month}-${day}`;
+      }
+    }
   },
 
   /**
@@ -121,7 +147,9 @@ Page({
             uploadTime: formattedTime,
             fileType: getFileType(item.fileName || item.name) || 'unknown',
             hasAnalysis: !!item.analysisId, // 是否已有分析
-            analysisStatus: item.analysisStatus || 'NOT_ANALYZED' // 分析状态
+            analysisStatus: item.analysisStatus || 'NOT_ANALYZED', // 分析状态
+            previewing: false, // 预览加载状态
+            analyzing: false // 分析加载状态
           };
         });
       } else {
@@ -161,16 +189,20 @@ Page({
       return;
     }
     
-    const file = this.data.uploadHistory.find(item => item.id === id);
-    if (!file) {
+    const fileIndex = this.data.uploadHistory.findIndex(item => item.id === id);
+    if (fileIndex === -1) {
       toast.error('找不到文件信息');
       return;
     }
     
-    info('预览文件', { fileName: file.fileName, id });
+    const file = this.data.uploadHistory[fileIndex];
     
-    // 显示加载提示
-    const loading = toast.loading('加载文件中...');
+    // 设置加载状态
+    this.setData({
+      [`uploadHistory[${fileIndex}].previewing`]: true
+    });
+    
+    info('预览文件', { fileName: file.fileName, id });
     
     try {
       // 直接从数据库获取文件信息
@@ -227,7 +259,10 @@ Page({
       error('获取或下载文件失败', err);
       toast.error('无法预览文件，请稍后再试');
     } finally {
-      loading.hide();
+      // 清除加载状态
+      this.setData({
+        [`uploadHistory[${fileIndex}].previewing`]: false
+      });
     }
   },
 
@@ -241,16 +276,20 @@ Page({
       return;
     }
     
-    const file = this.data.uploadHistory.find(item => item.id === id);
-    if (!file) {
+    const fileIndex = this.data.uploadHistory.findIndex(item => item.id === id);
+    if (fileIndex === -1) {
       toast.error('找不到文件信息');
       return;
     }
     
-    info('进入分析页面', { fileName: file.fileName, id });
+    const file = this.data.uploadHistory[fileIndex];
     
-    // 显示加载提示
-    const loading = toast.loading('正在准备分析...');
+    // 设置加载状态
+    this.setData({
+      [`uploadHistory[${fileIndex}].analyzing`]: true
+    });
+    
+    info('进入分析页面', { fileName: file.fileName, id });
     
     try {
       // 直接跳转到分析结果页，让分析结果页自己判断是否需要创建新的分析
@@ -267,8 +306,10 @@ Page({
     } catch (err) {
       error('准备分析时发生错误', err);
       toast.error('准备分析失败');
-    } finally {
-      loading.hide();
+      // 清除加载状态
+      this.setData({
+        [`uploadHistory[${fileIndex}].analyzing`]: false
+      });
     }
   },
 

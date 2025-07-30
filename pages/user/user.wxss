@@ -421,11 +421,24 @@
   margin-top: 30rpx;
 }
 
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+  padding: 0 10rpx;
+}
+
+.section-count {
+  font-size: 24rpx;
+  color: #999;
+}
+
 .file-list {
   background-color: #fff;
-  border-radius: 12rpx;
+  border-radius: 16rpx;
   overflow: hidden;
-  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
 }
 
 .file-item {
@@ -433,12 +446,14 @@
   align-items: center;
   justify-content: space-between;
   padding: 30rpx;
-  border-bottom: 1rpx solid #f0f0f0;
-  transition: background-color 0.2s;
+  border-bottom: 1rpx solid #f5f5f5;
+  transition: all 0.3s ease;
+  position: relative;
 }
 
-.file-item:active {
-  background-color: #f5f5f5;
+.file-item-hover {
+  background-color: #f8faff;
+  transform: translateX(4rpx);
 }
 
 .file-item:last-child {
@@ -455,8 +470,30 @@
 .file-icon {
   width: 80rpx;
   height: 80rpx;
-  margin-right: 20rpx;
+  margin-right: 24rpx;
   flex-shrink: 0;
+  border-radius: 12rpx;
+  background-color: #f0f2f5;
+  padding: 20rpx;
+  box-sizing: border-box;
+  object-fit: contain;
+}
+
+/* File type specific backgrounds */
+.file-item[data-type="pdf"] .file-icon {
+  background-color: #fee4e2;
+}
+
+.file-item[data-type="doc"] .file-icon {
+  background-color: #dbeafe;
+}
+
+.file-item[data-type="ppt"] .file-icon {
+  background-color: #fef3c7;
+}
+
+.file-item[data-type="xls"] .file-icon {
+  background-color: #d1fae5;
 }
 
 .file-detail {
@@ -465,13 +502,15 @@
 }
 
 .file-name {
-  font-size: 30rpx;
-  color: #333;
+  font-size: 32rpx;
+  color: #1a1a1a;
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-bottom: 8rpx;
+  margin-bottom: 12rpx;
+  max-width: 400rpx;
+  line-height: 1.2;
 }
 
 .file-meta {
@@ -479,6 +518,19 @@
   align-items: center;
   font-size: 24rpx;
   color: #999;
+  gap: 12rpx;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+}
+
+.meta-icon {
+  width: 24rpx;
+  height: 24rpx;
+  opacity: 0.6;
 }
 
 .file-size {
@@ -498,43 +550,78 @@
   display: flex;
   gap: 16rpx;
   flex-shrink: 0;
+  align-items: center;
 }
 
 .file-actions .action-btn {
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 12rpx 20rpx;
-  border-radius: 8rpx;
+  padding: 12rpx 24rpx;
+  border-radius: 24rpx;
   background-color: #f5f5f5;
   min-width: 80rpx;
-  transition: all 0.2s;
+  height: 56rpx;
+  transition: all 0.3s ease;
+  border: none;
+  line-height: 1;
+  margin: 0;
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+  font-size: 26rpx;
+  font-weight: 500;
+  box-sizing: border-box;
 }
 
-.file-actions .action-btn:active {
-  transform: scale(0.95);
+.file-actions .action-btn::after {
+  border: none;
+}
+
+/* 确保button内的内容居中 */
+.file-actions .action-btn[loading=true] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 禁用状态样式 */
+.file-actions .action-btn[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 修复加载图标居中 */
+.file-actions .action-btn .loading {
+  display: inline-block;
+  margin: 0 auto;
+}
+
+.btn-hover {
+  transform: scale(0.96);
+  opacity: 0.8;
 }
 
 .file-actions .action-btn.preview {
-  background-color: #e6f4ff;
+  background: linear-gradient(135deg, #e6f4ff 0%, #d4e8ff 100%);
   color: #1890ff;
 }
 
 .file-actions .action-btn.analyze {
-  background-color: #f6ffed;
+  background: linear-gradient(135deg, #f6ffed 0%, #e4f7d6 100%);
   color: #52c41a;
 }
 
-.action-icon {
-  width: 36rpx;
-  height: 36rpx;
-  margin-bottom: 4rpx;
+.file-actions .action-btn.has-analysis {
+  background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%);
+  color: #fa8c16;
 }
 
-.file-actions .action-btn text {
-  font-size: 22rpx;
+.action-text {
+  font-size: 26rpx;
   line-height: 1;
+  white-space: nowrap;
+  display: block;
 }
 
 /* 加载更多 */

@@ -35,6 +35,8 @@ exports.main = async (event, context) => {
 
   try {
     console.log(`保存BP文件信息，文件名: ${fileName}, 用户: ${OPENID}`)
+    console.log('接收到的文件大小:', fileSize, '类型:', typeof fileSize)
+    console.log('完整的event数据:', JSON.stringify(event))
     
     // 准备要保存的文件数据，统一使用新的字段命名
     const fileData = {

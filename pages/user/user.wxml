@@ -19,13 +19,16 @@
 
   <!-- 上传历史列表 -->
   <view class="upload-history" wx:if="{{userInfo && uploadHistory.length > 0}}">
-    <view class="section-title">我的上传</view>
+    <view class="section-header">
+      <view class="section-title">我的上传</view>
+      <view class="section-count">{{uploadHistory.length}} 个文件</view>
+    </view>
     <view class="file-list">
-      <view class="file-item" wx:for="{{uploadHistory}}" wx:key="id">
+      <view class="file-item" wx:for="{{uploadHistory}}" wx:key="id" data-type="{{item.fileType}}" hover-class="file-item-hover" hover-stay-time="100">
         <view class="file-info">
-          <image class="file-icon" src="/assets/images/file-icons/file-{{item.fileType}}.png"></image>
+          <image class="file-icon" src="/assets/images/file-icons/file-{{item.fileType || 'unknown'}}.png" mode="aspectFit"></image>
           <view class="file-detail">
-            <view class="file-name">{{item.fileName}}</view>
+            <view class="file-name" title="{{item.fileName}}">{{item.fileName}}</view>
             <view class="file-meta">
               <text class="file-size">{{item.fileSize}}</text>
               <text class="meta-separator">·</text>
@@ -34,14 +37,16 @@
           </view>
         </view>
         <view class="file-actions">
-          <view class="action-btn preview" bindtap="previewFile" data-id="{{item.id}}">
-            <image class="action-icon" src="/assets/images/preview.png"></image>
-            <text>预览</text>
-          </view>
-          <view class="action-btn analyze" bindtap="goToAnalysis" data-id="{{item.id}}">
-            <image class="action-icon" src="/assets/images/analyze.png"></image>
-            <text>分析</text>
-          </view>
+          <button class="action-btn preview" hover-class="btn-hover" bindtap="previewFile" data-id="{{item.id}}" loading="{{item.previewing}}" disabled="{{item.previewing}}">
+            <block wx:if="{{!item.previewing}}">
+              <text class="action-text">预览</text>
+            </block>
+          </button>
+          <button class="action-btn analyze {{item.hasAnalysis ? 'has-analysis' : ''}}" hover-class="btn-hover" bindtap="goToAnalysis" data-id="{{item.id}}" loading="{{item.analyzing}}" disabled="{{item.analyzing}}">
+            <block wx:if="{{!item.analyzing}}">
+              <text class="action-text">{{item.hasAnalysis ? '查看' : '分析'}}</text>
+            </block>
+          </button>
         </view>
       </view>
     </view>
