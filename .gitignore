@@ -19,5 +19,8 @@ project.private.config.json
 
 # npm相关
 package-lock.json
-yarn.lock .env
+yarn.lock
 .env
+
+# checkpoint相关
+.checkpoint_log
