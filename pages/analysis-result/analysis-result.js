@@ -52,7 +52,7 @@ Page({
       this.setData({
         fileId: options.fileId,
         curFileId: options.fileId,
-        fileUrl: await getFileUrl(options.fileId),
+        fileUrl: await getFileUrl(fileInfo.fileID), // 使用云存储文件ID而不是文档ID
         ...fileInfo
       });
 

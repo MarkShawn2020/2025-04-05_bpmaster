@@ -145,7 +145,8 @@ async function getFileUrl(fileID) {
     
     const tempUrl = result?.fileList?.[0]?.tempFileURL;
     if(!tempUrl){
-      throw new Error('获取文件临时URL失败: ', {result});
+      error('获取文件临时URL失败', result);
+      throw new Error('获取文件临时URL失败');
     }
     info('获取文件临时URL成功', tempUrl);
     return tempUrl;
