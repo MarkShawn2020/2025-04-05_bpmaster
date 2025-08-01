@@ -240,13 +240,14 @@ Page({
           
           // 记录所有节点信息以便调试
           if (event.data) {
+            const contentField = event.data.content || event.data.mdContent || '';
             info('节点信息', {
               nodeId: event.data.node_id,
               nodeType: event.data.node_type,
               nodeTitle: event.data.node_title,
-              hasContent: !!(event.data.mdContent && event.data.mdContent.trim()),
-              contentLength: event.data.mdContent ? event.data.mdContent.length : 0,
-              contentPreview: event.data.mdContent ? event.data.mdContent.substring(0, 50) : '',
+              hasContent: !!(contentField && contentField.trim()),
+              contentLength: contentField ? contentField.length : 0,
+              contentPreview: contentField ? contentField.substring(0, 50) : '',
               isFinish: event.data.node_is_finish
             });
           }
@@ -258,7 +259,10 @@ Page({
             let chunk = '';
             
             // 根据Coze API响应格式提取内容，检查更多可能的字段
-            if (event.data.mdContent && typeof event.data.mdContent === 'string' && event.data.mdContent.trim()) {
+            // 首先检查 content 字段（这是实际返回的字段）
+            if (event.data.content && typeof event.data.content === 'string' && event.data.content.trim()) {
+              chunk = event.data.content;
+            } else if (event.data.mdContent && typeof event.data.mdContent === 'string' && event.data.mdContent.trim()) {
               chunk = event.data.mdContent;
             } else if (event.data.output && typeof event.data.output === 'string') {
               chunk = event.data.output;
@@ -315,15 +319,6 @@ Page({
               } catch (err) {
                 error('更新分析任务内容失败', err);
               }
-            } else if (event.data && event.data.content !== undefined) {
-              // 即使content为空也记录，帮助调试
-              debug('content字段存在但为空或无效', {
-                content: event.data.content,
-                contentType: typeof event.data.content,
-                nodeType: event.data.node_type,
-                nodeTitle: event.data.node_title,
-                allDataKeys: Object.keys(event.data)
-              });
             }
           } else if (!event.event) {
             // 如果没有事件类型，可能是纯文本内容
