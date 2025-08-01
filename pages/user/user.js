@@ -23,7 +23,22 @@ Page({
   },
 
   onShow: function() {
-    // 每次页面显示时，重新加载文件历史
+    // 每次页面显示时，清除所有加载状态并重新加载文件历史
+    const uploadHistory = this.data.uploadHistory;
+    if (uploadHistory && uploadHistory.length > 0) {
+      // 清除所有文件的加载状态
+      const updates = {};
+      uploadHistory.forEach((item, index) => {
+        if (item.previewing || item.analyzing) {
+          updates[`uploadHistory[${index}].previewing`] = false;
+          updates[`uploadHistory[${index}].analyzing`] = false;
+        }
+      });
+      if (Object.keys(updates).length > 0) {
+        this.setData(updates);
+      }
+    }
+    // 重新加载文件历史
     this.loadUserFiles();
   },
 
@@ -297,10 +312,20 @@ Page({
         url: `/pages/analysis-result/analysis-result?fileId=${id}`,
         success: () => {
           info('导航到分析页面成功');
+          // 延迟清除加载状态，给用户视觉反馈
+          setTimeout(() => {
+            this.setData({
+              [`uploadHistory[${fileIndex}].analyzing`]: false
+            });
+          }, 500);
         },
         fail: (err) => {
           error('导航到分析页面失败', err);
           toast.error('无法打开分析页面');
+          // 导航失败时立即清除加载状态
+          this.setData({
+            [`uploadHistory[${fileIndex}].analyzing`]: false
+          });
         }
       });
     } catch (err) {
