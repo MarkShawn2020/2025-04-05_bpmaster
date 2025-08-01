@@ -86,6 +86,10 @@
             <image class="btn-icon" src="/assets/images/share.png"></image>
             <text class="btn-text">分享</text>
           </view>
+          <view class="action-btn" hover-class="hover" bindtap="handleViewLogs">
+            <text class="btn-icon-text">📊</text>
+            <text class="btn-text">查看日志</text>
+          </view>
         </view>
       </block>
     </block>

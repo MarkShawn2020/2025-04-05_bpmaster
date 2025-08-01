@@ -28,8 +28,7 @@ Page({
     tocItems: [], // 目录项
     savingToHistory: false,
     requestTask: null, // 存储请求任务对象，用于中断请求
-    isRequestAborted: false, // 标记请求是否已被中断
-    lineBuffer: '' // 用于缓冲不完整的行
+    isRequestAborted: false // 标记请求是否已被中断
   },
 
   // 页面加载时执行
@@ -242,8 +241,7 @@ Page({
       statusText: '分析中...',
       loadingTip: '正在分析您的商业计划书...',
       requestTask: null,
-      isRequestAborted: false, // 重置中断标志
-      lineBuffer: '' // 清空行缓冲区
+      isRequestAborted: false // 重置中断标志
     });
     
     // 调用Coze工作流API
@@ -265,308 +263,62 @@ Page({
       fileUrl: this.data.fileUrl,
       onEvent: async (event) => {
         // 如果请求已被中断，不再处理新数据
-        if (that.data.isRequestAborted) {
-          // 静默返回，避免日志噪音
-          return;
-        }
-        
-        // 如果用户已停止分析，不再处理新数据
-        if (!that.data.isAnalyzing) {
-          // 静默返回
+        if (that.data.isRequestAborted || !that.data.isAnalyzing) {
           return;
         }
         
         // 处理SSE事件数据
         if (curFileId === that.data.curFileId) {
-          debug('接收到SSE事件', { 
-            event: event.event, 
-            hasData: !!event.data,
-            nodeType: event.data?.node_type,
-            nodeId: event.data?.node_id,
-            hasContent: !!(event.data?.content)
-          });
-          
-          // 处理不同类型的事件
-          if (event.event === 'Done') {
-            info('接收到Done事件，分析即将完成');
-            return;
-          }
-          
-          // 记录所有节点信息以便调试
-          if (event.data) {
-            const contentField = event.data.content || event.data.mdContent || '';
-            info('节点信息', {
-              nodeId: event.data.node_id,
-              nodeType: event.data.node_type,
-              nodeTitle: event.data.node_title,
-              hasContent: !!(contentField && contentField.trim()),
-              contentLength: contentField ? contentField.length : 0,
-              contentPreview: contentField ? contentField.substring(0, 50) : '',
-              isFinish: event.data.node_is_finish
+          // 直接从event.data中提取content并拼接
+          if (event.data && event.data.content) {
+            const chunk = event.data.content;
+            
+            debug('接收到内容片段', { 
+              length: chunk.length,
+              preview: chunk.substring(0, 50)
             });
-          }
-          
-          // 从事件数据中提取实际内容
-          // 支持多种事件类型
-          if (event.data && (event.event === 'Message' || event.event === 'message' || event.event === 'chunk' || event.event === 'data')) {
             
-            let chunk = '';
+            // 直接拼接内容
+            let content = that.data.mdContent + chunk;
             
-            // 根据Coze API响应格式提取内容，检查更多可能的字段
-            // 首先检查 content 字段（这是实际返回的字段）
-            if (event.data.content && typeof event.data.content === 'string' && event.data.content.trim()) {
-              chunk = event.data.content;
-            } else if (event.data.mdContent && typeof event.data.mdContent === 'string' && event.data.mdContent.trim()) {
-              chunk = event.data.mdContent;
-            } else if (event.data.output && typeof event.data.output === 'string') {
-              chunk = event.data.output;
-            } else if (event.data.response && typeof event.data.response === 'string') {
-              chunk = event.data.response;
-            } else if (event.data.result && typeof event.data.result === 'string') {
-              chunk = event.data.result;
-            } else if (event.data.message && typeof event.data.message === 'string') {
-              chunk = event.data.message;
-            } else if (event.data.text && typeof event.data.text === 'string') {
-              chunk = event.data.text;
-            } else if (event.data.data && typeof event.data.data === 'string') {
-              chunk = event.data.data;
-            } else if (typeof event.data === 'string') {
-              chunk = event.data;
-            } else {
-              // 记录完整的事件数据结构以便调试
-              debug('未找到文本内容，事件数据详情', { 
-                event: event.event, 
-                dataKeys: Object.keys(event.data || {}),
-                nodeType: event.data.node_type,
-                nodeTitle: event.data.node_title,
-                fullData: JSON.stringify(event.data)
+            that.setData({
+              mdContent: content
+            });
+            
+            // 提取目录项
+            that.extractTocItems(content);
+            
+            // 更新分析任务内容
+            try {
+              const db = wx.cloud.database();
+              await db.collection("analysis_tasks").doc(that.data.analysisId).update({
+                data: {
+                  content: content,
+                  updatedAt: new Date()
+                }
               });
+            } catch (err) {
+              error('更新分析任务内容失败', err);
             }
-            
-            // 清理chunk中可能存在的JSON格式数据
-            if (chunk && chunk.trim()) {
-              // 检查是否包含JSON格式的节点信息
-              const jsonPattern = /\{"content":\s*"[^"]*",\s*"content_type":[^}]+\}/g;
-              if (jsonPattern.test(chunk)) {
-                // 如果包含JSON，尝试提取其中的content字段
-                try {
-                  const matches = chunk.match(jsonPattern);
-                  if (matches) {
-                    matches.forEach(match => {
-                      try {
-                        const jsonData = JSON.parse(match);
-                        if (jsonData.content) {
-                          // 替换JSON为实际内容
-                          chunk = chunk.replace(match, jsonData.content);
-                        }
-                      } catch (e) {
-                        // 解析失败，移除整个JSON块
-                        chunk = chunk.replace(match, '');
-                      }
-                    });
-                  }
-                } catch (e) {
-                  warn('清理JSON数据失败', e);
-                }
-              }
-              
-              // 额外清理：移除可能残留的节点标识
-              chunk = chunk.replace(/\bid:\s*[\w-]+\b/g, ''); // 移除 id: xxx
-              chunk = chunk.replace(/\bnode_id:\s*"\d+"/g, ''); // 移除 node_id: "xxx"
-              chunk = chunk.replace(/\s{2,}/g, ' '); // 合并多余空格
-            }
-            
-            if (chunk && chunk.trim()) {
-              info('提取到内容片段', { 
-                chunkLength: chunk.length,
-                chunkPreview: chunk.substring(0, 100),
-                nodeId: event.data.node_id,
-                nodeTitle: event.data.node_title
-              });
-              
-              // 使用行缓冲机制处理内容，避免破坏markdown结构
-              let bufferedContent = that.data.lineBuffer + chunk;
-              let lines = bufferedContent.split('\n');
-              
-              // 保留最后一行（可能不完整）到缓冲区
-              let incompleteLastLine = '';
-              if (!bufferedContent.endsWith('\n')) {
-                incompleteLastLine = lines.pop() || '';
-              }
-              
-              // 处理完整的行
-              let linesToProcess = [];
-              let tableBuffer = []; // 用于缓冲表格行
-              let inTable = false;
-              
-              // 检查当前内容是否在表格中
-              const currentContent = that.data.mdContent;
-              if (currentContent) {
-                const currentLines = currentContent.split('\n');
-                const lastCompleteLine = currentLines[currentLines.length - 1];
-                inTable = lastCompleteLine && lastCompleteLine.includes('|');
-              }
-              
-              for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
-                const trimmedLine = line.trim();
-                
-                // 检测表格开始
-                if (!inTable && trimmedLine.includes('|') && !trimmedLine.startsWith('#')) {
-                  inTable = true;
-                  tableBuffer = [line];
-                }
-                // 在表格中
-                else if (inTable) {
-                  // 检查是否是表格分隔符行
-                  const isSeparator = trimmedLine.split('|').filter(c => c).every(c => c.trim().match(/^[-:]+$/));
-                  
-                  if (trimmedLine.includes('|') || isSeparator || trimmedLine === '') {
-                    tableBuffer.push(line);
-                  } else {
-                    // 表格结束，处理缓冲的表格
-                    if (tableBuffer.length > 0) {
-                      // 确保表格结构完整
-                      let processedTable = that.processTableBuffer(tableBuffer);
-                      linesToProcess.push(...processedTable);
-                      
-                      // 添加空行分隔
-                      if (trimmedLine !== '') {
-                        linesToProcess.push('');
-                      }
-                    }
-                    
-                    inTable = false;
-                    tableBuffer = [];
-                    linesToProcess.push(line);
-                  }
-                }
-                // 普通行
-                else {
-                  linesToProcess.push(line);
-                }
-              }
-              
-              // 如果还在表格中，保留表格行到下次处理
-              if (inTable && incompleteLastLine) {
-                // 将表格缓冲区的内容和不完整的最后一行合并到lineBuffer
-                that.data.lineBuffer = tableBuffer.join('\n') + (tableBuffer.length > 0 ? '\n' : '') + incompleteLastLine;
-              } else {
-                // 如果有剩余的表格缓冲，处理它
-                if (tableBuffer.length > 0) {
-                  let processedTable = that.processTableBuffer(tableBuffer);
-                  linesToProcess.push(...processedTable);
-                }
-                that.data.lineBuffer = incompleteLastLine;
-              }
-              
-              // 只有当有完整的行时才更新内容
-              if (linesToProcess.length > 0) {
-                let content = that.data.mdContent;
-                
-                // 智能添加内容
-                if (content && !content.endsWith('\n')) {
-                  content += '\n';
-                }
-                
-                content += linesToProcess.join('\n');
-                
-                // 确保内容以换行结束（如果有内容的话）
-                if (content && linesToProcess[linesToProcess.length - 1] !== '') {
-                  content += '\n';
-                }
-                
-                that.setData({
-                  mdContent: content,
-                  lineBuffer: that.data.lineBuffer
-                });
-                
-                // 提取目录项
-                that.extractTocItems(content);
-              }
-              
-              // 更新分析任务内容
-              try {
-                const db = wx.cloud.database();
-                await db.collection("analysis_tasks").doc(that.data.analysisId).update({
-                  data: {
-                    content: content,  // 数据库字段仍保持为content
-                    updatedAt: new Date()
-                  }
-                });
-              } catch (err) {
-                error('更新分析任务内容失败', err);
-              }
-            }
-          } else if (!event.event) {
-            // 如果没有事件类型，可能是纯文本内容
-            warn('接收到无事件类型的数据', event);
           }
         }
       },
       onChunk: (chunk) => {
-        // 如果请求已被中断，不再处理
-        if (that.data.isRequestAborted) {
-          // 静默返回
-          return;
-        }
-        
-        // 保留原始数据块处理，用于调试和兜底
+        // 仅用于调试，查看原始数据
         debug('接收到原始数据块', { 
           length: chunk.length,
           preview: chunk.substring(0, 100)
         });
-        
-        // 如果原始数据看起来像是纯文本内容（不是SSE格式），直接更新
-        if (curFileId === that.data.curFileId && chunk && !chunk.includes('event:') && !chunk.includes('data:')) {
-          // 可能是非SSE格式的纯文本响应
-          const content = that.data.mdContent + chunk;
-          that.setData({
-            mdContent: content
-          });
-          that.extractTocItems(content);
-        }
       },
       onComplete: async () => {
         // 如果请求已被中断，不再处理
         if (that.data.isRequestAborted) {
-          // 静默返回
           return;
         }
         
         // 同样需要判断回调时文件ID是否一致
         if (curFileId === that.data.curFileId) {
           info('分析完成', { fileId: that.data.fileId });
-          
-          // 处理剩余的缓冲内容
-          if (that.data.lineBuffer && that.data.lineBuffer.trim()) {
-            let content = that.data.mdContent;
-            if (content && !content.endsWith('\n')) {
-              content += '\n';
-            }
-            
-            // 处理剩余的缓冲行
-            const remainingLines = that.data.lineBuffer.split('\n').filter(line => line.trim());
-            if (remainingLines.length > 0) {
-              // 检查是否是表格内容
-              if (remainingLines.some(line => line.includes('|'))) {
-                // 处理表格
-                const processedTable = that.processTableBuffer(remainingLines);
-                content += processedTable.join('\n') + '\n';
-              } else {
-                // 普通内容
-                content += remainingLines.join('\n') + '\n';
-              }
-            }
-            
-            that.setData({
-              mdContent: content,
-              lineBuffer: '' // 清空缓冲区
-            });
-            
-            // 提取目录项
-            that.extractTocItems(content);
-          }
           
           that.setData({
             isAnalyzing: false,
@@ -1118,6 +870,33 @@ Page({
   handleOpenFile: function() {
     // 可以实现打开文件逻辑
     this.showToast('文件查看功能开发中', 'info');
+  },
+  
+  // 查看日志
+  handleViewLogs: function() {
+    const logUrl = 'https://www.coze.cn/space/7465250504236089382/publish/workflow/7488013332172193801';
+    
+    // 复制链接到剪贴板
+    wx.setClipboardData({
+      data: logUrl,
+      success: () => {
+        wx.showModal({
+          title: '查看日志',
+          content: '日志链接已复制到剪贴板，请在浏览器中打开查看',
+          showCancel: false,
+          confirmText: '知道了',
+          success: (res) => {
+            if (res.confirm) {
+              info('用户确认查看日志链接');
+            }
+          }
+        });
+      },
+      fail: (err) => {
+        error('复制日志链接失败', err);
+        this.showToast('复制链接失败，请重试', 'error');
+      }
+    });
   },
   
   // 处理表格缓冲区，确保表格结构完整
