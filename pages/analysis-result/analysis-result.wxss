@@ -2,6 +2,7 @@
 
 .container {
   padding: 30rpx;
+  padding-bottom: 150rpx; /* 为固定底部按钮留出空间 */
   background-color: #f7f8fa;
   min-height: 100vh;
 }
@@ -180,8 +181,47 @@
   font-size: 24rpx;
 }
 
+.stop-btn {
+  margin-top: 0;
+  background-color: #ff6b6b;
+  color: white;
+  border: none;
+  font-size: 24rpx;
+  padding: 6rpx 20rpx;
+  height: auto;
+  line-height: 1.8;
+}
+
+.fixed-stop-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  padding: 20rpx 30rpx 40rpx;
+  background: linear-gradient(to top, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.95) 50%, rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+  z-index: 999;
+}
+
+.stop-generation-btn {
+  background-color: #ff6b6b;
+  color: white;
+  border: none;
+  font-size: 28rpx;
+  padding: 15rpx 50rpx;
+  border-radius: 8rpx;
+  box-shadow: 0 4rpx 15rpx rgba(255, 107, 107, 0.4);
+  pointer-events: auto;
+}
+
 .markdown-container {
   padding: 0 10rpx;
+}
+
+.markdown-container.with-stop-button {
+  padding-bottom: 100rpx; /* 额外的底部内边距，避免内容被按钮遮挡 */
 }
 
 /* 自定义wemark样式 */
@@ -344,6 +384,16 @@
   margin-bottom: 12rpx;
   position: relative;
   z-index: 1;
+}
+
+.btn-icon-text {
+  font-size: 48rpx;
+  line-height: 48rpx;
+  height: 48rpx;
+  margin-bottom: 12rpx;
+  position: relative;
+  z-index: 1;
+  display: block;
 }
 
 .btn-text {

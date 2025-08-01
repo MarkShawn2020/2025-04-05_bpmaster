@@ -624,6 +624,68 @@
   display: block;
 }
 
+/* 图标按钮样式 */
+.icon-btn {
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 50%;
+  background-color: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.icon-btn.disabled {
+  background-color: #fafafa;
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.icon-btn-hover {
+  transform: scale(0.9);
+  opacity: 0.8;
+}
+
+.icon-btn.has-analysis {
+  background-color: #fff7e6;
+}
+
+.icon-img {
+  width: 32rpx;
+  height: 32rpx;
+  transition: opacity 0.3s ease;
+}
+
+.icon-img.disabled-img {
+  opacity: 0.3;
+}
+
+.icon-emoji {
+  font-size: 32rpx;
+  line-height: 1;
+}
+
+/* 加载动画 */
+.icon-loading {
+  width: 24rpx;
+  height: 24rpx;
+  border: 2rpx solid #ddd;
+  border-top-color: #3370ff;
+  border-radius: 50%;
+  animation: rotate 0.8s linear infinite;
+}
+
+@keyframes rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 /* 加载更多 */
 .load-more {
   text-align: center;

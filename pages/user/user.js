@@ -134,6 +134,56 @@ Page({
         list = filesResult.data || [];
         hasMore = list.length === this.data.pageSize;
         
+        // 批量查询文件的分析任务（针对历史数据兼容）
+        if (list.length > 0) {
+          const fileIds = list.map(item => item._id);
+          try {
+            const analysisResult = await db.collection('analysis_tasks')
+              .where({
+                fileId: db.command.in(fileIds)
+              })
+              .orderBy('createdAt', 'desc')
+              .get();
+            
+            // 构建文件ID到分析任务的映射
+            const analysisMap = {};
+            if (analysisResult && analysisResult.data) {
+              analysisResult.data.forEach(task => {
+                // 只保留最新的分析任务
+                if (!analysisMap[task.fileId] || task.createdAt > analysisMap[task.fileId].createdAt) {
+                  analysisMap[task.fileId] = task;
+                }
+              });
+            }
+            
+            // 将分析信息合并到文件列表中
+            list = list.map(item => {
+              const analysis = analysisMap[item._id];
+              if (analysis && !item.analysisId) {
+                // 如果文件没有analysisId但有分析任务，更新文件记录
+                item.analysisId = analysis._id;
+                item.analysisStatus = analysis.status;
+                
+                // 异步更新数据库（不阻塞主流程）
+                db.collection('bp_files').doc(item._id).update({
+                  data: {
+                    analysisId: analysis._id,
+                    analysisStatus: analysis.status,
+                    analysisUpdatedAt: new Date()
+                  }
+                }).then(() => {
+                  info('已修复文件的分析关联', { fileId: item._id });
+                }).catch(err => {
+                  warn('修复文件分析关联失败', err);
+                });
+              }
+              return item;
+            });
+          } catch (err) {
+            warn('查询分析任务失败', err);
+          }
+        }
+        
         // 处理数据，格式化文件大小和上传时间
         list = list.map(item => {
           // 处理日期 - 可能是 Date 对象、时间戳或字符串
@@ -161,7 +211,7 @@ Page({
             fileSize: formatFileSize(item.fileSize || item.size || 0),
             uploadTime: formattedTime,
             fileType: getFileType(item.fileName || item.name) || 'unknown',
-            hasAnalysis: !!item.analysisId, // 是否已有分析
+            hasAnalysis: !!item.analysisId && (item.analysisStatus === 'completed' || item.analysisStatus === 'stopped'), // 是否已有分析结果
             analysisStatus: item.analysisStatus || 'NOT_ANALYZED', // 分析状态
             previewing: false, // 预览加载状态
             analyzing: false // 分析加载状态
@@ -336,6 +386,34 @@ Page({
         [`uploadHistory[${fileIndex}].analyzing`]: false
       });
     }
+  },
+
+  /**
+   * 重新分析文件
+   */
+  reAnalyzeFile: function(e) {
+    const id = e.currentTarget.dataset.id;
+    if (!id) {
+      toast.error('无法识别文件');
+      return;
+    }
+    
+    wx.showModal({
+      title: '重新分析',
+      content: '确定要重新分析该文件吗？之前的分析结果将被覆盖。',
+      success: (res) => {
+        if (res.confirm) {
+          // 导航到分析页面并强制重新分析
+          wx.navigateTo({
+            url: `/pages/analysis-result/analysis-result?fileId=${id}&forceReanalyze=true`,
+            fail: (err) => {
+              error('导航到分析页面失败', err);
+              toast.error('无法打开分析页面');
+            }
+          });
+        }
+      }
+    });
   },
 
   /**

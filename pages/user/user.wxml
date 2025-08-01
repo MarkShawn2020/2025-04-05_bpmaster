@@ -37,16 +37,26 @@
           </view>
         </view>
         <view class="file-actions">
-          <button class="action-btn preview" hover-class="btn-hover" bindtap="previewFile" data-id="{{item.id}}" loading="{{item.previewing}}" disabled="{{item.previewing}}">
-            <block wx:if="{{!item.previewing}}">
-              <text class="action-text">预览</text>
+          <view class="icon-btn" hover-class="{{item.previewing ? '' : 'icon-btn-hover'}}" bindtap="{{item.previewing ? '' : 'previewFile'}}" data-id="{{item.id}}">
+            <block wx:if="{{item.previewing}}">
+              <view class="icon-loading"></view>
             </block>
-          </button>
-          <button class="action-btn analyze {{item.hasAnalysis ? 'has-analysis' : ''}}" hover-class="btn-hover" bindtap="goToAnalysis" data-id="{{item.id}}" loading="{{item.analyzing}}" disabled="{{item.analyzing}}">
-            <block wx:if="{{!item.analyzing}}">
-              <text class="action-text">{{item.hasAnalysis ? '查看' : '分析'}}</text>
+            <block wx:else>
+              <text class="icon-emoji">👁️</text>
             </block>
-          </button>
+          </view>
+          <view class="icon-btn {{item.hasAnalysis ? 'has-analysis' : ''}}" hover-class="{{item.analyzing ? '' : 'icon-btn-hover'}}" bindtap="{{item.analyzing ? '' : 'goToAnalysis'}}" data-id="{{item.id}}">
+            <block wx:if="{{item.analyzing}}">
+              <view class="icon-loading"></view>
+            </block>
+            <block wx:else>
+              <image wx:if="{{item.hasAnalysis}}" class="icon-img" src="/assets/images/features/report.png" mode="aspectFit"></image>
+              <image wx:else class="icon-img" src="/assets/images/analyze/analyze-icon.png" mode="aspectFit"></image>
+            </block>
+          </view>
+          <view class="icon-btn {{!item.hasAnalysis ? 'disabled' : ''}}" hover-class="{{!item.hasAnalysis ? '' : 'icon-btn-hover'}}" bindtap="{{!item.hasAnalysis ? '' : 'reAnalyzeFile'}}" data-id="{{item.id}}">
+            <image class="icon-img {{!item.hasAnalysis ? 'disabled-img' : ''}}" src="/assets/images/refresh.png" mode="aspectFit"></image>
+          </view>
         </view>
       </view>
     </view>

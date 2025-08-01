@@ -36,14 +36,6 @@
     <block wx:if="{{isAnalyzing && mdContent}}">
       <view class="loading-status">
         <view class="loading-text">{{loadingTip}}</view>
-        <view class="loading-actions">
-          <button class="action-btn mini" type="default" size="mini" bindtap="queryReportStatus">
-            <text>刷新状态</text>
-          </button>
-          <button class="retry-btn" type="default" size="mini" bindtap="handleReAnalyze">
-            <text>重新分析</text>
-          </button>
-        </view>
       </view>
     </block>
     
@@ -70,9 +62,10 @@
     
     <!-- Markdown内容 -->
     <block wx:if="{{mdContent}}">
-      <view class="markdown-container {{isCompleted ? 'fade-in' : ''}}">
+      <view class="markdown-container {{isCompleted ? 'fade-in' : ''}} {{isAnalyzing ? 'with-stop-button' : ''}}">
         <markdown content="{{mdContent}}"></markdown>
       </view>
+      
       
       <!-- 操作按钮 (分析完成后显示) -->
       <block wx:if="{{isCompleted}}">
@@ -80,6 +73,10 @@
           <view class="action-btn" hover-class="hover" bindtap="handleReAnalyze">
             <image class="btn-icon" src="/assets/images/refresh.png"></image>
             <text class="btn-text">重新分析</text>
+          </view>
+          <view class="action-btn" hover-class="hover" bindtap="handleCopyMarkdown">
+            <text class="btn-icon-text">📋</text>
+            <text class="btn-text">复制报告</text>
           </view>
           <view class="action-btn primary" hover-class="hover" bindtap="handleSaveReport">
             <image class="btn-icon" src="/assets/images/save.png"></image>
@@ -96,4 +93,11 @@
   
   <!-- toast组件 -->
   <toast id="toast"></toast>
+</view>
+
+<!-- 固定在底部的停止生成按钮 (分析中显示) -->
+<view wx:if="{{isAnalyzing && mdContent}}" class="fixed-stop-container">
+  <button class="stop-generation-btn" type="warn" bindtap="handleStopAnalysis">
+    <text>停止生成</text>
+  </button>
 </view> 

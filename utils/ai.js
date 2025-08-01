@@ -26,6 +26,26 @@ function callCozeWorkflow(options) {
     return;
   }
 
+  // 创建中断控制器
+  let isAborted = false;
+  let chunkHandler = null;
+  let requestTask = null;
+  
+  const abortController = {
+    abort: function() {
+      isAborted = true;
+      info('AI请求已标记为中断');
+      
+      // 立即替换处理函数为空函数，阻止后续回调
+      if (chunkHandler) {
+        chunkHandler = function() {};
+      }
+    },
+    isAborted: function() {
+      return isAborted;
+    }
+  };
+
   // 获取配置
   const cozeConfig = app.globalData.config.coze;
   const workflowId = cozeConfig.WORKFLOW_ID;
@@ -63,8 +83,8 @@ function callCozeWorkflow(options) {
 
   info('调用Coze工作流', data);
 
-  // 请求任务对象
-  const requestTask = wx.request({
+  // 创建请求任务对象
+  requestTask = wx.request({
     url: apiUrl, 
     method: 'POST', 
     header: headers, 
@@ -95,8 +115,13 @@ function callCozeWorkflow(options) {
     }
   });
 
-  // 监听分块数据
-  requestTask.onChunkReceived(function (res) {
+  // 创建原始回调函数
+  chunkHandler = function (res) {
+    // 如果已中断，直接返回，不处理任何数据
+    if (isAborted) {
+      return;
+    }
+    
     try {
       // 记录接收到的原始数据块信息
       debug('接收数据块', {
@@ -112,6 +137,11 @@ function callCozeWorkflow(options) {
         info('接收到最后一个数据块');
       }
 
+      // 再次检查是否已中断
+      if (isAborted) {
+        return;
+      }
+
       // 处理数据块
       if (options.onChunk) {
         options.onChunk(chunk);
@@ -121,20 +151,53 @@ function callCozeWorkflow(options) {
       processSSEChunk(chunk, 
         // 事件回调
         (event) => {
-          if (options.onEvent) options.onEvent(event);
+          if (!isAborted && options.onEvent) options.onEvent(event);
         }, 
         // 完成回调
         () => {
-          if (options.onComplete) options.onComplete();
-        }
+          if (!isAborted && options.onComplete) options.onComplete();
+        },
+        // 检查是否已中断
+        () => isAborted
       );
     } catch (err) {
-      error('处理Coze响应块数据失败', err);
-      if (options.onError) options.onError(err);
+      if (!isAborted) {
+        error('处理Coze响应块数据失败', err);
+        if (options.onError) options.onError(err);
+      }
     }
-  });
+  };
+  
+  // 创建一个包装函数，每次调用时检查当前的处理函数
+  const handlerWrapper = function(res) {
+    // 使用当前的chunkHandler，如果已被替换为空函数则不会执行任何操作
+    if (chunkHandler) {
+      chunkHandler(res);
+    }
+  };
+  
+  // 监听分块数据，使用包装函数
+  requestTask.onChunkReceived(handlerWrapper);
 
-  return requestTask;
+  // 返回增强的请求任务对象
+  return {
+    abort: function() {
+      // 先调用abort控制器，立即替换处理函数
+      abortController.abort();
+      
+      // 立即将处理函数设置为null，阻止任何后续回调
+      chunkHandler = null;
+      
+      try {
+        requestTask.abort();
+        info('已调用原生abort方法并清除回调处理函数');
+      } catch (e) {
+        error('调用原生abort失败', e);
+      }
+    },
+    isAborted: abortController.isAborted,
+    _requestTask: requestTask
+  };
 }
 
 /**
@@ -239,14 +302,20 @@ function ab2str(buf) {
  * @param {string} chunk 数据块 
  * @param {Function} onEvent 事件回调
  * @param {Function} onComplete 完成回调
+ * @param {Function} checkAborted 检查是否已中断的函数
  */
-function processSSEChunk(chunk, onEvent, onComplete) {
+function processSSEChunk(chunk, onEvent, onComplete, checkAborted) {
   try {
     // 按行分割，处理SSE格式
     const lines = chunk.split('\n');
     let currentEvent = {};
 
     for (let i = 0; i < lines.length; i++) {
+      // 如果已中断，停止处理
+      if (checkAborted && checkAborted()) {
+        return;
+      }
+      
       const line = lines[i].trim();
       if (!line) continue;
       
@@ -260,7 +329,9 @@ function processSSEChunk(chunk, onEvent, onComplete) {
         
         // 特殊情况: [DONE]标记，表示流结束
         if (jsonStr === '[DONE]') {
-          info('收到[DONE]标记，流式传输完成');
+          if (!checkAborted || !checkAborted()) {
+            info('收到[DONE]标记，流式传输完成');
+          }
           if (onComplete) onComplete();
           continue;
         }
@@ -277,18 +348,24 @@ function processSSEChunk(chunk, onEvent, onComplete) {
             currentEvent = {};
           }
         } catch (jsonErr) {
-          error('解析SSE数据JSON失败', { jsonStr, error: jsonErr });
+          if (!checkAborted || !checkAborted()) {
+            error('解析SSE数据JSON失败', { jsonStr, error: jsonErr });
+          }
         }
       }
     }
 
     // 检查纯文本[DONE]标记
     if (chunk.trim() === '[DONE]') {
-      info('收到纯文本[DONE]标记');
+      if (!checkAborted || !checkAborted()) {
+        info('收到纯文本[DONE]标记');
+      }
       if (onComplete) onComplete();
     }
   } catch (err) {
-    error('处理SSE数据块失败', err);
+    if (!checkAborted || !checkAborted()) {
+      error('处理SSE数据块失败', err);
+    }
     throw err;
   }
 }
